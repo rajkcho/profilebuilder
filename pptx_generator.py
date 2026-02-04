@@ -1,20 +1,15 @@
 """
-PPTX Generator — builds the 3-slide M&A profile from CompanyData.
+PPTX Generator — builds an 8-slide investment-banker-grade M&A profile.
 
-Uses the template-based injection workflow:
-1. Load assets/template.pptx
-2. Add slides from the appropriate layout
-3. Inject text, tables, and charts into positioned shapes
-
-Charts are rendered as both:
-  - Static images (matplotlib → picture) for the price chart
-  - Native PPTX charts (CategoryChartData) for EBITDA margins & pie charts
+Design standard: bulge-bracket pitch book quality — navy/gold/white palette,
+Calibri throughout, tight grid alignment, professional header bands,
+confidential footer, no wasted whitespace. Tables have navy headers with
+white text, alternating row shading, right-aligned numbers.
 """
 
 import io
-import os
-import tempfile
 from datetime import datetime
+from typing import Optional
 
 import matplotlib
 matplotlib.use("Agg")
@@ -22,6 +17,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.ticker as mticker
 import numpy as np
+import pandas as pd
 
 from pptx import Presentation
 from pptx.util import Inches, Pt, Emu
@@ -29,11 +25,11 @@ from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION, XL_LABEL_POSITION
 from pptx.chart.data import CategoryChartData
 from pptx.dml.color import RGBColor
-from pptx.oxml.ns import qn
+from pptx.enum.shapes import MSO_SHAPE
 
-from data_engine import CompanyData, format_number
+from data_engine import CompanyData, format_number, format_pct, format_multiple
 
-# ── Corporate palette ────────────────────────────────────────
+# ── Corporate Palette ────────────────────────────────────────
 NAVY = RGBColor(0x0B, 0x1D, 0x3A)
 DARK_BLUE = RGBColor(0x14, 0x2D, 0x5E)
 ACCENT_BLUE = RGBColor(0x1E, 0x90, 0xFF)
@@ -44,19 +40,21 @@ MED_GRAY = RGBColor(0x99, 0x99, 0x99)
 DARK_GRAY = RGBColor(0x33, 0x33, 0x33)
 GREEN = RGBColor(0x2E, 0x7D, 0x32)
 RED = RGBColor(0xC6, 0x28, 0x28)
+TEAL = RGBColor(0x00, 0x89, 0x7B)
 
 SLIDE_W = Inches(13.333)
 SLIDE_H = Inches(7.5)
 
 
-# ── Helpers ──────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════
+# SHAPE HELPERS
+# ══════════════════════════════════════════════════════════════
 
 def _set_text(tf, text, font_size=12, bold=False, color=DARK_GRAY, alignment=PP_ALIGN.LEFT):
-    """Set text on a shape's text_frame with formatting."""
     tf.clear()
     tf.word_wrap = True
     p = tf.paragraphs[0]
-    p.text = text
+    p.text = str(text)
     p.font.size = Pt(font_size)
     p.font.bold = bold
     p.font.color.rgb = color
@@ -67,38 +65,30 @@ def _set_text(tf, text, font_size=12, bold=False, color=DARK_GRAY, alignment=PP_
 def _add_textbox(slide, left, top, width, height, text,
                  font_size=12, bold=False, color=DARK_GRAY,
                  alignment=PP_ALIGN.LEFT, bg_color=None):
-    """Add a text box with optional background fill."""
     txBox = slide.shapes.add_textbox(left, top, width, height)
     tf = txBox.text_frame
     tf.word_wrap = True
     _set_text(tf, text, font_size, bold, color, alignment)
-
     if bg_color:
-        fill = txBox.fill
-        fill.solid()
-        fill.fore_color.rgb = bg_color
-
+        txBox.fill.solid()
+        txBox.fill.fore_color.rgb = bg_color
     return txBox
 
 
-def _add_paragraph(text_frame, text, font_size=11, bold=False,
-                   color=DARK_GRAY, space_before=Pt(4), bullet=False):
-    """Append a paragraph to an existing text frame."""
+def _add_para(text_frame, text, font_size=10, bold=False,
+              color=DARK_GRAY, space_before=Pt(2), alignment=PP_ALIGN.LEFT):
     p = text_frame.add_paragraph()
-    p.text = text
+    p.text = str(text)
     p.font.size = Pt(font_size)
     p.font.bold = bold
     p.font.color.rgb = color
     p.font.name = "Calibri"
     p.space_before = space_before
-    if bullet:
-        p.level = 0
+    p.alignment = alignment
     return p
 
 
 def _add_rect(slide, left, top, width, height, fill_color):
-    """Add a filled rectangle (for background bands, etc.)."""
-    from pptx.enum.shapes import MSO_SHAPE
     shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
     shape.fill.solid()
     shape.fill.fore_color.rgb = fill_color
@@ -106,34 +96,234 @@ def _add_rect(slide, left, top, width, height, fill_color):
     return shape
 
 
-def _render_price_chart(cd: CompanyData) -> io.BytesIO:
-    """Render a 1-year price chart using matplotlib, return as PNG buffer."""
-    fig, ax = plt.subplots(figsize=(8, 4))
+def _slide_header(slide, title_text):
+    """Add the standard slide header: gold band + navy band + title."""
+    _add_rect(slide, Inches(0), Inches(0), SLIDE_W, Inches(0.12), GOLD)
+    _add_rect(slide, Inches(0), Inches(0.12), SLIDE_W, Inches(0.04), NAVY)
+    _add_textbox(slide, Inches(0.5), Inches(0.3), Inches(12), Inches(0.5),
+                 title_text, font_size=20, bold=True, color=NAVY)
 
-    if cd.hist_1y is not None and not cd.hist_1y.empty:
-        dates = cd.hist_1y.index
-        prices = cd.hist_1y["Close"]
 
-        ax.fill_between(dates, prices, alpha=0.15, color="#1E90FF")
-        ax.plot(dates, prices, color="#1E90FF", linewidth=2)
+def _slide_footer(slide, cd):
+    """Add confidential footer bar."""
+    _add_rect(slide, Inches(0), SLIDE_H - Inches(0.35), SLIDE_W, Inches(0.35), NAVY)
+    _add_textbox(slide, Inches(0.5), SLIDE_H - Inches(0.32), Inches(8), Inches(0.25),
+                 f"Confidential  |  {cd.name} ({cd.ticker})  |  {datetime.now().strftime('%B %d, %Y')}",
+                 font_size=7, color=WHITE)
+    _add_textbox(slide, SLIDE_W - Inches(2.5), SLIDE_H - Inches(0.32),
+                 Inches(2.2), Inches(0.25),
+                 "ProfileBuilder", font_size=7, bold=True, color=GOLD,
+                 alignment=PP_ALIGN.RIGHT)
 
-        ax.set_ylabel("Price ($)", fontsize=10, color="#333")
-        ax.xaxis.set_major_formatter(mdates.DateFormatter("%b '%y"))
-        ax.xaxis.set_major_locator(mdates.MonthLocator(interval=2))
-        ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("$%.0f"))
-        plt.xticks(rotation=45, fontsize=8)
-        plt.yticks(fontsize=8)
 
-        ax.set_title(f"{cd.ticker} — 1-Year Price", fontsize=12,
-                     fontweight="bold", color="#0B1D3A", pad=10)
-        ax.grid(axis="y", alpha=0.3)
+# ── Table Helper ─────────────────────────────────────────────
+
+def _year_labels(series: Optional[pd.Series], count: int = 4) -> list[str]:
+    """Extract year labels from a Series index."""
+    if series is None:
+        return ["—"] * count
+    labels = []
+    for col in series.index[:count]:
+        if hasattr(col, "year"):
+            labels.append(str(col.year))
+        else:
+            labels.append(str(col))
+    while len(labels) < count:
+        labels.append("—")
+    return labels
+
+
+def _add_styled_table(slide, headers, rows, left, top, width, height,
+                      col_widths=None, num_cols_right_align=None):
+    """Add a professionally formatted table with navy header row."""
+    n_rows = len(rows) + 1  # +1 for header
+    n_cols = len(headers)
+    shape = slide.shapes.add_table(n_rows, n_cols, left, top, width, height)
+    table = shape.table
+
+    if col_widths:
+        for i, w in enumerate(col_widths):
+            if i < n_cols:
+                table.columns[i].width = w
+
+    # Header row
+    for c, hdr in enumerate(headers):
+        cell = table.cell(0, c)
+        cell.text = str(hdr)
+        for p in cell.text_frame.paragraphs:
+            p.font.size = Pt(9)
+            p.font.bold = True
+            p.font.color.rgb = WHITE
+            p.font.name = "Calibri"
+            p.alignment = PP_ALIGN.CENTER
+        cell.fill.solid()
+        cell.fill.fore_color.rgb = NAVY
+
+    # Data rows
+    right_align_start = num_cols_right_align or 1
+    for r, row_data in enumerate(rows, start=1):
+        for c, val in enumerate(row_data):
+            cell = table.cell(r, c)
+            cell.text = str(val)
+            for p in cell.text_frame.paragraphs:
+                p.font.size = Pt(8)
+                p.font.name = "Calibri"
+                p.font.bold = (c == 0)
+                p.alignment = PP_ALIGN.RIGHT if c >= right_align_start else PP_ALIGN.LEFT
+            # Alternating shading
+            bg = LIGHT_GRAY if r % 2 == 0 else WHITE
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = bg
+
+    return shape
+
+
+def _series_vals(series: Optional[pd.Series], count: int = 4) -> list:
+    """Extract up to `count` values from a Series."""
+    if series is None:
+        return [None] * count
+    vals = list(series.values[:count])
+    while len(vals) < count:
+        vals.append(None)
+    return vals
+
+
+# ══════════════════════════════════════════════════════════════
+# CHART RENDERERS (matplotlib → PNG → picture)
+# ══════════════════════════════════════════════════════════════
+
+def _render_5y_price_chart(cd: CompanyData) -> io.BytesIO:
+    """5-year price chart with volume on secondary axis."""
+    hist = cd.hist_5y if cd.hist_5y is not None and not cd.hist_5y.empty else cd.hist_1y
+    fig, ax1 = plt.subplots(figsize=(7.5, 3.5))
+
+    if hist is not None and not hist.empty:
+        dates = hist.index
+        prices = hist["Close"]
+
+        ax1.fill_between(dates, prices, alpha=0.12, color="#1E90FF")
+        ax1.plot(dates, prices, color="#1E90FF", linewidth=1.5)
+        ax1.set_ylabel("Price ($)", fontsize=8, color="#333")
+        ax1.yaxis.set_major_formatter(mticker.FormatStrFormatter("$%.0f"))
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter("%b '%y"))
+        ax1.xaxis.set_major_locator(mdates.MonthLocator(interval=6))
+        plt.xticks(rotation=45, fontsize=7)
+        plt.yticks(fontsize=7)
+
+        if "Volume" in hist.columns:
+            ax2 = ax1.twinx()
+            ax2.bar(dates, hist["Volume"], alpha=0.15, color="#999", width=1)
+            ax2.set_ylabel("Volume", fontsize=7, color="#999")
+            ax2.yaxis.set_major_formatter(mticker.FuncFormatter(
+                lambda x, _: f"{x/1e6:.0f}M" if x >= 1e6 else f"{x/1e3:.0f}K"
+            ))
+            ax2.tick_params(axis="y", labelsize=6, labelcolor="#999")
+
+        ax1.set_title(f"{cd.ticker} — Price History", fontsize=10,
+                      fontweight="bold", color="#0B1D3A", pad=8)
+        ax1.grid(axis="y", alpha=0.2)
+        ax1.spines["top"].set_visible(False)
+        ax1.spines["right"].set_visible(False)
+    else:
+        ax1.text(0.5, 0.5, "Price data unavailable", ha="center", va="center",
+                 fontsize=12, color="#999")
+        ax1.axis("off")
+
+    fig.tight_layout()
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=150, bbox_inches="tight",
+                facecolor="white", edgecolor="none")
+    plt.close(fig)
+    buf.seek(0)
+    return buf
+
+
+def _render_revenue_margin_chart(cd: CompanyData) -> io.BytesIO:
+    """Dual-axis: revenue bars + margin lines."""
+    fig, ax1 = plt.subplots(figsize=(6, 3))
+
+    if cd.revenue is not None and not cd.revenue.empty:
+        years = _year_labels(cd.revenue, 4)
+        rev_vals = [float(v) / 1e9 if v is not None else 0 for v in _series_vals(cd.revenue, 4)]
+        years.reverse()
+        rev_vals.reverse()
+
+        x = np.arange(len(years))
+        bars = ax1.bar(x, rev_vals, color="#1E90FF", alpha=0.8, width=0.5)
+        ax1.set_ylabel("Revenue ($B)", fontsize=8, color="#1E90FF")
+        ax1.set_xticks(x)
+        ax1.set_xticklabels(years, fontsize=7)
+        ax1.tick_params(axis="y", labelsize=7, labelcolor="#1E90FF")
+
+        # Margin line on secondary axis
+        ax2 = ax1.twinx()
+        margin_data = []
+        has_margin = False
+        if cd.gross_margin_series is not None:
+            gm_vals = _series_vals(cd.gross_margin_series, 4)
+            gm_vals.reverse()
+            margin_data.append(("Gross", gm_vals, "#2E7D32"))
+            has_margin = True
+        if cd.operating_margin_series is not None:
+            om_vals = _series_vals(cd.operating_margin_series, 4)
+            om_vals.reverse()
+            margin_data.append(("Operating", om_vals, "#D4A537"))
+            has_margin = True
+
+        if has_margin:
+            for label, vals, clr in margin_data:
+                clean = [float(v) if v is not None else 0 for v in vals]
+                ax2.plot(x, clean, marker="o", markersize=4, color=clr,
+                         linewidth=1.5, label=f"{label} %")
+            ax2.set_ylabel("Margin (%)", fontsize=8)
+            ax2.tick_params(axis="y", labelsize=7)
+            ax2.legend(fontsize=6, loc="upper left")
+
+        ax1.set_title("Revenue & Margins", fontsize=9, fontweight="bold",
+                       color="#0B1D3A", pad=6)
+        ax1.grid(axis="y", alpha=0.15)
+        ax1.spines["top"].set_visible(False)
+    else:
+        ax1.text(0.5, 0.5, "Data unavailable", ha="center", va="center",
+                 fontsize=10, color="#999")
+        ax1.axis("off")
+
+    fig.tight_layout()
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=150, bbox_inches="tight",
+                facecolor="white", edgecolor="none")
+    plt.close(fig)
+    buf.seek(0)
+    return buf
+
+
+def _render_cashflow_chart(cd: CompanyData) -> io.BytesIO:
+    """Grouped bar chart: Operating CF vs Free CF."""
+    fig, ax = plt.subplots(figsize=(5.5, 2.8))
+
+    if cd.operating_cashflow_series is not None:
+        years = _year_labels(cd.operating_cashflow_series, 4)
+        ocf = [float(v) / 1e9 if v is not None else 0 for v in _series_vals(cd.operating_cashflow_series, 4)]
+        fcf = [float(v) / 1e9 if v is not None else 0 for v in _series_vals(cd.free_cashflow_series, 4)]
+        years.reverse(); ocf.reverse(); fcf.reverse()
+
+        x = np.arange(len(years))
+        w = 0.3
+        ax.bar(x - w/2, ocf, w, label="Operating CF", color="#1E90FF", alpha=0.85)
+        ax.bar(x + w/2, fcf, w, label="Free CF", color="#2E7D32", alpha=0.85)
+        ax.set_xticks(x)
+        ax.set_xticklabels(years, fontsize=7)
+        ax.set_ylabel("$B", fontsize=8)
+        ax.tick_params(axis="y", labelsize=7)
+        ax.legend(fontsize=7)
+        ax.set_title("Cash Flow Trends", fontsize=9, fontweight="bold",
+                      color="#0B1D3A", pad=6)
+        ax.grid(axis="y", alpha=0.15)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
     else:
-        ax.text(0.5, 0.5, "Price data unavailable", ha="center",
-                va="center", fontsize=14, color="#999")
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
+        ax.text(0.5, 0.5, "Data unavailable", ha="center", va="center",
+                fontsize=10, color="#999")
         ax.axis("off")
 
     fig.tight_layout()
@@ -145,505 +335,570 @@ def _render_price_chart(cd: CompanyData) -> io.BytesIO:
     return buf
 
 
-def _add_financial_table(slide, cd: CompanyData, left, top, width, height):
-    """Add a 4-column (Metric, Year3, Year2, Year1) financial table."""
-    rows, cols = 4, 4  # Header + Revenue + EBITDA + Net Income
+def _render_recommendation_chart(cd: CompanyData) -> io.BytesIO:
+    """Horizontal bar chart of analyst recommendations."""
+    fig, ax = plt.subplots(figsize=(5, 2.2))
 
-    table_shape = slide.shapes.add_table(rows, cols, left, top, width, height)
-    table = table_shape.table
+    if cd.recommendations_summary is not None and not cd.recommendations_summary.empty:
+        try:
+            row = cd.recommendations_summary.iloc[0]
+            cats = ["Strong Buy", "Buy", "Hold", "Sell", "Strong Sell"]
+            keys = ["strongBuy", "buy", "hold", "sell", "strongSell"]
+            vals = [int(row.get(k, 0)) for k in keys]
+            colors = ["#2E7D32", "#66BB6A", "#FFA726", "#EF5350", "#C62828"]
 
-    # Column widths
-    table.columns[0].width = Inches(1.8)
-    for c in range(1, cols):
-        table.columns[c].width = Inches(1.4)
+            y = np.arange(len(cats))
+            ax.barh(y, vals, color=colors, height=0.6)
+            ax.set_yticks(y)
+            ax.set_yticklabels(cats, fontsize=7)
+            ax.set_xlabel("# Analysts", fontsize=7)
+            ax.tick_params(axis="x", labelsize=7)
 
-    # Determine year labels
-    years = []
-    if cd.revenue is not None:
-        for col in cd.revenue.index[:3]:
-            if hasattr(col, "year"):
-                years.append(str(col.year))
-            else:
-                years.append(str(col))
-    while len(years) < 3:
-        years.append("—")
+            for i, v in enumerate(vals):
+                if v > 0:
+                    ax.text(v + 0.3, i, str(v), va="center", fontsize=7, color="#333")
 
-    # Header row
-    headers = ["Metric"] + years
-    for c, hdr in enumerate(headers):
-        cell = table.cell(0, c)
-        cell.text = hdr
-        for p in cell.text_frame.paragraphs:
-            p.font.size = Pt(10)
-            p.font.bold = True
-            p.font.color.rgb = WHITE
-            p.font.name = "Calibri"
-            p.alignment = PP_ALIGN.CENTER
-        cell.fill.solid()
-        cell.fill.fore_color.rgb = NAVY
+            ax.set_title("Analyst Recommendations", fontsize=9, fontweight="bold",
+                          color="#0B1D3A", pad=6)
+            ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
+            ax.invert_yaxis()
+        except Exception:
+            ax.text(0.5, 0.5, "Data unavailable", ha="center", va="center",
+                    fontsize=10, color="#999")
+            ax.axis("off")
+    else:
+        ax.text(0.5, 0.5, "Analyst data unavailable", ha="center", va="center",
+                fontsize=10, color="#999")
+        ax.axis("off")
 
-    # Data rows
-    metrics = [
-        ("Revenue", cd.revenue),
-        ("EBITDA", cd.ebitda),
-        ("Net Income", cd.net_income),
-    ]
-
-    for r, (label, series) in enumerate(metrics, start=1):
-        table.cell(r, 0).text = label
-        for p in table.cell(r, 0).text_frame.paragraphs:
-            p.font.size = Pt(10)
-            p.font.bold = True
-            p.font.name = "Calibri"
-            p.alignment = PP_ALIGN.LEFT
-
-        for c in range(1, cols):
-            val = None
-            if series is not None and len(series) > (c - 1):
-                val = series.iloc[c - 1]
-            cell = table.cell(r, c)
-            cell.text = format_number(val) if val is not None else "N/A"
-            for p in cell.text_frame.paragraphs:
-                p.font.size = Pt(10)
-                p.font.name = "Calibri"
-                p.alignment = PP_ALIGN.CENTER
-
-        # Alternate row shading
-        bg = LIGHT_GRAY if r % 2 == 0 else WHITE
-        for c in range(cols):
-            table.cell(r, c).fill.solid()
-            table.cell(r, c).fill.fore_color.rgb = bg
-
-    return table_shape
+    fig.tight_layout()
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=150, bbox_inches="tight",
+                facecolor="white", edgecolor="none")
+    plt.close(fig)
+    buf.seek(0)
+    return buf
 
 
-def _add_ebitda_bar_chart(slide, cd: CompanyData, left, top, width, height):
-    """Add a native PPTX bar chart of EBITDA margins (editable in PowerPoint)."""
+# ══════════════════════════════════════════════════════════════
+# NATIVE PPTX CHART (editable in PowerPoint)
+# ══════════════════════════════════════════════════════════════
+
+def _add_ebitda_margin_chart(slide, cd, left, top, width, height):
+    """Native PPTX bar chart of EBITDA margins."""
     chart_data = CategoryChartData()
-
     if cd.ebitda_margin is not None and not cd.ebitda_margin.empty:
-        categories = []
-        values = []
-        for col in cd.ebitda_margin.index[:3]:
-            yr = str(col.year) if hasattr(col, "year") else str(col)
-            categories.append(yr)
-            values.append(float(cd.ebitda_margin[col]))
-
-        # Reverse so oldest is on left
-        categories.reverse()
-        values.reverse()
-
-        chart_data.categories = categories
-        chart_data.add_series("EBITDA Margin (%)", values)
+        cats = _year_labels(cd.ebitda_margin, 4)
+        vals = [float(v) if v is not None else 0 for v in _series_vals(cd.ebitda_margin, 4)]
+        cats.reverse(); vals.reverse()
+        chart_data.categories = cats
+        chart_data.add_series("EBITDA Margin (%)", vals)
     else:
         chart_data.categories = ["N/A"]
         chart_data.add_series("EBITDA Margin (%)", [0])
 
-    chart_frame = slide.shapes.add_chart(
-        XL_CHART_TYPE.COLUMN_CLUSTERED, left, top, width, height, chart_data
-    )
-    chart = chart_frame.chart
+    frame = slide.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED,
+                                    left, top, width, height, chart_data)
+    chart = frame.chart
     chart.has_legend = False
-
-    # Style the chart
     plot = chart.plots[0]
     plot.gap_width = 80
-
     series = plot.series[0]
     series.format.fill.solid()
     series.format.fill.fore_color.rgb = ACCENT_BLUE
-
-    # Data labels
     series.has_data_labels = True
-    data_labels = series.data_labels
-    data_labels.font.size = Pt(9)
-    data_labels.font.color.rgb = DARK_GRAY
-    data_labels.number_format = '0.0"%"'
-    data_labels.label_position = XL_LABEL_POSITION.OUTSIDE_END
-
-    # Value axis
-    value_axis = chart.value_axis
-    value_axis.has_title = True
-    value_axis.axis_title.text_frame.paragraphs[0].text = "Margin (%)"
-    value_axis.axis_title.text_frame.paragraphs[0].font.size = Pt(8)
-
-    # Category axis
-    cat_axis = chart.category_axis
-    cat_axis.tick_labels.font.size = Pt(9)
-
-    # Chart title
+    series.data_labels.font.size = Pt(8)
+    series.data_labels.number_format = '0.0"%"'
+    series.data_labels.label_position = XL_LABEL_POSITION.OUTSIDE_END
     chart.has_title = True
-    chart.chart_title.text_frame.paragraphs[0].text = "EBITDA Margin Trend"
-    chart.chart_title.text_frame.paragraphs[0].font.size = Pt(11)
+    chart.chart_title.text_frame.paragraphs[0].text = "EBITDA Margin"
+    chart.chart_title.text_frame.paragraphs[0].font.size = Pt(9)
     chart.chart_title.text_frame.paragraphs[0].font.bold = True
-
-    return chart_frame
-
-
-def _add_pie_chart(slide, cd: CompanyData, left, top, width, height):
-    """Add a segment pie chart. Uses revenue breakdown if available,
-    otherwise creates a placeholder based on sector."""
-    chart_data = CategoryChartData()
-
-    # yfinance doesn't provide segment data directly, so we create
-    # a representative breakdown based on available info
-    chart_data.categories = [cd.industry or "Core Business", "Other"]
-    chart_data.add_series("Segments", [85, 15])
-
-    chart_frame = slide.shapes.add_chart(
-        XL_CHART_TYPE.PIE, left, top, width, height, chart_data
-    )
-    chart = chart_frame.chart
-
-    chart.has_legend = True
-    chart.legend.position = XL_LEGEND_POSITION.BOTTOM
-    chart.legend.include_in_layout = False
-    chart.legend.font.size = Pt(9)
-
-    plot = chart.plots[0]
-    series = plot.series[0]
-
-    # Color the slices
-    colors = [ACCENT_BLUE, GOLD]
-    for i, color in enumerate(colors):
-        point = series.points[i]
-        point.format.fill.solid()
-        point.format.fill.fore_color.rgb = color
-
-    series.has_data_labels = True
-    data_labels = series.data_labels
-    data_labels.font.size = Pt(9)
-    data_labels.number_format = '0"%"'
-    data_labels.label_position = XL_LABEL_POSITION.OUTSIDE_END
-
-    chart.has_title = True
-    chart.chart_title.text_frame.paragraphs[0].text = "Revenue Segments"
-    chart.chart_title.text_frame.paragraphs[0].font.size = Pt(11)
-    chart.chart_title.text_frame.paragraphs[0].font.bold = True
-
-    return chart_frame
+    return frame
 
 
-def _add_deal_score_visual(slide, cd: CompanyData, left, top, width, height):
-    """Render the deal score as a colored box with breakdown."""
-    score = cd.deal_score
-    if score >= 70:
-        score_color = GREEN
-        label = "STRONG BUY"
-    elif score >= 40:
-        score_color = GOLD
-        label = "MODERATE"
-    else:
-        score_color = RED
-        label = "CAUTION"
+# ══════════════════════════════════════════════════════════════
+# 8 SLIDE BUILDERS
+# ══════════════════════════════════════════════════════════════
 
-    # Score badge
-    badge = _add_rect(slide, left, top, Inches(2), Inches(1.5), score_color)
-
-    # Score number overlay
-    score_box = _add_textbox(
-        slide, left + Inches(0.1), top + Inches(0.1),
-        Inches(1.8), Inches(0.8),
-        str(int(score)), font_size=36, bold=True, color=WHITE,
-        alignment=PP_ALIGN.CENTER,
-    )
-
-    label_box = _add_textbox(
-        slide, left + Inches(0.1), top + Inches(0.85),
-        Inches(1.8), Inches(0.5),
-        label, font_size=14, bold=True, color=WHITE,
-        alignment=PP_ALIGN.CENTER,
-    )
-
-    # Breakdown
-    breakdown_text = (
-        f"Valuation: {cd.valuation_score:.0f}/100\n"
-        f"Solvency: {cd.solvency_score:.0f}/100\n"
-        f"Growth: {cd.growth_score:.0f}/100"
-    )
-    _add_textbox(
-        slide, left + Inches(2.3), top + Inches(0.1),
-        Inches(3.2), Inches(1.4),
-        breakdown_text, font_size=11, color=DARK_GRAY,
-    )
-
-
-def _add_footer(slide, cd: CompanyData):
-    """Add a bottom footer bar."""
-    _add_rect(slide, Inches(0), SLIDE_H - Inches(0.4), SLIDE_W, Inches(0.4), NAVY)
-    _add_textbox(
-        slide, Inches(0.5), SLIDE_H - Inches(0.35), Inches(8), Inches(0.3),
-        f"Confidential — {cd.name} M&A Profile — {datetime.now().strftime('%B %d, %Y')}",
-        font_size=8, color=WHITE, alignment=PP_ALIGN.LEFT,
-    )
-    _add_textbox(
-        slide, SLIDE_W - Inches(2), SLIDE_H - Inches(0.35),
-        Inches(1.8), Inches(0.3),
-        "ProfileBuilder", font_size=8, bold=True, color=GOLD,
-        alignment=PP_ALIGN.RIGHT,
-    )
-
-
-# ── Slide Builders ───────────────────────────────────────────
-
-def _build_slide_1(prs: Presentation, cd: CompanyData):
-    """Slide 1: Executive Summary."""
-    slide = prs.slides.add_slide(prs.slide_layouts[6])  # Blank
-
-    # Header band
-    _add_rect(slide, Inches(0), Inches(0), SLIDE_W, Inches(0.15), GOLD)
-    _add_rect(slide, Inches(0), Inches(0.15), SLIDE_W, Inches(0.05), NAVY)
-
-    # Company name
-    _add_textbox(
-        slide, Inches(0.5), Inches(0.4), Inches(6), Inches(0.6),
-        cd.name, font_size=28, bold=True, color=NAVY,
-    )
-
-    # Ticker / Price line
-    price_color = GREEN if cd.current_price > 0 else DARK_GRAY
-    _add_textbox(
-        slide, Inches(0.5), Inches(1.05), Inches(6), Inches(0.4),
-        f"{cd.ticker}  |  ${cd.current_price:,.2f}  |  "
-        f"Mkt Cap: {format_number(cd.market_cap)}",
-        font_size=14, color=DARK_BLUE,
-    )
-
-    # Sector / Industry
-    _add_textbox(
-        slide, Inches(0.5), Inches(1.5), Inches(6), Inches(0.3),
-        f"{cd.sector}  >  {cd.industry}",
-        font_size=10, color=MED_GRAY,
-    )
-
-    # Executive Summary bullets
-    summary_box = _add_textbox(
-        slide, Inches(0.5), Inches(2.1), Inches(5.8), Inches(3.8),
-        "Investment Highlights", font_size=14, bold=True, color=NAVY,
-    )
-    tf = summary_box.text_frame
-    for bullet in cd.executive_summary_bullets:
-        _add_paragraph(tf, f"\u2022  {bullet}", font_size=11, color=DARK_GRAY,
-                       space_before=Pt(8))
-
-    # Product Overview
-    if cd.product_overview:
-        _add_paragraph(tf, "", font_size=6)  # spacer
-        _add_paragraph(tf, "Product Overview", font_size=12, bold=True, color=NAVY)
-        for line in cd.product_overview.split("\n"):
-            line = line.strip()
-            if line.startswith("- "):
-                line = line[2:]
-            if line:
-                _add_paragraph(tf, f"\u2022  {line}", font_size=10, color=DARK_GRAY,
-                               space_before=Pt(4))
-
-    # Price chart (right side)
-    chart_buf = _render_price_chart(cd)
-    slide.shapes.add_picture(
-        chart_buf, Inches(6.8), Inches(0.5), Inches(6), Inches(3.8)
-    )
-
-    # Key metrics box (right, below chart)
-    metrics_box = _add_rect(
-        slide, Inches(6.8), Inches(4.5), Inches(6), Inches(2.3), LIGHT_GRAY
-    )
-    _add_textbox(
-        slide, Inches(7.0), Inches(4.6), Inches(5.5), Inches(0.3),
-        "Key Metrics", font_size=12, bold=True, color=NAVY,
-    )
-
-    metrics_lines = [
-        f"P/E Ratio:  {cd.trailing_pe or 'N/A'}",
-        f"Forward P/E:  {cd.forward_pe or 'N/A'}",
-        f"EV/EBITDA:  {cd.ev_to_ebitda or 'N/A'}",
-        f"Price/Book:  {cd.price_to_book or 'N/A'}",
-        f"D/E Ratio:  {(cd.debt_to_equity / 100):.2f}x" if cd.debt_to_equity else "D/E Ratio:  N/A",
-        f"Beta:  {cd.beta or 'N/A'}",
-        f"52W Range:  ${cd.fifty_two_week_low:,.2f} – ${cd.fifty_two_week_high:,.2f}",
-        f"Div Yield:  {cd.dividend_yield * 100:.2f}%" if cd.dividend_yield else "Div Yield:  N/A",
-    ]
-
-    # Two-column metric layout
-    left_metrics = metrics_lines[:4]
-    right_metrics = metrics_lines[4:]
-
-    left_box = _add_textbox(
-        slide, Inches(7.0), Inches(5.0), Inches(2.8), Inches(1.7),
-        "\n".join(left_metrics), font_size=9, color=DARK_GRAY,
-    )
-    right_box = _add_textbox(
-        slide, Inches(10.0), Inches(5.0), Inches(2.8), Inches(1.7),
-        "\n".join(right_metrics), font_size=9, color=DARK_GRAY,
-    )
-
-    _add_footer(slide, cd)
-
-
-def _build_slide_2(prs: Presentation, cd: CompanyData):
-    """Slide 2: Financials & Deal Score."""
+def _build_slide_1(prs, cd):
+    """Slide 1 — Executive Summary."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
+    _slide_header(slide, f"{cd.name}  ({cd.ticker})")
 
-    # Header band
-    _add_rect(slide, Inches(0), Inches(0), SLIDE_W, Inches(0.15), GOLD)
-    _add_rect(slide, Inches(0), Inches(0.15), SLIDE_W, Inches(0.05), NAVY)
+    # Sector / Industry / Exchange badge
+    _add_textbox(slide, Inches(0.5), Inches(0.8), Inches(8), Inches(0.25),
+                 f"{cd.exchange}  |  {cd.sector}  >  {cd.industry}",
+                 font_size=9, color=MED_GRAY)
 
-    # Title
-    _add_textbox(
-        slide, Inches(0.5), Inches(0.4), Inches(12), Inches(0.6),
-        f"Financial Overview — {cd.name}",
-        font_size=22, bold=True, color=NAVY,
+    # Price line
+    chg_color = GREEN if cd.price_change >= 0 else RED
+    _add_textbox(slide, Inches(0.5), Inches(1.1), Inches(6), Inches(0.35),
+                 f"${cd.current_price:,.2f}   {cd.price_change:+.2f} ({cd.price_change_pct:+.2f}%)"
+                 f"   |   Mkt Cap: {format_number(cd.market_cap)}"
+                 f"   |   EV: {format_number(cd.enterprise_value)}",
+                 font_size=13, bold=True, color=chg_color)
+
+    # Business description (left column, truncated)
+    desc = cd.long_business_summary or "Business description not available."
+    if len(desc) > 600:
+        desc = desc[:597] + "..."
+    desc_box = _add_textbox(slide, Inches(0.5), Inches(1.7), Inches(6), Inches(2.2),
+                            "Business Overview", font_size=11, bold=True, color=NAVY)
+    tf = desc_box.text_frame
+    _add_para(tf, desc, font_size=8, color=DARK_GRAY, space_before=Pt(4))
+
+    # Key metrics mini-table (left, below desc)
+    metrics_data = [
+        ["P/E", f"{cd.trailing_pe:.1f}" if cd.trailing_pe else "N/A",
+         "Fwd P/E", f"{cd.forward_pe:.1f}" if cd.forward_pe else "N/A"],
+        ["EV/EBITDA", format_multiple(cd.ev_to_ebitda),
+         "P/B", f"{cd.price_to_book:.2f}" if cd.price_to_book else "N/A"],
+        ["Gross Margin", format_pct(cd.gross_margins),
+         "Op. Margin", format_pct(cd.operating_margins)],
+        ["ROE", format_pct(cd.return_on_equity),
+         "D/E", f"{cd.debt_to_equity / 100:.2f}x" if cd.debt_to_equity else "N/A"],
+        ["Revenue Growth", f"{cd.revenue_growth:+.1f}%" if cd.revenue_growth else "N/A",
+         "Beta", f"{cd.beta:.2f}" if cd.beta else "N/A"],
+        ["Div Yield", format_pct(cd.dividend_yield),
+         "52W Range", f"${cd.fifty_two_week_low:,.0f}-${cd.fifty_two_week_high:,.0f}"],
+    ]
+    _add_styled_table(slide,
+                      ["Metric", "Value", "Metric", "Value"],
+                      metrics_data,
+                      Inches(0.5), Inches(4.1), Inches(6), Inches(2.6),
+                      col_widths=[Inches(1.3), Inches(1.2), Inches(1.3), Inches(1.2)])
+
+    # Price chart (right)
+    chart_buf = _render_5y_price_chart(cd)
+    slide.shapes.add_picture(chart_buf, Inches(6.8), Inches(1.0),
+                              Inches(6), Inches(3.5))
+
+    # Executive summary bullets (right, below chart)
+    if cd.executive_summary_bullets:
+        sum_box = _add_textbox(slide, Inches(6.8), Inches(4.6), Inches(6), Inches(0.25),
+                               "Investment Highlights", font_size=10, bold=True, color=NAVY)
+        tf = sum_box.text_frame
+        for b in cd.executive_summary_bullets[:5]:
+            _add_para(tf, f"\u2022  {b}", font_size=8, color=DARK_GRAY, space_before=Pt(3))
+
+    _slide_footer(slide, cd)
+
+
+def _build_slide_2(prs, cd):
+    """Slide 2 — Financial Analysis (Income Statement)."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    _slide_header(slide, f"Financial Analysis — {cd.name}")
+
+    years = _year_labels(cd.revenue, 4)
+    def _fmtv(v): return format_number(v) if v is not None else "N/A"
+
+    rows = [
+        ["Revenue"] + [_fmtv(v) for v in _series_vals(cd.revenue, 4)],
+        ["Cost of Revenue"] + [_fmtv(v) for v in _series_vals(cd.cost_of_revenue, 4)],
+        ["Gross Profit"] + [_fmtv(v) for v in _series_vals(cd.gross_profit, 4)],
+        ["Operating Income"] + [_fmtv(v) for v in _series_vals(cd.operating_income, 4)],
+        ["EBITDA"] + [_fmtv(v) for v in _series_vals(cd.ebitda, 4)],
+        ["Net Income"] + [_fmtv(v) for v in _series_vals(cd.net_income, 4)],
+        ["Basic EPS"] + [f"${float(v):.2f}" if v is not None else "N/A"
+                         for v in _series_vals(cd.eps_basic, 4)],
+    ]
+    _add_styled_table(slide, ["($ in millions)"] + years, rows,
+                      Inches(0.5), Inches(1.0), Inches(6.2), Inches(3.2),
+                      col_widths=[Inches(1.5)] + [Inches(1.15)] * 4)
+
+    # Margin summary box
+    _add_textbox(slide, Inches(0.5), Inches(4.4), Inches(6.2), Inches(0.25),
+                 "Profitability Ratios (TTM)", font_size=10, bold=True, color=NAVY)
+    ratios_text = (
+        f"Gross Margin: {format_pct(cd.gross_margins)}    "
+        f"Operating Margin: {format_pct(cd.operating_margins)}    "
+        f"Net Margin: {format_pct(cd.profit_margins)}    "
+        f"ROE: {format_pct(cd.return_on_equity)}    "
+        f"ROA: {format_pct(cd.return_on_assets)}"
     )
+    _add_textbox(slide, Inches(0.5), Inches(4.7), Inches(6.2), Inches(0.5),
+                 ratios_text, font_size=8, color=DARK_GRAY)
 
-    # Financial table (left)
-    _add_financial_table(
-        slide, cd,
-        left=Inches(0.5), top=Inches(1.3),
-        width=Inches(6), height=Inches(2.0),
-    )
+    # Revenue & margin chart (right)
+    chart_buf = _render_revenue_margin_chart(cd)
+    slide.shapes.add_picture(chart_buf, Inches(7.0), Inches(1.0),
+                              Inches(5.8), Inches(3.0))
 
-    # Revenue growth callout
-    if cd.revenue_growth is not None:
-        growth_color = GREEN if cd.revenue_growth > 0 else RED
-        _add_textbox(
-            slide, Inches(0.5), Inches(3.5), Inches(6), Inches(0.4),
-            f"Revenue Growth (YoY): {cd.revenue_growth:+.1f}%",
-            font_size=12, bold=True, color=growth_color,
-        )
+    # EBITDA margin native chart (right, below)
+    _add_ebitda_margin_chart(slide, cd,
+                             Inches(7.0), Inches(4.2), Inches(5.8), Inches(2.5))
 
-    # EV callout
-    _add_textbox(
-        slide, Inches(0.5), Inches(4.0), Inches(6), Inches(0.4),
-        f"Enterprise Value: {format_number(cd.enterprise_value)}  |  "
-        f"EV/EBITDA: {cd.ev_to_ebitda or 'N/A'}x",
-        font_size=11, color=DARK_GRAY,
-    )
+    _slide_footer(slide, cd)
 
-    # Management Sentiment (below financials on left)
+
+def _build_slide_3(prs, cd):
+    """Slide 3 — Balance Sheet & Cash Flow."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    _slide_header(slide, f"Balance Sheet & Cash Flow — {cd.name}")
+
+    years = _year_labels(cd.total_assets, 4)
+    def _fmtv(v): return format_number(v) if v is not None else "N/A"
+
+    # Balance Sheet table
+    bs_rows = [
+        ["Total Assets"] + [_fmtv(v) for v in _series_vals(cd.total_assets, 4)],
+        ["Total Liabilities"] + [_fmtv(v) for v in _series_vals(cd.total_liabilities, 4)],
+        ["Stockholders' Equity"] + [_fmtv(v) for v in _series_vals(cd.total_equity, 4)],
+        ["Total Debt"] + [_fmtv(v) for v in _series_vals(cd.total_debt, 4)],
+        ["Cash & Equivalents"] + [_fmtv(v) for v in _series_vals(cd.cash_and_equivalents, 4)],
+    ]
+    _add_textbox(slide, Inches(0.5), Inches(0.9), Inches(6.2), Inches(0.25),
+                 "Balance Sheet Highlights", font_size=10, bold=True, color=NAVY)
+    _add_styled_table(slide, ["($ in millions)"] + years, bs_rows,
+                      Inches(0.5), Inches(1.2), Inches(6.2), Inches(2.2),
+                      col_widths=[Inches(1.5)] + [Inches(1.15)] * 4)
+
+    # Cash Flow table
+    cf_years = _year_labels(cd.operating_cashflow_series, 4)
+    cf_rows = [
+        ["Operating Cash Flow"] + [_fmtv(v) for v in _series_vals(cd.operating_cashflow_series, 4)],
+        ["Capital Expenditure"] + [_fmtv(v) for v in _series_vals(cd.capital_expenditure, 4)],
+        ["Free Cash Flow"] + [_fmtv(v) for v in _series_vals(cd.free_cashflow_series, 4)],
+        ["Dividends Paid"] + [_fmtv(v) for v in _series_vals(cd.dividends_paid, 4)],
+    ]
+    _add_textbox(slide, Inches(0.5), Inches(3.7), Inches(6.2), Inches(0.25),
+                 "Cash Flow Summary", font_size=10, bold=True, color=NAVY)
+    _add_styled_table(slide, ["($ in millions)"] + cf_years, cf_rows,
+                      Inches(0.5), Inches(4.0), Inches(6.2), Inches(1.8),
+                      col_widths=[Inches(1.5)] + [Inches(1.15)] * 4)
+
+    # Leverage ratios
+    _add_textbox(slide, Inches(0.5), Inches(6.0), Inches(6.2), Inches(0.25),
+                 f"D/E: {cd.debt_to_equity / 100:.2f}x" if cd.debt_to_equity else "D/E: N/A"
+                 + f"     Current Ratio: {cd.current_ratio:.2f}" if cd.current_ratio else ""
+                 + f"     Net Cash: {format_number(cd.total_cash)}",
+                 font_size=8, color=DARK_GRAY)
+
+    # Cash flow chart (right)
+    chart_buf = _render_cashflow_chart(cd)
+    slide.shapes.add_picture(chart_buf, Inches(7.0), Inches(1.0),
+                              Inches(5.8), Inches(2.8))
+
+    # Supplementary: Net Debt callout
+    net_debt = None
+    if cd.total_debt is not None and cd.cash_and_equivalents is not None:
+        try:
+            net_debt = float(cd.total_debt.iloc[0]) - float(cd.cash_and_equivalents.iloc[0])
+        except Exception:
+            pass
+    if net_debt is not None:
+        _add_textbox(slide, Inches(7.0), Inches(4.0), Inches(5.8), Inches(0.3),
+                     f"Net Debt: {format_number(net_debt)}   |   "
+                     f"Total Cash: {format_number(cd.total_cash)}   |   "
+                     f"Total Debt: {format_number(cd.total_debt_info)}",
+                     font_size=9, bold=True, color=NAVY)
+
+    _slide_footer(slide, cd)
+
+
+def _build_slide_4(prs, cd):
+    """Slide 4 — Valuation & Analyst Sentiment."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    _slide_header(slide, f"Valuation & Analyst Sentiment — {cd.name}")
+
+    # Valuation table
+    val_rows = [
+        ["Trailing P/E", f"{cd.trailing_pe:.1f}" if cd.trailing_pe else "N/A"],
+        ["Forward P/E", f"{cd.forward_pe:.1f}" if cd.forward_pe else "N/A"],
+        ["PEG Ratio", f"{cd.peg_ratio:.2f}" if cd.peg_ratio else "N/A"],
+        ["P/S (TTM)", f"{cd.price_to_sales:.2f}" if cd.price_to_sales else "N/A"],
+        ["Price/Book", f"{cd.price_to_book:.2f}" if cd.price_to_book else "N/A"],
+        ["EV/EBITDA", format_multiple(cd.ev_to_ebitda)],
+        ["EV/Revenue", format_multiple(cd.ev_to_revenue)],
+    ]
+    _add_textbox(slide, Inches(0.5), Inches(0.9), Inches(4), Inches(0.25),
+                 "Valuation Multiples", font_size=10, bold=True, color=NAVY)
+    _add_styled_table(slide, ["Multiple", "Value"], val_rows,
+                      Inches(0.5), Inches(1.2), Inches(4), Inches(3.0),
+                      col_widths=[Inches(2), Inches(2)])
+
+    # Price targets
+    if cd.analyst_price_targets:
+        _add_textbox(slide, Inches(0.5), Inches(4.5), Inches(4), Inches(0.25),
+                     "Analyst Price Targets", font_size=10, bold=True, color=NAVY)
+        pt = cd.analyst_price_targets
+        pt_rows = [
+            ["Current Price", f"${cd.current_price:,.2f}"],
+            ["Mean Target", f"${pt.get('mean', 0):,.2f}" if pt.get("mean") else "N/A"],
+            ["Median Target", f"${pt.get('median', 0):,.2f}" if pt.get("median") else "N/A"],
+            ["Low Target", f"${pt.get('low', 0):,.2f}" if pt.get("low") else "N/A"],
+            ["High Target", f"${pt.get('high', 0):,.2f}" if pt.get("high") else "N/A"],
+        ]
+        # Upside/downside
+        if pt.get("mean") and cd.current_price:
+            upside = (pt["mean"] - cd.current_price) / cd.current_price * 100
+            pt_rows.append(["Implied Upside", f"{upside:+.1f}%"])
+        _add_styled_table(slide, ["", "Price"], pt_rows,
+                          Inches(0.5), Inches(4.8), Inches(4), Inches(2.2),
+                          col_widths=[Inches(2), Inches(2)])
+
+    # Recommendation chart (right)
+    chart_buf = _render_recommendation_chart(cd)
+    slide.shapes.add_picture(chart_buf, Inches(5.0), Inches(1.0),
+                              Inches(5.5), Inches(2.5))
+
+    # Earnings surprise (right, below chart)
+    if cd.earnings_dates is not None and not cd.earnings_dates.empty:
+        _add_textbox(slide, Inches(5.0), Inches(3.7), Inches(7.5), Inches(0.25),
+                     "Recent Earnings", font_size=10, bold=True, color=NAVY)
+        try:
+            ed = cd.earnings_dates.head(6).copy()
+            earn_headers = list(ed.columns[:4])
+            earn_rows = []
+            for _, row in ed.iterrows():
+                earn_rows.append([str(v)[:12] for v in row.values[:4]])
+            if earn_rows:
+                _add_styled_table(slide, earn_headers, earn_rows,
+                                  Inches(5.0), Inches(4.0), Inches(7.5), Inches(2.8))
+        except Exception:
+            pass
+
+    _slide_footer(slide, cd)
+
+
+def _build_slide_5(prs, cd):
+    """Slide 5 — Ownership & Insider Activity."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    _slide_header(slide, f"Ownership & Insider Activity — {cd.name}")
+
+    # Major holders summary
+    _add_textbox(slide, Inches(0.5), Inches(0.9), Inches(5.5), Inches(0.25),
+                 "Ownership Breakdown", font_size=10, bold=True, color=NAVY)
+    if cd.major_holders is not None and not cd.major_holders.empty:
+        mh_rows = []
+        for _, row in cd.major_holders.iterrows():
+            vals = [str(v) for v in row.values]
+            mh_rows.append(vals)
+        headers = list(cd.major_holders.columns) if len(cd.major_holders.columns) > 1 else ["Metric", "Value"]
+        _add_styled_table(slide, headers, mh_rows,
+                          Inches(0.5), Inches(1.2), Inches(5.5), Inches(1.5))
+    else:
+        _add_textbox(slide, Inches(0.5), Inches(1.2), Inches(5.5), Inches(0.3),
+                     "Major holders data not available", font_size=9, color=MED_GRAY)
+
+    # Institutional holders (right)
+    _add_textbox(slide, Inches(6.5), Inches(0.9), Inches(6.3), Inches(0.25),
+                 "Top Institutional Holders", font_size=10, bold=True, color=NAVY)
+    if cd.institutional_holders is not None and not cd.institutional_holders.empty:
+        ih = cd.institutional_holders.head(10)
+        ih_headers = ["Holder", "Shares", "% Out", "Value"]
+        ih_rows = []
+        for _, row in ih.iterrows():
+            holder = str(row.get("Holder", ""))[:30]
+            shares = format_number(row.get("Shares", 0), prefix="", decimals=0)
+            pct = f"{row.get('% Out', 0) * 100:.2f}%" if row.get("% Out") else "N/A"
+            value = format_number(row.get("Value", 0))
+            ih_rows.append([holder, shares, pct, value])
+        _add_styled_table(slide, ih_headers, ih_rows,
+                          Inches(6.5), Inches(1.2), Inches(6.3), Inches(3.0),
+                          col_widths=[Inches(2.2), Inches(1.2), Inches(1.0), Inches(1.2)])
+
+    # Insider transactions (bottom)
+    _add_textbox(slide, Inches(0.5), Inches(4.5), Inches(12.3), Inches(0.25),
+                 "Recent Insider Transactions", font_size=10, bold=True, color=NAVY)
+    if cd.insider_transactions is not None and not cd.insider_transactions.empty:
+        it = cd.insider_transactions.head(8)
+        it_headers = list(it.columns[:5])
+        it_rows = []
+        for _, row in it.iterrows():
+            it_rows.append([str(v)[:25] for v in row.values[:5]])
+        _add_styled_table(slide, it_headers, it_rows,
+                          Inches(0.5), Inches(4.8), Inches(12.3), Inches(2.0))
+    else:
+        _add_textbox(slide, Inches(0.5), Inches(4.8), Inches(12), Inches(0.3),
+                     "Insider transaction data not available", font_size=9, color=MED_GRAY)
+
+    _slide_footer(slide, cd)
+
+
+def _build_slide_6(prs, cd):
+    """Slide 6 — M&A History & Strategic Transactions."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    _slide_header(slide, f"M&A History — {cd.name}")
+
+    _add_textbox(slide, Inches(0.5), Inches(0.9), Inches(12), Inches(0.25),
+                 "Notable Mergers, Acquisitions & Strategic Transactions",
+                 font_size=10, bold=True, color=NAVY)
+
+    # M&A content from AI
+    ma_text = cd.ma_history or "No M&A history available."
+    # Strip markdown bold markers for PPTX
+    clean_text = ma_text.replace("**", "").replace("*", "")
+
+    content_box = _add_textbox(slide, Inches(0.5), Inches(1.3), Inches(12), Inches(5.0),
+                               "", font_size=9, color=DARK_GRAY)
+    tf = content_box.text_frame
+
+    for line in clean_text.split("\n"):
+        line = line.strip()
+        if not line:
+            _add_para(tf, "", font_size=4)  # spacer
+        elif line.startswith("M&A Strategy Assessment:"):
+            _add_para(tf, line, font_size=9, bold=True, color=NAVY, space_before=Pt(8))
+        elif "Value:" in line or "—" in line:
+            _add_para(tf, line, font_size=8, color=DARK_GRAY, space_before=Pt(2))
+        else:
+            _add_para(tf, line, font_size=8, color=DARK_GRAY, space_before=Pt(2))
+
+    _slide_footer(slide, cd)
+
+
+def _build_slide_7(prs, cd):
+    """Slide 7 — Management & Governance."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    _slide_header(slide, f"Management & Governance — {cd.name}")
+
+    # Executives table
+    _add_textbox(slide, Inches(0.5), Inches(0.9), Inches(6), Inches(0.25),
+                 "Key Executives", font_size=10, bold=True, color=NAVY)
+    if cd.officers:
+        exec_rows = []
+        for o in cd.officers[:8]:
+            name = o.get("name", "N/A")
+            title = o.get("title", "N/A")
+            age = str(o.get("age", "")) if o.get("age") else ""
+            pay = format_number(o.get("totalPay", None)) if o.get("totalPay") else ""
+            exec_rows.append([name, title, age, pay])
+        _add_styled_table(slide, ["Name", "Title", "Age", "Compensation"], exec_rows,
+                          Inches(0.5), Inches(1.2), Inches(6.2), Inches(3.0),
+                          col_widths=[Inches(1.8), Inches(2.2), Inches(0.6), Inches(1.2)])
+    else:
+        _add_textbox(slide, Inches(0.5), Inches(1.2), Inches(6), Inches(0.3),
+                     "Executive data not available", font_size=9, color=MED_GRAY)
+
+    # Management sentiment (right)
     if cd.mgmt_sentiment:
-        _add_textbox(
-            slide, Inches(0.5), Inches(4.6), Inches(6), Inches(0.3),
-            "Management Sentiment", font_size=12, bold=True, color=NAVY,
-        )
-        sentiment_box = _add_textbox(
-            slide, Inches(0.5), Inches(5.0), Inches(6), Inches(1.8),
-            "", font_size=10, color=DARK_GRAY,
-        )
-        tf = sentiment_box.text_frame
+        _add_textbox(slide, Inches(7.0), Inches(0.9), Inches(5.8), Inches(0.25),
+                     "Management Assessment", font_size=10, bold=True, color=NAVY)
+        sent_box = _add_textbox(slide, Inches(7.0), Inches(1.2), Inches(5.8), Inches(3.0),
+                                "", font_size=9, color=DARK_GRAY)
+        tf = sent_box.text_frame
         for line in cd.mgmt_sentiment.split("\n"):
             line = line.strip()
             if line.startswith("- "):
                 line = line[2:]
             if line:
-                _add_paragraph(tf, f"\u2022  {line}", font_size=10,
-                               color=DARK_GRAY, space_before=Pt(4))
+                _add_para(tf, f"\u2022  {line}", font_size=8, color=DARK_GRAY, space_before=Pt(4))
 
-    # EBITDA margin chart (right, top)
-    _add_ebitda_bar_chart(
-        slide, cd,
-        left=Inches(7.0), top=Inches(1.3),
-        width=Inches(5.8), height=Inches(3.2),
-    )
-
-    # Deal Score (right, bottom)
-    _add_textbox(
-        slide, Inches(7.0), Inches(4.7), Inches(5.8), Inches(0.3),
-        "Deal Score", font_size=14, bold=True, color=NAVY,
-    )
-    _add_deal_score_visual(
-        slide, cd,
-        left=Inches(7.0), top=Inches(5.1),
-        width=Inches(5.8), height=Inches(1.5),
-    )
-
-    _add_footer(slide, cd)
-
-
-def _build_slide_3(prs: Presentation, cd: CompanyData):
-    """Slide 3: Strategy & M&A."""
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
-
-    # Header band
-    _add_rect(slide, Inches(0), Inches(0), SLIDE_W, Inches(0.15), GOLD)
-    _add_rect(slide, Inches(0), Inches(0.15), SLIDE_W, Inches(0.05), NAVY)
-
-    # Title
-    _add_textbox(
-        slide, Inches(0.5), Inches(0.4), Inches(12), Inches(0.6),
-        f"Strategic Overview & M&A Considerations — {cd.name}",
-        font_size=22, bold=True, color=NAVY,
-    )
-
-    # Management team (left)
-    _add_textbox(
-        slide, Inches(0.5), Inches(1.3), Inches(5.8), Inches(0.3),
-        "Key Management", font_size=14, bold=True, color=NAVY,
-    )
-
-    mgmt_box = _add_textbox(
-        slide, Inches(0.5), Inches(1.7), Inches(5.8), Inches(2.3),
-        "", font_size=10, color=DARK_GRAY,
-    )
-    tf = mgmt_box.text_frame
-    if cd.officers:
-        for officer in cd.officers[:5]:
-            name = officer.get("name", "N/A")
-            title = officer.get("title", "N/A")
-            _add_paragraph(tf, f"{name} — {title}",
-                           font_size=10, color=DARK_GRAY, space_before=Pt(6))
+    # ESG Scores (bottom)
+    _add_rect(slide, Inches(0.5), Inches(4.5), Inches(12.3), Inches(0.03), GOLD)
+    _add_textbox(slide, Inches(0.5), Inches(4.7), Inches(12), Inches(0.25),
+                 "ESG & Sustainability", font_size=10, bold=True, color=NAVY)
+    if cd.esg_scores is not None and not cd.esg_scores.empty:
+        esg_text_parts = []
+        for key in ["totalEsg", "environmentScore", "socialScore", "governanceScore"]:
+            if key in cd.esg_scores.index:
+                val = cd.esg_scores.loc[key]
+                if hasattr(val, "values"):
+                    val = val.values[0]
+                label = key.replace("Score", "").replace("total", "Total ")
+                esg_text_parts.append(f"{label}: {val}")
+        esg_text = "     ".join(esg_text_parts) if esg_text_parts else "ESG data available — see detail in appendix"
+        _add_textbox(slide, Inches(0.5), Inches(5.0), Inches(12), Inches(0.4),
+                     esg_text, font_size=9, color=DARK_GRAY)
     else:
-        _add_paragraph(tf, "Officer data not available", font_size=10,
-                       color=MED_GRAY)
+        _add_textbox(slide, Inches(0.5), Inches(5.0), Inches(12), Inches(0.3),
+                     "ESG data not available for this company", font_size=9, color=MED_GRAY)
 
-    # Pie chart (right)
-    _add_pie_chart(
-        slide, cd,
-        left=Inches(7.0), top=Inches(1.3),
-        width=Inches(5.8), height=Inches(2.8),
-    )
+    # Company info footer
+    info_parts = []
+    if cd.city:
+        hq = f"{cd.city}"
+        if cd.state:
+            hq += f", {cd.state}"
+        if cd.country:
+            hq += f", {cd.country}"
+        info_parts.append(f"HQ: {hq}")
+    if cd.full_time_employees:
+        info_parts.append(f"Employees: {cd.full_time_employees:,}")
+    if cd.website:
+        info_parts.append(f"Web: {cd.website}")
+    if info_parts:
+        _add_textbox(slide, Inches(0.5), Inches(5.6), Inches(12), Inches(0.4),
+                     "   |   ".join(info_parts), font_size=8, color=MED_GRAY)
 
-    # Divider
-    _add_rect(slide, Inches(0.5), Inches(4.2), Inches(12.3), Inches(0.03), GOLD)
+    _slide_footer(slide, cd)
 
-    # News section
-    _add_textbox(
-        slide, Inches(0.5), Inches(4.4), Inches(12), Inches(0.3),
-        "Recent News & Events", font_size=14, bold=True, color=NAVY,
-    )
 
-    news_box = _add_textbox(
-        slide, Inches(0.5), Inches(4.85), Inches(12), Inches(2.2),
-        "", font_size=10, color=DARK_GRAY,
-    )
+def _build_slide_8(prs, cd):
+    """Slide 8 — News & Market Context."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    _slide_header(slide, f"News & Market Context — {cd.name}")
+
+    # News (left)
+    _add_textbox(slide, Inches(0.5), Inches(0.9), Inches(6.2), Inches(0.25),
+                 "Recent News & Events", font_size=10, bold=True, color=NAVY)
+    news_box = _add_textbox(slide, Inches(0.5), Inches(1.2), Inches(6.2), Inches(3.0),
+                            "", font_size=8, color=DARK_GRAY)
     tf = news_box.text_frame
     if cd.news:
-        for n in cd.news[:5]:
+        for n in cd.news[:10]:
             title = n.get("title", "")
-            publisher = n.get("publisher", "")
-            _add_paragraph(
-                tf, f"\u2022  {title}  ({publisher})",
-                font_size=10, color=DARK_GRAY, space_before=Pt(6),
-            )
+            pub = n.get("publisher", "")
+            _add_para(tf, f"\u2022  {title}  ({pub})",
+                      font_size=8, color=DARK_GRAY, space_before=Pt(4))
     else:
-        _add_paragraph(tf, "No recent news available.", font_size=10,
-                       color=MED_GRAY)
+        _add_para(tf, "No recent news available.", font_size=9, color=MED_GRAY)
 
-    _add_footer(slide, cd)
+    # Industry Analysis (right top)
+    _add_textbox(slide, Inches(7.0), Inches(0.9), Inches(5.8), Inches(0.25),
+                 "Industry Analysis", font_size=10, bold=True, color=NAVY)
+    ind_box = _add_textbox(slide, Inches(7.0), Inches(1.2), Inches(5.8), Inches(2.2),
+                           "", font_size=8, color=DARK_GRAY)
+    tf2 = ind_box.text_frame
+    if cd.industry_analysis:
+        for line in cd.industry_analysis.split("\n"):
+            line = line.strip()
+            if line.startswith("- "):
+                line = line[2:]
+            if line:
+                _add_para(tf2, f"\u2022  {line}", font_size=8, color=DARK_GRAY, space_before=Pt(3))
+
+    # Divider
+    _add_rect(slide, Inches(0.5), Inches(4.4), Inches(12.3), Inches(0.03), GOLD)
+
+    # Risk Factors (full width, bottom)
+    _add_textbox(slide, Inches(0.5), Inches(4.6), Inches(12), Inches(0.25),
+                 "Key Risk Factors", font_size=10, bold=True, color=NAVY)
+    risk_box = _add_textbox(slide, Inches(0.5), Inches(4.9), Inches(12), Inches(1.8),
+                            "", font_size=8, color=DARK_GRAY)
+    tf3 = risk_box.text_frame
+    if cd.risk_factors:
+        for line in cd.risk_factors.split("\n"):
+            line = line.strip()
+            if line.startswith("- "):
+                line = line[2:]
+            if line:
+                _add_para(tf3, f"\u2022  {line}", font_size=8, color=DARK_GRAY, space_before=Pt(3))
+
+    _slide_footer(slide, cd)
 
 
-# ── Public API ───────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════
+# PUBLIC API
+# ══════════════════════════════════════════════════════════════
 
 def generate_presentation(cd: CompanyData, template_path: str = "assets/template.pptx") -> io.BytesIO:
-    """
-    Build the 3-slide M&A profile and return as an in-memory BytesIO buffer.
-    """
+    """Build the 8-slide M&A profile and return as an in-memory BytesIO buffer."""
     prs = Presentation(template_path)
     prs.slide_width = SLIDE_W
     prs.slide_height = SLIDE_H
 
-    _build_slide_1(prs, cd)
-    _build_slide_2(prs, cd)
-    _build_slide_3(prs, cd)
+    _build_slide_1(prs, cd)   # Executive Summary
+    _build_slide_2(prs, cd)   # Financial Analysis
+    _build_slide_3(prs, cd)   # Balance Sheet & Cash Flow
+    _build_slide_4(prs, cd)   # Valuation & Analyst Sentiment
+    _build_slide_5(prs, cd)   # Ownership & Insider Activity
+    _build_slide_6(prs, cd)   # M&A History
+    _build_slide_7(prs, cd)   # Management & Governance
+    _build_slide_8(prs, cd)   # News & Market Context
 
     buf = io.BytesIO()
     prs.save(buf)

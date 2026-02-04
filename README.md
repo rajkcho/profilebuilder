@@ -1,25 +1,48 @@
 # M&A Profile Builder
 
-A Streamlit-powered tool that transforms a stock ticker into a professional 3-page landscape M&A tear sheet (PowerPoint), combining live market data, financial analysis, and AI-generated strategic insights.
+A Streamlit-powered company research platform that transforms a stock ticker into a comprehensive, Yahoo Finance-style dashboard and an 8-slide investment-banker-grade PowerPoint tear sheet.
 
-Built with 15+ years of M&A advisory experience distilled into an automated workflow — replacing hours of manual tear sheet assembly with a single click.
+Combines live market data from Yahoo Finance, full financial statements, ownership analysis, and AI-generated strategic insights — replacing hours of manual tear sheet assembly with a single click.
 
 ## What It Does
 
 Enter a ticker symbol, and the app:
 
-1. **Pulls live data** from Yahoo Finance — 3 years of income statements, balance sheets, price history, and news
-2. **Computes a Deal Score** (1–100) weighing valuation (40%), solvency (30%), and revenue growth (30%)
-3. **Generates AI insights** — product overview, management sentiment, and executive summary (via OpenAI, with a deterministic fallback)
-4. **Builds a 3-slide PowerPoint** using the template-based injection pattern from python-pptx
+1. **Pulls 60+ data points** from Yahoo Finance — 4 years of income statements, balance sheets, cash flow, quarterly data, analyst estimates, insider transactions, institutional ownership, ESG scores, earnings history, and 5-year price history
+2. **Generates AI insights** — product overview, management assessment, executive summary, M&A deal history with valuations, industry analysis, and risk factors (via OpenAI, with deterministic fallback)
+3. **Displays a 14-section dashboard** — Yahoo Finance-style data-dense UI with interactive charts, sortable tables, and collapsible sections
+4. **Builds an 8-slide PowerPoint** — professional IB pitch book layout with navy/gold/white palette, styled tables, and embedded charts
 
-### The 3-Page Profile
+### The 8-Slide Tear Sheet
 
 | Slide | Contents |
 |-------|----------|
-| **Executive Summary** | Company name, ticker, price, 1-year price chart, key metrics, investment highlights |
-| **Financials & Deal Score** | 3-year revenue/EBITDA/net income table, EBITDA margin bar chart (native PPTX), deal score gauge |
-| **Strategy & M&A** | Management team, product segment pie chart (native PPTX), recent news headlines |
+| **Executive Summary** | Company header, business description, key metrics table, 5-year price chart |
+| **Financial Analysis** | 4-year income statement table, revenue & margin dual-axis chart, profitability ratios |
+| **Balance Sheet & Cash Flow** | Balance sheet highlights, cash flow table, leverage ratios, CF trend chart |
+| **Valuation & Analyst** | Valuation multiples table, analyst recommendation bar chart, price target summary |
+| **Ownership & Insiders** | Major holders, top 10 institutional holders table, insider transactions |
+| **M&A History** | AI-generated deal history with valuations, M&A strategy assessment |
+| **Management & Governance** | Executives table with compensation, ESG scores, governance highlights |
+| **News & Market Context** | 10 news headlines, industry analysis, risk factors |
+
+### The Dashboard
+
+14 interactive sections covering:
+- Company header with live price, market cap, volume, 52-week range
+- Business overview with employees, HQ, and website
+- 15-metric key statistics grid (P/E, PEG, margins, ROE, beta, etc.)
+- Tabbed financial statements (annual & quarterly)
+- 5-year interactive price chart with volume bars (1Y/3Y/5Y toggle)
+- Analyst consensus with recommendation distribution and price targets
+- Ownership & insider transaction tables
+- Earnings history
+- AI-generated M&A deal history
+- Management team table
+- Recent news with links
+- ESG scores
+- Collapsible AI insights (executive summary, product overview, industry, risks)
+- One-click PowerPoint download
 
 ## Quick Start
 
@@ -31,65 +54,43 @@ cd profilebuilder
 # Install dependencies
 pip install -r requirements.txt
 
-# Generate the PowerPoint template
-python create_template.py
-
 # Run the app
 streamlit run main.py
 ```
 
-### Optional: Enable AI Insights
+### Enable AI Insights (Optional)
 
 ```bash
 export OPENAI_API_KEY="sk-..."
 streamlit run main.py
 ```
 
-Without the API key, the app uses a deterministic fallback that produces structured bullets from the financial data.
+Without the API key, the app generates deterministic insights from financial data. With the key, it generates comprehensive M&A deal history, industry analysis, and risk factors via GPT-4o-mini.
 
 ## Project Structure
 
 ```
 ProfileBuilder/
-├── main.py               # Streamlit UI — sidebar, gauge, metrics, download
-├── data_engine.py         # yfinance data fetching + Deal Score algorithm
-├── ai_insights.py         # LLM-powered insights with fallback
-├── pptx_generator.py      # 3-slide PowerPoint builder
-├── create_template.py     # One-time template generation script
+├── main.py               # Streamlit UI — 14-section Yahoo Finance-style dashboard
+├── data_engine.py         # yfinance data fetching, 60+ fields, CompanyData model
+├── ai_insights.py         # LLM-powered insights: M&A history, industry, risks
+├── pptx_generator.py      # 8-slide IB-grade PowerPoint builder
+├── create_template.py     # One-time template generation (landscape 13.3" × 7.5")
 ├── template_inspector.py  # Helper to print placeholder idx mapping
 ├── requirements.txt       # Python dependencies
 ├── .gitignore
 └── assets/
-    └── template.pptx      # Branded slide template
+    └── template.pptx      # Blank slide template (auto-generated)
 ```
-
-## Deal Score Algorithm
-
-The proprietary Deal Score rates M&A attractiveness from 1 to 100:
-
-- **Valuation (40%)** — Trailing P/E mapped to a 0–100 scale (lower P/E = higher score)
-- **Solvency (30%)** — Debt-to-Equity ratio (lower leverage = higher score)
-- **Growth (30%)** — Year-over-year revenue growth (higher growth = higher score)
-
-The Risk Appetite slider (1–10) in the sidebar adjusts the final interpretation threshold.
-
-## Template Workflow
-
-This project follows the **Template-Based Injection** pattern:
-
-1. `create_template.py` generates `assets/template.pptx` with indexed placeholders
-2. `template_inspector.py` lets you verify the placeholder idx mapping
-3. `pptx_generator.py` loads the template and injects data into positioned shapes
-4. Native PPTX charts (`CategoryChartData`) produce editable bar and pie charts
 
 ## Tech Stack
 
-- **Streamlit** — Web UI with sidebar controls and interactive Plotly charts
-- **python-pptx** — PowerPoint generation with native chart support
-- **yfinance** — Real-time market data and financial statements
-- **Matplotlib** — Static price chart rendering
-- **Plotly** — Interactive deal score gauge in the web UI
-- **OpenAI** — Optional AI-powered insights (GPT-4o-mini)
+- **Streamlit** — Data-dense web UI with tabs, expanders, interactive Plotly charts
+- **python-pptx** — PowerPoint generation with styled tables and native charts
+- **yfinance** — Real-time market data, financial statements, analyst estimates, ownership
+- **Matplotlib** — Static chart rendering for PPTX slides (price, revenue, cash flow)
+- **Plotly** — Interactive price and analyst charts in the web UI
+- **OpenAI** — Optional AI insights via GPT-4o-mini (M&A history, industry analysis)
 
 ## License
 
