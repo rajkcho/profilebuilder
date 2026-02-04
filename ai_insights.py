@@ -285,7 +285,15 @@ def generate_insights_llm(cd: CompanyData) -> CompanyData:
 
 
 def generate_ma_history_llm(cd: CompanyData) -> CompanyData:
-    """Generate M&A history via a dedicated LLM call."""
+    """Generate M&A history — uses scraped Wikipedia data as primary source,
+    falls back to LLM only when no scraped data is available."""
+
+    # If we already have scraped deals from Wikipedia, build ma_history from them
+    if cd.ma_deals:
+        cd.ma_history = _build_ma_history_from_deals(cd)
+        return cd
+
+    # No scraped data — try LLM
     try:
         text = _call_llm(_build_ma_history_prompt(cd), max_tokens=2000)
         sections = _parse_sections(text)
@@ -299,8 +307,41 @@ def generate_ma_history_llm(cd: CompanyData) -> CompanyData:
             cd.ma_history += f"\n\n**M&A Strategy Assessment:**\n{summary_text}"
     except Exception as e:
         print(f"M&A history LLM call failed ({e}), using fallback.")
-        cd.ma_history = "M&A history requires an OpenAI API key. Set the OPENAI_API_KEY environment variable to enable AI-generated M&A analysis."
+        cd.ma_history = _build_no_data_fallback(cd)
     return cd
+
+
+def _build_ma_history_from_deals(cd: CompanyData) -> str:
+    """Build formatted markdown M&A history from scraped deal data."""
+    deals = cd.ma_deals
+    total = len(deals)
+
+    # Show up to 20 most recent deals with values, then a summary
+    shown_deals = deals[:20]
+
+    lines = [f"**{total} acquisitions on record** *(Source: [Wikipedia]({cd.ma_source}))*\n"]
+    lines.append("| Date | Target | Business | Value |")
+    lines.append("|------|--------|----------|-------|")
+    for d in shown_deals:
+        date = d.get("date", "")
+        company = d.get("company", "")
+        business = d.get("business", "")[:60]
+        value = d.get("value", "Undisclosed")
+        lines.append(f"| {date} | {company} | {business} | {value} |")
+
+    if total > 20:
+        lines.append(f"\n*...and {total - 20} more deals. See full list on Wikipedia.*")
+
+    return "\n".join(lines)
+
+
+def _build_no_data_fallback(cd: CompanyData) -> str:
+    """Fallback when no M&A data is available from any source."""
+    return (
+        f"No public M&A history found for {cd.name}. "
+        f"This company may have limited acquisition activity, "
+        f"or its deal history may not be documented on Wikipedia."
+    )
 
 
 def generate_industry_analysis_llm(cd: CompanyData) -> CompanyData:
@@ -382,11 +423,11 @@ def _fallback_industry(cd: CompanyData):
 def generate_insights_fallback(cd: CompanyData) -> CompanyData:
     """Full deterministic fallback — no API key needed."""
     _fallback_main_insights(cd)
-    cd.ma_history = (
-        "M&A history data requires an OpenAI API key. "
-        "Set the OPENAI_API_KEY environment variable to enable "
-        "AI-generated M&A deal history and strategic analysis."
-    )
+    # Use scraped Wikipedia data if available, otherwise show informative message
+    if cd.ma_deals:
+        cd.ma_history = _build_ma_history_from_deals(cd)
+    else:
+        cd.ma_history = _build_no_data_fallback(cd)
     _fallback_industry(cd)
     return cd
 

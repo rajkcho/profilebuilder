@@ -3,14 +3,19 @@ Data Engine — pulls comprehensive financial data from yfinance and
 structures everything for the PPTX generator and Streamlit UI.
 
 Covers: financials, cash flow, analyst data, insider activity,
-institutional ownership, ESG, earnings, dividends, and news.
+institutional ownership, ESG, earnings, dividends, news,
+and M&A history (scraped from Wikipedia).
 """
 
 import yfinance as yf
 import pandas as pd
 import numpy as np
+import urllib.request
+import json
+import re
+from io import StringIO
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, List, Dict
 
 
 @dataclass
@@ -148,11 +153,15 @@ class CompanyData:
     # ── News ──────────────────────────────────────────────
     news: list = field(default_factory=list)
 
+    # ── M&A Deal History (scraped) ─────────────────────────
+    ma_deals: List[Dict] = field(default_factory=list)   # list of deal dicts
+    ma_source: str = ""    # "wikipedia", "llm", or ""
+
     # ── AI-Generated Content ──────────────────────────────
     product_overview: str = ""
     mgmt_sentiment: str = ""
     executive_summary_bullets: list = field(default_factory=list)
-    ma_history: str = ""
+    ma_history: str = ""           # legacy markdown string (now built from ma_deals)
     industry_analysis: str = ""
     risk_factors: str = ""
 
@@ -173,6 +182,197 @@ def _safe_series(df: pd.DataFrame, row_name: str) -> Optional[pd.Series]:
     if row_name in df.index:
         return df.loc[row_name]
     return None
+
+
+def _wiki_search_ma_page(company_name: str) -> Optional[str]:
+    """Search Wikipedia for an M&A page and return the page title if found."""
+    # Clean up company name for searching
+    clean = company_name.replace(", Inc.", "").replace(" Inc.", "")
+    clean = clean.replace(", Inc", "").replace(" Inc", "")
+    clean = clean.replace(" Corporation", "").replace(" Corp.", "")
+    clean = clean.replace(" Co.", "").replace(", Ltd.", "")
+    clean = clean.replace(" Platforms", "").replace(" Holdings", "")
+    clean = clean.strip()
+
+    # Also try first word only (e.g., "Apple" from "Apple Inc.")
+    first_word = clean.split()[0] if clean else ""
+
+    # Build candidate page titles to try
+    candidates = []
+    for name in [clean, first_word]:
+        if not name:
+            continue
+        wiki_name = name.replace(" ", "_")
+        candidates.append(f"List_of_mergers_and_acquisitions_by_{wiki_name}")
+        candidates.append(f"List_of_acquisitions_by_{wiki_name}")
+
+    # Try direct page fetch first (faster than search)
+    for page_title in candidates:
+        url = f"https://en.wikipedia.org/api/rest_v1/page/html/{urllib.request.quote(page_title)}"
+        req = urllib.request.Request(url, headers={"User-Agent": "ProfileBuilder/1.0"})
+        try:
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                if resp.status == 200:
+                    return page_title
+        except Exception:
+            continue
+
+    # Fallback: use Wikipedia search API
+    for name in [clean, first_word]:
+        if not name:
+            continue
+        name_lower = name.lower()
+        for prefix in ["List of mergers and acquisitions by", "List of acquisitions by"]:
+            query = f"{prefix} {name}"
+            search_url = (
+                f"https://en.wikipedia.org/w/api.php?action=opensearch"
+                f"&search={urllib.request.quote(query)}&limit=5&format=json"
+            )
+            req = urllib.request.Request(search_url, headers={"User-Agent": "ProfileBuilder/1.0"})
+            try:
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                titles = data[1] if len(data) > 1 else []
+                for t in titles:
+                    tl = t.lower()
+                    if ("mergers and acquisitions" in tl or "acquisitions by" in tl):
+                        # Validate: the page title must contain the company name
+                        # to avoid false matches (e.g., Tesla → Research In Motion)
+                        if name_lower in tl:
+                            return t.replace(" ", "_")
+            except Exception:
+                continue
+
+    return None
+
+
+def _parse_wiki_ma_table(html: str) -> List[Dict]:
+    """Parse M&A tables from Wikipedia HTML into a list of deal dicts."""
+    tables = pd.read_html(StringIO(html))
+
+    deals = []
+    for df in tables:
+        if len(df) < 2 or len(df.columns) < 3:
+            continue
+
+        cols_lower = [str(c).lower() for c in df.columns]
+
+        # Flexible column detection — handle many Wikipedia variants
+        col_map = {}
+        for i, c in enumerate(cols_lower):
+            orig = df.columns[i]
+            # Date columns: "date", "acquired on", "announced", etc.
+            if not col_map.get("date") and any(
+                kw in c for kw in ["date", "acquired on", "announced", "year"]
+            ):
+                col_map["date"] = orig
+            # Company columns: "company", "target company", "target"
+            elif not col_map.get("company") and any(
+                kw in c for kw in ["company", "target"]
+            ) and "country" not in c:
+                col_map["company"] = orig
+            # Business/description: "business", "description", "industry", "type"
+            elif not col_map.get("business") and any(
+                kw in c for kw in ["business", "description", "industry", "type",
+                                   "service", "product"]
+            ):
+                col_map["business"] = orig
+            # Country/location: "country", "location", "nationality"
+            elif not col_map.get("country") and any(
+                kw in c for kw in ["country", "location", "nationality"]
+            ):
+                col_map["country"] = orig
+            # Value: "value", "price", "acquired for", "deal value", "amount"
+            elif not col_map.get("value") and any(
+                kw in c for kw in ["value", "price", "acquired for", "deal",
+                                   "amount", "cost"]
+            ):
+                col_map["value"] = orig
+
+        company_col = col_map.get("company")
+        date_col = col_map.get("date")
+        if not company_col or not date_col:
+            continue
+
+        for _, row in df.iterrows():
+            company_name = str(row.get(company_col, "")).strip()
+            date_str = str(row.get(date_col, "")).strip()
+
+            # Skip garbage rows
+            if not company_name or company_name in ("nan", "", "—"):
+                continue
+            if not date_str or date_str in ("nan", ""):
+                continue
+            # Skip rows that look like repeated headers
+            if company_name.lower() in ("company", "target", "target company"):
+                continue
+
+            deal = {
+                "company": company_name,
+                "date": date_str,
+                "business": "",
+                "country": "",
+                "value": "",
+            }
+            if col_map.get("business"):
+                deal["business"] = str(row.get(col_map["business"], "")).strip()
+            if col_map.get("country"):
+                deal["country"] = str(row.get(col_map["country"], "")).strip()
+            if col_map.get("value"):
+                deal["value"] = str(row.get(col_map["value"], "")).strip()
+
+            # Clean value field
+            val = deal["value"]
+            if val in ("nan", "—", "–", "Undisclosed", "", "N/A"):
+                deal["value"] = "Undisclosed"
+            # Strip footnote references like [note 12] or [123]
+            deal["value"] = re.sub(r"\[.*?\]", "", deal["value"]).strip()
+
+            # Clean 'nan' strings across all fields
+            for k in deal:
+                if deal[k] == "nan":
+                    deal[k] = ""
+
+            deals.append(deal)
+
+    return deals
+
+
+def _extract_year(date_str: str) -> int:
+    """Extract a 4-digit year from a date string, return 0 on failure."""
+    match = re.search(r"\b(19|20)\d{2}\b", date_str)
+    return int(match.group()) if match else 0
+
+
+def fetch_ma_deals(company_name: str) -> tuple:
+    """
+    Fetch M&A deal history from Wikipedia for a given company.
+    Returns (deals_list, source_string).
+    """
+    try:
+        page_title = _wiki_search_ma_page(company_name)
+        if not page_title:
+            return [], ""
+
+        url = f"https://en.wikipedia.org/api/rest_v1/page/html/{urllib.request.quote(page_title)}"
+        req = urllib.request.Request(url, headers={"User-Agent": "ProfileBuilder/1.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            html = resp.read().decode("utf-8")
+
+        deals = _parse_wiki_ma_table(html)
+
+        if not deals:
+            return [], ""
+
+        # Sort by year descending (most recent first)
+        deals.sort(key=lambda d: _extract_year(d.get("date", "")), reverse=True)
+
+        source_url = f"https://en.wikipedia.org/wiki/{page_title}"
+        return deals, source_url
+
+    except Exception as e:
+        print(f"Wikipedia M&A fetch failed for '{company_name}': {e}")
+        return [], ""
 
 
 def fetch_company_data(ticker_str: str) -> CompanyData:
@@ -447,6 +647,15 @@ def fetch_company_data(ticker_str: str) -> CompanyData:
         cd.news = parsed_news
     except Exception:
         cd.news = []
+
+    # ── M&A History (Wikipedia scrape) ─────────────────
+    try:
+        deals, source = fetch_ma_deals(cd.name)
+        if deals:
+            cd.ma_deals = deals
+            cd.ma_source = source
+    except Exception as e:
+        print(f"M&A scraping failed: {e}")
 
     return cd
 

@@ -318,10 +318,29 @@ if generate_btn and ticker_input:
     # 9. M&A HISTORY
     # ══════════════════════════════════════════════════════
     st.markdown("### M&A History")
-    if cd.ma_history:
+    if cd.ma_deals:
+        st.markdown(
+            f"**{len(cd.ma_deals)} acquisitions on record**"
+            + (f"  ·  Source: [Wikipedia]({cd.ma_source})" if cd.ma_source else "")
+        )
+        # Build a clean DataFrame for display
+        ma_df = pd.DataFrame([
+            {
+                "Date": d.get("date", ""),
+                "Target": d.get("company", ""),
+                "Business": d.get("business", ""),
+                "Country": d.get("country", ""),
+                "Value (USD)": d.get("value", "Undisclosed"),
+            }
+            for d in cd.ma_deals[:30]
+        ])
+        st.dataframe(ma_df, use_container_width=True, hide_index=True, height=400)
+        if len(cd.ma_deals) > 30:
+            st.caption(f"Showing 30 of {len(cd.ma_deals)} deals. See full list on Wikipedia.")
+    elif cd.ma_history:
         st.markdown(cd.ma_history)
     else:
-        st.info("M&A history not available. Set OPENAI_API_KEY for AI-generated deal history.")
+        st.info("No public M&A history found for this company.")
 
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
 
@@ -475,11 +494,11 @@ else:
 | **Balance Sheet & Cash Flow** | Assets, liabilities, equity, operating & free cash flow |
 | **Valuation & Analyst** | P/E, PEG, EV/EBITDA, price targets, recommendation distribution |
 | **Ownership & Insiders** | Institutional holders, insider transactions |
-| **M&A History** | AI-generated deal history with valuations (requires API key) |
+| **M&A History** | Deal history scraped from Wikipedia with dates, targets, and valuations |
 | **Management & Governance** | Officers, compensation, ESG scores |
 | **News & Market Context** | Recent headlines, industry analysis, risk factors |
 
 ---
-*Set `OPENAI_API_KEY` for AI-powered M&A history, industry analysis, and risk factors.
-Without it, deterministic insights are generated from financial data.*
+*M&A history is scraped from Wikipedia — no API key needed.
+Optionally set `OPENAI_API_KEY` for AI-powered industry analysis and risk factors.*
     """)

@@ -9,7 +9,8 @@ Combines live market data from Yahoo Finance, full financial statements, ownersh
 Enter a ticker symbol, and the app:
 
 1. **Pulls 60+ data points** from Yahoo Finance — 4 years of income statements, balance sheets, cash flow, quarterly data, analyst estimates, insider transactions, institutional ownership, ESG scores, earnings history, and 5-year price history
-2. **Generates AI insights** — product overview, management assessment, executive summary, M&A deal history with valuations, industry analysis, and risk factors (via OpenAI, with deterministic fallback)
+2. **Scrapes M&A history** from Wikipedia — acquisition targets, dates, deal values, and business descriptions (no API key needed)
+3. **Generates AI insights** — product overview, management assessment, executive summary, industry analysis, and risk factors (via OpenAI, with deterministic fallback)
 3. **Displays a 14-section dashboard** — Yahoo Finance-style data-dense UI with interactive charts, sortable tables, and collapsible sections
 4. **Builds an 8-slide PowerPoint** — professional IB pitch book layout with navy/gold/white palette, styled tables, and embedded charts
 
@@ -22,7 +23,7 @@ Enter a ticker symbol, and the app:
 | **Balance Sheet & Cash Flow** | Balance sheet highlights, cash flow table, leverage ratios, CF trend chart |
 | **Valuation & Analyst** | Valuation multiples table, analyst recommendation bar chart, price target summary |
 | **Ownership & Insiders** | Major holders, top 10 institutional holders table, insider transactions |
-| **M&A History** | AI-generated deal history with valuations, M&A strategy assessment |
+| **M&A History** | Wikipedia-scraped deal table with dates, targets, values (up to 15 deals) |
 | **Management & Governance** | Executives table with compensation, ESG scores, governance highlights |
 | **News & Market Context** | 10 news headlines, industry analysis, risk factors |
 
@@ -37,7 +38,7 @@ Enter a ticker symbol, and the app:
 - Analyst consensus with recommendation distribution and price targets
 - Ownership & insider transaction tables
 - Earnings history
-- AI-generated M&A deal history
+- M&A deal history scraped from Wikipedia (dates, targets, values, business descriptions)
 - Management team table
 - Recent news with links
 - ESG scores
@@ -65,7 +66,7 @@ export OPENAI_API_KEY="sk-..."
 streamlit run main.py
 ```
 
-Without the API key, the app generates deterministic insights from financial data. With the key, it generates comprehensive M&A deal history, industry analysis, and risk factors via GPT-4o-mini.
+M&A deal history is scraped from Wikipedia and works without any API key. The OpenAI key enables richer industry analysis and risk factors via GPT-4o-mini. Without it, deterministic insights are generated from financial data.
 
 ## Project Structure
 

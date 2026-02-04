@@ -723,29 +723,58 @@ def _build_slide_6(prs, cd):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     _slide_header(slide, f"M&A History — {cd.name}")
 
-    _add_textbox(slide, Inches(0.5), Inches(0.9), Inches(12), Inches(0.25),
-                 "Notable Mergers, Acquisitions & Strategic Transactions",
-                 font_size=10, bold=True, color=NAVY)
+    if cd.ma_deals:
+        # Show deal count and source
+        source_label = ""
+        if cd.ma_source:
+            source_label = f"   (Source: Wikipedia — {len(cd.ma_deals)} deals on record)"
+        _add_textbox(slide, Inches(0.5), Inches(0.9), Inches(12), Inches(0.25),
+                     f"Acquisition History{source_label}",
+                     font_size=10, bold=True, color=NAVY)
 
-    # M&A content from AI
-    ma_text = cd.ma_history or "No M&A history available."
-    # Strip markdown bold markers for PPTX
-    clean_text = ma_text.replace("**", "").replace("*", "")
+        # Build deal table — show up to 15 most recent deals
+        shown = cd.ma_deals[:15]
+        deal_rows = []
+        for d in shown:
+            date = d.get("date", "")[:20]
+            company = d.get("company", "")[:30]
+            business = d.get("business", "")[:35]
+            country = d.get("country", "")[:15]
+            value = d.get("value", "Undisclosed")[:20]
+            deal_rows.append([date, company, business, country, value])
 
-    content_box = _add_textbox(slide, Inches(0.5), Inches(1.3), Inches(12), Inches(5.0),
-                               "", font_size=9, color=DARK_GRAY)
-    tf = content_box.text_frame
+        _add_styled_table(
+            slide,
+            ["Date", "Target", "Business", "Country", "Value (USD)"],
+            deal_rows,
+            Inches(0.5), Inches(1.2), Inches(12.3), Inches(5.0),
+            col_widths=[Inches(1.8), Inches(3.0), Inches(3.5), Inches(1.5), Inches(2.0)],
+            num_cols_right_align=4,
+        )
 
-    for line in clean_text.split("\n"):
-        line = line.strip()
-        if not line:
-            _add_para(tf, "", font_size=4)  # spacer
-        elif line.startswith("M&A Strategy Assessment:"):
-            _add_para(tf, line, font_size=9, bold=True, color=NAVY, space_before=Pt(8))
-        elif "Value:" in line or "—" in line:
-            _add_para(tf, line, font_size=8, color=DARK_GRAY, space_before=Pt(2))
-        else:
-            _add_para(tf, line, font_size=8, color=DARK_GRAY, space_before=Pt(2))
+        if len(cd.ma_deals) > 15:
+            _add_textbox(slide, Inches(0.5), Inches(6.3), Inches(12), Inches(0.3),
+                         f"Showing 15 of {len(cd.ma_deals)} acquisitions. Full list available on Wikipedia.",
+                         font_size=7, color=MED_GRAY)
+
+    else:
+        # No scraped deals — show ma_history text (LLM-generated or fallback)
+        _add_textbox(slide, Inches(0.5), Inches(0.9), Inches(12), Inches(0.25),
+                     "Mergers, Acquisitions & Strategic Transactions",
+                     font_size=10, bold=True, color=NAVY)
+
+        ma_text = cd.ma_history or "No public M&A history found for this company."
+        clean_text = ma_text.replace("**", "").replace("*", "")
+
+        content_box = _add_textbox(slide, Inches(0.5), Inches(1.3), Inches(12), Inches(5.0),
+                                   "", font_size=9, color=DARK_GRAY)
+        tf = content_box.text_frame
+        for line in clean_text.split("\n"):
+            line = line.strip()
+            if not line:
+                _add_para(tf, "", font_size=4)
+            else:
+                _add_para(tf, line, font_size=8, color=DARK_GRAY, space_before=Pt(2))
 
     _slide_footer(slide, cd)
 
