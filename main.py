@@ -149,14 +149,21 @@ if generate_btn and ticker_input:
     # ══════════════════════════════════════════════════════
     st.markdown("### Financial Statements")
 
-    def _display_financial_df(df, label):
+    def _display_financial_df(df, label, quarterly=False):
         if df is not None and not df.empty:
             display_df = df.copy()
-            # Format column headers (years)
-            display_df.columns = [
-                c.strftime("%Y") if hasattr(c, "strftime") else str(c)
-                for c in display_df.columns
-            ]
+            # Format column headers — use quarter format for quarterly data
+            fmt = "%b %Y" if quarterly else "%Y"
+            new_cols = []
+            for c in display_df.columns:
+                col_str = c.strftime(fmt) if hasattr(c, "strftime") else str(c)
+                # Deduplicate: append suffix if already seen
+                base, n = col_str, 1
+                while col_str in new_cols:
+                    n += 1
+                    col_str = f"{base} ({n})"
+                new_cols.append(col_str)
+            display_df.columns = new_cols
             st.dataframe(display_df, use_container_width=True, height=400)
         else:
             st.info(f"{label} not available.")
@@ -171,7 +178,7 @@ if generate_btn and ticker_input:
     with fin_tab3:
         _display_financial_df(cd.cashflow, "Cash Flow Statement")
     with fin_tab4:
-        _display_financial_df(cd.quarterly_income_stmt, "Quarterly Income Statement")
+        _display_financial_df(cd.quarterly_income_stmt, "Quarterly Income Statement", quarterly=True)
 
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
 
