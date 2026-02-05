@@ -2590,6 +2590,11 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     for warn in pro_forma.warnings:
         st.warning(warn)
 
+    # Helper: escape $ to prevent Streamlit LaTeX rendering in markdown
+    def _mhtml(html_str):
+        """Render HTML via st.markdown with $ escaped to prevent LaTeX."""
+        st.markdown(html_str.replace("$", "&#36;"), unsafe_allow_html=True)
+
     # ══════════════════════════════════════════════════════
     # M1. DEAL HEADER
     # ══════════════════════════════════════════════════════
@@ -2666,7 +2671,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     with deal_col1:
         _build_deal_structure_donut(merger_assumptions)
     with deal_col2:
-        st.markdown(
+        _mhtml(
             f'<div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); '
             f'border-radius:14px; padding:1.2rem;">'
             f'<div style="font-size:0.75rem; font-weight:600; color:#8A85AD; text-transform:uppercase; letter-spacing:1px; margin-bottom:0.5rem;">Consideration Detail</div>'
@@ -2676,8 +2681,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
             f'({pro_forma.new_shares_issued / 1e6:,.1f}M new shares @ {acq_cs}{acq_cd.current_price:,.2f})<br>'
             f'Offer Price: {acq_cs}{pro_forma.offer_price_per_share:,.2f}/share '
             f'(vs current {tgt_cs}{tgt_cd.current_price:,.2f})'
-            f'</div></div>',
-            unsafe_allow_html=True,
+            f'</div></div>'
         )
 
     _divider()
@@ -2736,15 +2740,14 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     acc_word = "ACCRETIVE" if pro_forma.is_accretive else "DILUTIVE"
     acc_bg = "rgba(16,185,129,0.08)" if pro_forma.is_accretive else "rgba(239,68,68,0.08)"
 
-    st.markdown(
+    _mhtml(
         f'<div style="text-align:center; padding:1rem; background:{acc_bg}; border-radius:14px; margin-bottom:1rem;">'
         f'<div style="font-size:0.7rem; font-weight:600; color:#8A85AD; text-transform:uppercase; letter-spacing:1px;">EPS Impact</div>'
         f'<div style="font-size:2.5rem; font-weight:800; color:{acc_color};">{pro_forma.accretion_dilution_pct:+.1f}%</div>'
         f'<div style="font-size:1rem; font-weight:700; color:{acc_color};">{acc_word}</div>'
         f'<div style="font-size:0.8rem; color:#B8B3D7; margin-top:0.3rem;">'
         f'Standalone: {acq_cs}{pro_forma.acq_eps:.2f} &rarr; Pro Forma: {acq_cs}{pro_forma.pf_eps:.2f}</div>'
-        f'</div>',
-        unsafe_allow_html=True,
+        f'</div>'
     )
 
     _build_accretion_waterfall(pro_forma)
@@ -2769,21 +2772,19 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         st.markdown('<div style="font-size:0.85rem; font-weight:700; color:#E0DCF5; margin-bottom:0.5rem;">Sources</div>', unsafe_allow_html=True)
         for k, v in pro_forma.sources.items():
             weight = "700" if k.startswith("Total") else "400"
-            st.markdown(
+            _mhtml(
                 f'<div style="display:flex; justify-content:space-between; padding:0.3rem 0; '
                 f'border-bottom:1px solid rgba(255,255,255,0.05); font-size:0.85rem; color:#B8B3D7; font-weight:{weight};">'
-                f'<span>{k}</span><span>{format_number(v, currency_symbol=acq_cs)}</span></div>',
-                unsafe_allow_html=True,
+                f'<span>{k}</span><span>{format_number(v, currency_symbol=acq_cs)}</span></div>'
             )
     with su2:
         st.markdown('<div style="font-size:0.85rem; font-weight:700; color:#E0DCF5; margin-bottom:0.5rem;">Uses</div>', unsafe_allow_html=True)
         for k, v in pro_forma.uses.items():
             weight = "700" if k.startswith("Total") else "400"
-            st.markdown(
+            _mhtml(
                 f'<div style="display:flex; justify-content:space-between; padding:0.3rem 0; '
                 f'border-bottom:1px solid rgba(255,255,255,0.05); font-size:0.85rem; color:#B8B3D7; font-weight:{weight};">'
-                f'<span>{k}</span><span>{format_number(v, currency_symbol=acq_cs)}</span></div>',
-                unsafe_allow_html=True,
+                f'<span>{k}</span><span>{format_number(v, currency_symbol=acq_cs)}</span></div>'
             )
 
     _divider()
@@ -2815,7 +2816,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     cr3.metric("PF Total Debt", format_number(pro_forma.pf_total_debt, currency_symbol=acq_cs))
     cr4.metric("PF Net Debt", format_number(pro_forma.pf_net_debt, currency_symbol=acq_cs))
 
-    st.markdown(
+    _mhtml(
         f'<div style="display:flex; gap:1rem; margin-top:0.5rem;">'
         f'<div style="flex:1; text-align:center; padding:0.6rem; background:rgba(255,255,255,0.04); border-radius:10px; border-left:3px solid {lev_c};">'
         f'<div style="font-size:0.65rem; font-weight:600; color:#8A85AD; text-transform:uppercase;">Leverage</div>'
@@ -2828,8 +2829,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         f'<div style="flex:1; text-align:center; padding:0.6rem; background:rgba(255,255,255,0.04); border-radius:10px;">'
         f'<div style="font-size:0.65rem; font-weight:600; color:#8A85AD; text-transform:uppercase;">Goodwill</div>'
         f'<div style="font-size:1.1rem; font-weight:700; color:#E0DCF5;">{format_number(pro_forma.goodwill, currency_symbol=acq_cs)}</div></div>'
-        f'</div>',
-        unsafe_allow_html=True,
+        f'</div>'
     )
 
     _divider()
