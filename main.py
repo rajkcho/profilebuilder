@@ -1876,7 +1876,8 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
 
     logo_html = ""
     if cd.logo_url:
-        logo_fallback = f"this.onerror=null; this.src='https://logo.clearbit.com/{cd.logo_domain}';" if cd.logo_domain else "this.style.display='none';"
+        _ld = getattr(cd, 'logo_domain', '')
+        logo_fallback = f"this.onerror=null; this.src='https://logo.clearbit.com/{_ld}';" if _ld else "this.style.display='none';"
         logo_html = (
             f'<img src="{cd.logo_url}" '
             f'style="width:52px; height:52px; border-radius:10px; object-fit:contain; '
@@ -2581,7 +2582,8 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     # ══════════════════════════════════════════════════════
     acq_logo = ""
     if acq_cd.logo_url:
-        acq_fallback = f"this.onerror=null; this.src='https://logo.clearbit.com/{acq_cd.logo_domain}';" if acq_cd.logo_domain else "this.style.display='none';"
+        _ald = getattr(acq_cd, 'logo_domain', '')
+        acq_fallback = f"this.onerror=null; this.src='https://logo.clearbit.com/{_ald}';" if _ald else "this.style.display='none';"
         acq_logo = (
             f'<img src="{acq_cd.logo_url}" '
             f'style="width:48px; height:48px; border-radius:10px; object-fit:contain; '
@@ -2589,7 +2591,8 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         )
     tgt_logo = ""
     if tgt_cd.logo_url:
-        tgt_fallback = f"this.onerror=null; this.src='https://logo.clearbit.com/{tgt_cd.logo_domain}';" if tgt_cd.logo_domain else "this.style.display='none';"
+        _tld = getattr(tgt_cd, 'logo_domain', '')
+        tgt_fallback = f"this.onerror=null; this.src='https://logo.clearbit.com/{_tld}';" if _tld else "this.style.display='none';"
         tgt_logo = (
             f'<img src="{tgt_cd.logo_url}" '
             f'style="width:48px; height:48px; border-radius:10px; object-fit:contain; '
