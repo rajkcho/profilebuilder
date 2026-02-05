@@ -35,6 +35,13 @@ class CompanyData:
     long_business_summary: str = ""
     full_time_employees: Optional[int] = None
 
+    # ── Currency ───────────────────────────────────────────
+    currency_code: str = "USD"
+    currency_symbol: str = "$"
+
+    # ── Logo ───────────────────────────────────────────────
+    logo_url: str = ""
+
     # ── Price & Market ────────────────────────────────────
     current_price: float = 0.0
     previous_close: float = 0.0
@@ -157,6 +164,10 @@ class CompanyData:
     ma_deals: List[Dict] = field(default_factory=list)   # list of deal dicts
     ma_source: str = ""    # "wikipedia", "llm", or ""
 
+    # ── Peer Comparison ────────────────────────────────────
+    peer_data: List[Dict] = field(default_factory=list)  # list of peer metric dicts
+    peer_tickers: List[str] = field(default_factory=list)
+
     # ── AI-Generated Content ──────────────────────────────
     product_overview: str = ""
     mgmt_sentiment: str = ""
@@ -182,6 +193,91 @@ def _safe_series(df: pd.DataFrame, row_name: str) -> Optional[pd.Series]:
     if row_name in df.index:
         return df.loc[row_name]
     return None
+
+
+# ── Exchange-to-Currency Mapping ────────────────────────────
+EXCHANGE_CURRENCY_MAP = {
+    # US
+    "NMS": ("USD", "$"), "NYQ": ("USD", "$"), "NGM": ("USD", "$"),
+    "NCM": ("USD", "$"), "ASE": ("USD", "$"), "BTS": ("USD", "$"),
+    "PCX": ("USD", "$"), "OPR": ("USD", "$"),
+    # Canada
+    "TOR": ("CAD", "C$"), "VAN": ("CAD", "C$"), "CNQ": ("CAD", "C$"),
+    # UK
+    "LSE": ("GBP", "\u00a3"), "IOB": ("GBP", "\u00a3"),
+    # Europe
+    "FRA": ("EUR", "\u20ac"), "GER": ("EUR", "\u20ac"), "PAR": ("EUR", "\u20ac"),
+    "AMS": ("EUR", "\u20ac"), "MIL": ("EUR", "\u20ac"), "MCE": ("EUR", "\u20ac"),
+    "EBS": ("CHF", "CHF "),
+    # Asia-Pacific
+    "JPX": ("JPY", "\u00a5"), "TYO": ("JPY", "\u00a5"),
+    "HKG": ("HKD", "HK$"),
+    "SHH": ("CNY", "\u00a5"), "SHZ": ("CNY", "\u00a5"),
+    "KSC": ("KRW", "\u20a9"), "KOE": ("KRW", "\u20a9"),
+    "ASX": ("AUD", "A$"),
+    "NSI": ("INR", "\u20b9"), "BSE": ("INR", "\u20b9"),
+}
+
+CURRENCY_SYMBOLS = {
+    "USD": "$", "CAD": "C$", "GBP": "\u00a3", "EUR": "\u20ac",
+    "JPY": "\u00a5", "HKD": "HK$", "AUD": "A$", "INR": "\u20b9",
+    "CNY": "\u00a5", "KRW": "\u20a9", "CHF": "CHF ", "SEK": "kr ",
+    "NOK": "kr ", "DKK": "kr ", "SGD": "S$", "NZD": "NZ$",
+    "BRL": "R$", "MXN": "MX$", "ZAR": "R ",
+}
+
+
+def _resolve_currency(exchange_code: str) -> tuple:
+    """Return (currency_code, currency_symbol) for a yfinance exchange code."""
+    return EXCHANGE_CURRENCY_MAP.get(exchange_code, ("USD", "$"))
+
+
+# ── Peer Group Industry Map ─────────────────────────────────
+INDUSTRY_PEER_MAP = {
+    # Technology
+    "Consumer Electronics": ["AAPL", "SONY", "HPQ", "DELL", "LOGI"],
+    "Software - Infrastructure": ["MSFT", "ORCL", "CRM", "NOW", "ADBE", "INTU"],
+    "Software - Application": ["CRM", "ADBE", "INTU", "NOW", "WDAY", "TEAM"],
+    "Semiconductors": ["NVDA", "AMD", "INTC", "AVGO", "QCOM", "TXN", "MU"],
+    "Semiconductor Equipment & Materials": ["ASML", "AMAT", "LRCX", "KLAC", "TER"],
+    "Internet Content & Information": ["GOOGL", "META", "SNAP", "PINS", "SPOT"],
+    "Internet Retail": ["AMZN", "BABA", "JD", "MELI", "SE", "SHOP"],
+    "Information Technology Services": ["ACN", "IBM", "CTSH", "INFY", "WIT"],
+    "Electronic Components": ["APH", "TEL", "GLW", "JBL", "FLEX"],
+    "Communication Equipment": ["CSCO", "MSI", "JNPR", "ERIC", "NOK"],
+    # Financials
+    "Banks - Diversified": ["JPM", "BAC", "WFC", "C", "GS", "MS"],
+    "Banks - Regional": ["USB", "PNC", "TFC", "FITB", "KEY", "RF"],
+    "Insurance - Diversified": ["BRK-B", "AIG", "MET", "PRU", "ALL"],
+    "Capital Markets": ["GS", "MS", "SCHW", "BLK", "ICE", "CME"],
+    "Financial Data & Stock Exchanges": ["SPGI", "MCO", "MSCI", "ICE", "NDAQ"],
+    # Healthcare
+    "Drug Manufacturers - General": ["JNJ", "PFE", "MRK", "LLY", "ABBV", "NVO"],
+    "Biotechnology": ["AMGN", "GILD", "VRTX", "REGN", "BIIB", "MRNA"],
+    "Medical Devices": ["MDT", "ABT", "SYK", "BSX", "ISRG", "EW"],
+    "Health Care Plans": ["UNH", "ELV", "CI", "HUM", "CNC"],
+    # Energy
+    "Oil & Gas Integrated": ["XOM", "CVX", "SHEL", "TTE", "COP", "BP"],
+    "Oil & Gas E&P": ["EOG", "PXD", "DVN", "FANG", "MRO"],
+    # Consumer
+    "Beverages - Non-Alcoholic": ["KO", "PEP", "MNST", "CELH"],
+    "Restaurants": ["MCD", "SBUX", "CMG", "YUM", "DRI", "QSR"],
+    "Discount Stores": ["WMT", "COST", "TGT", "DG", "DLTR"],
+    "Specialty Retail": ["HD", "LOW", "TJX", "ROST", "ORLY"],
+    "Household & Personal Products": ["PG", "CL", "KMB", "EL", "CHD"],
+    # Industrial
+    "Aerospace & Defense": ["BA", "LMT", "RTX", "NOC", "GD", "GE"],
+    "Auto Manufacturers": ["TSLA", "TM", "GM", "F", "HMC", "STLA"],
+    "Railroads": ["UNP", "CSX", "NSC", "CP"],
+    "Industrial Conglomerates": ["HON", "MMM", "GE", "ITW", "EMR"],
+    # Telecom / Media
+    "Entertainment": ["DIS", "NFLX", "CMCSA", "WBD", "PARA"],
+    "Telecom Services": ["T", "VZ", "TMUS", "CHTR"],
+    # Real Estate
+    "REIT - Diversified": ["AMT", "PLD", "CCI", "EQIX", "SPG"],
+    # Utilities
+    "Utilities - Regulated Electric": ["NEE", "DUK", "SO", "D", "AEP"],
+}
 
 
 def _wiki_search_ma_page(company_name: str) -> Optional[str]:
@@ -387,12 +483,33 @@ def fetch_company_data(ticker_str: str) -> CompanyData:
     cd.sector = _safe_get(info, "sector", "N/A")
     cd.industry = _safe_get(info, "industry", "N/A")
     cd.exchange = _safe_get(info, "exchange", "")
+
+    # ── Currency ──────────────────────────────────────────
+    fin_currency = _safe_get(info, "financialCurrency", "")
+    if fin_currency and fin_currency in CURRENCY_SYMBOLS:
+        cd.currency_code = fin_currency
+        cd.currency_symbol = CURRENCY_SYMBOLS[fin_currency]
+    elif cd.exchange:
+        cd.currency_code, cd.currency_symbol = _resolve_currency(cd.exchange)
+
     cd.website = _safe_get(info, "website", "")
     cd.city = _safe_get(info, "city", "")
     cd.state = _safe_get(info, "state", "")
     cd.country = _safe_get(info, "country", "")
     cd.long_business_summary = _safe_get(info, "longBusinessSummary", "")
     cd.full_time_employees = _safe_get(info, "fullTimeEmployees")
+
+    # ── Logo (Clearbit) ──────────────────────────────────
+    if cd.website:
+        try:
+            from urllib.parse import urlparse
+            domain = urlparse(cd.website).netloc
+            if domain.startswith("www."):
+                domain = domain[4:]
+            if domain:
+                cd.logo_url = f"https://logo.clearbit.com/{domain}"
+        except Exception:
+            pass
 
     # ── Price & Market ───────────────────────────────────
     cd.current_price = _safe_get(info, "currentPrice",
@@ -660,10 +777,64 @@ def fetch_company_data(ticker_str: str) -> CompanyData:
     return cd
 
 
+# ── Peer Comparison Fetcher ──────────────────────────────────
+
+def fetch_peer_data(cd: CompanyData) -> CompanyData:
+    """Fetch valuation metrics for peer companies based on industry mapping.
+
+    Uses INDUSTRY_PEER_MAP (hardcoded, no API key needed).
+    Limits to 5 peers for performance (~1-3s per peer).
+    """
+    peer_tickers = INDUSTRY_PEER_MAP.get(cd.industry, [])
+
+    # Remove the target company itself
+    peer_tickers = [t for t in peer_tickers if t.upper() != cd.ticker.upper()]
+
+    # Limit to 5 peers
+    peer_tickers = peer_tickers[:5]
+
+    if not peer_tickers:
+        return cd
+
+    cd.peer_tickers = peer_tickers
+    peers = []
+
+    for pticker in peer_tickers:
+        try:
+            pk = yf.Ticker(pticker)
+            pinfo = pk.info or {}
+            peer = {
+                "ticker": pticker,
+                "name": _safe_get(pinfo, "shortName", pticker),
+                "market_cap": _safe_get(pinfo, "marketCap", 0),
+                "trailing_pe": _safe_get(pinfo, "trailingPE"),
+                "forward_pe": _safe_get(pinfo, "forwardPE"),
+                "ev_to_ebitda": _safe_get(pinfo, "enterpriseToEbitda"),
+                "price_to_sales": _safe_get(pinfo, "priceToSalesTrailing12Months"),
+                "peg_ratio": _safe_get(pinfo, "pegRatio"),
+                "price_to_book": _safe_get(pinfo, "priceToBook"),
+                "gross_margins": _safe_get(pinfo, "grossMargins"),
+                "operating_margins": _safe_get(pinfo, "operatingMargins"),
+                "profit_margins": _safe_get(pinfo, "profitMargins"),
+                "return_on_equity": _safe_get(pinfo, "returnOnEquity"),
+                "revenue_growth": _safe_get(pinfo, "revenueGrowth"),
+                "current_price": _safe_get(pinfo, "currentPrice",
+                                           _safe_get(pinfo, "regularMarketPrice", 0)),
+            }
+            peers.append(peer)
+        except Exception:
+            continue
+
+    cd.peer_data = peers
+    return cd
+
+
 # ── Formatting Helpers ───────────────────────────────────────
 
-def format_number(val, prefix="$", suffix="", decimals=1) -> str:
-    """Human-readable large numbers: $1.2B, $340.5M, etc."""
+def format_number(val, prefix="$", suffix="", decimals=1, currency_symbol=None) -> str:
+    """Human-readable large numbers: $1.2B, C$340.5M, etc."""
+    if currency_symbol is not None:
+        prefix = currency_symbol
     if val is None or (isinstance(val, float) and np.isnan(val)):
         return "N/A"
     try:

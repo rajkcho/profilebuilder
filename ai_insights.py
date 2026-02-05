@@ -42,11 +42,13 @@ def _build_main_prompt(cd: CompanyData) -> str:
         f"- {n['title']} ({n['publisher']})" for n in cd.news[:8]
     ) or "No recent news available."
 
+    cs = cd.currency_symbol
+
     # Latest financials
-    rev_latest = format_number(cd.revenue.iloc[0]) if cd.revenue is not None and len(cd.revenue) > 0 else "N/A"
-    ebitda_latest = format_number(cd.ebitda.iloc[0]) if cd.ebitda is not None and len(cd.ebitda) > 0 else "N/A"
-    ni_latest = format_number(cd.net_income.iloc[0]) if cd.net_income is not None and len(cd.net_income) > 0 else "N/A"
-    fcf_latest = format_number(cd.free_cashflow_series.iloc[0]) if cd.free_cashflow_series is not None and len(cd.free_cashflow_series) > 0 else "N/A"
+    rev_latest = format_number(cd.revenue.iloc[0], currency_symbol=cs) if cd.revenue is not None and len(cd.revenue) > 0 else "N/A"
+    ebitda_latest = format_number(cd.ebitda.iloc[0], currency_symbol=cs) if cd.ebitda is not None and len(cd.ebitda) > 0 else "N/A"
+    ni_latest = format_number(cd.net_income.iloc[0], currency_symbol=cs) if cd.net_income is not None and len(cd.net_income) > 0 else "N/A"
+    fcf_latest = format_number(cd.free_cashflow_series.iloc[0], currency_symbol=cs) if cd.free_cashflow_series is not None and len(cd.free_cashflow_series) > 0 else "N/A"
 
     return f"""You are a senior M&A analyst at a bulge-bracket investment bank preparing a comprehensive tear sheet for {cd.name} ({cd.ticker}).
 
@@ -57,9 +59,9 @@ Headquarters: {cd.city}, {cd.state}, {cd.country}
 Employees: {cd.full_time_employees or 'N/A'}
 
 Financial Snapshot:
-- Market Cap: {format_number(cd.market_cap)}
-- Enterprise Value: {format_number(cd.enterprise_value)}
-- Current Price: ${cd.current_price:.2f} ({cd.price_change_pct:+.2f}%)
+- Market Cap: {format_number(cd.market_cap, currency_symbol=cs)}
+- Enterprise Value: {format_number(cd.enterprise_value, currency_symbol=cs)}
+- Current Price: {cs}{cd.current_price:.2f} ({cd.price_change_pct:+.2f}%) [{cd.currency_code}]
 - Revenue (Latest Annual): {rev_latest}
 - EBITDA (Latest Annual): {ebitda_latest}
 - Net Income (Latest Annual): {ni_latest}
@@ -110,8 +112,8 @@ def _build_ma_history_prompt(cd: CompanyData) -> str:
 
 Company: {cd.name} ({cd.ticker})
 Sector: {cd.sector} | Industry: {cd.industry}
-Market Cap: {format_number(cd.market_cap)}
-Enterprise Value: {format_number(cd.enterprise_value)}
+Market Cap: {format_number(cd.market_cap, currency_symbol=cd.currency_symbol)}
+Enterprise Value: {format_number(cd.enterprise_value, currency_symbol=cd.currency_symbol)}
 
 List the most significant mergers, acquisitions, divestitures, and strategic transactions.
 Include both deals BY the company and notable attempts TO acquire the company.
@@ -362,12 +364,13 @@ def generate_industry_analysis_llm(cd: CompanyData) -> CompanyData:
 
 def _fallback_main_insights(cd: CompanyData):
     """Deterministic fallback for main insights."""
+    cs = cd.currency_symbol
     growth_desc = "growing" if (cd.revenue_growth or 0) > 0 else "contracting"
     de_desc = "manageable" if (cd.debt_to_equity or 0) < 150 else "elevated"
 
     cd.product_overview = (
         f"- {cd.name} operates in the {cd.industry} sector within {cd.sector}\n"
-        f"- Market capitalization of {format_number(cd.market_cap)} with a "
+        f"- Market capitalization of {format_number(cd.market_cap, currency_symbol=cs)} with a "
         f"{growth_desc} revenue trajectory ({cd.revenue_growth or 0:+.1f}% YoY)\n"
         f"- Gross margin of {format_pct(cd.gross_margins)}, "
         f"operating margin of {format_pct(cd.operating_margins)}\n"
@@ -393,13 +396,13 @@ def _fallback_main_insights(cd: CompanyData):
     )
 
     cd.executive_summary_bullets = [
-        f"{cd.name} is a {format_number(cd.market_cap)} market cap company "
+        f"{cd.name} is a {format_number(cd.market_cap, currency_symbol=cs)} market cap company "
         f"in the {cd.industry} space with "
         f"{'positive' if (cd.revenue_growth or 0) > 0 else 'negative'} revenue momentum",
         f"Trades at {cd.trailing_pe or 'N/A'}x trailing P/E and "
         f"{cd.ev_to_ebitda or 'N/A'}x EV/EBITDA",
         f"Key risk: {'high leverage (D/E: ' + str(cd.debt_to_equity) + ')' if (cd.debt_to_equity or 0) > 200 else 'execution and competitive dynamics'}",
-        f"Free cash flow of {format_number(cd.free_cashflow_series.iloc[0]) if cd.free_cashflow_series is not None and len(cd.free_cashflow_series) > 0 else 'N/A'} supports capital return capacity",
+        f"Free cash flow of {format_number(cd.free_cashflow_series.iloc[0], currency_symbol=cs) if cd.free_cashflow_series is not None and len(cd.free_cashflow_series) > 0 else 'N/A'} supports capital return capacity",
         f"Valuation {'appears stretched' if (cd.trailing_pe or 0) > 25 else 'is reasonable'} relative to growth profile",
     ]
 

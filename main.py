@@ -1,7 +1,7 @@
 """
 M&A Profile Builder — Streamlit Application
 
-Professional-grade company research platform with polished UI.
+Professional-grade company research platform with Sky.money-inspired UI.
 Generates an 8-slide investment-banker-grade PowerPoint tear sheet.
 
 Run:  streamlit run main.py
@@ -11,10 +11,12 @@ import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
+import numpy as np
 import os
 
 from data_engine import (
-    fetch_company_data, format_number, format_pct, format_multiple
+    fetch_company_data, fetch_peer_data,
+    format_number, format_pct, format_multiple
 )
 from ai_insights import generate_insights
 from pptx_generator import generate_presentation
@@ -28,12 +30,12 @@ st.set_page_config(
 )
 
 # ══════════════════════════════════════════════════════════════
-# COMPREHENSIVE CUSTOM CSS — Professional dark-navy theme
+# COMPREHENSIVE CUSTOM CSS — Sky.money-inspired dark space theme
 # ══════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
 /* ── GLOBAL ──────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 html, body, [class*="css"] {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -45,18 +47,32 @@ html, body, [class*="css"] {
     max-width: 1400px;
 }
 
+/* ── ANIMATIONS ─────────────────────────────────────────── */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(25px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-glow {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+}
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
 /* ── SIDEBAR ─────────────────────────────────────────────── */
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0B1D3A 0%, #142D5E 100%);
-    border-right: 3px solid #D4A537;
+    background: linear-gradient(180deg, #0B0E1A 0%, #151933 100%);
+    border-right: 2px solid rgba(107,92,231,0.3);
 }
 section[data-testid="stSidebar"] * {
-    color: #E8ECF1 !important;
+    color: #C8C3E3 !important;
 }
 section[data-testid="stSidebar"] .stTextInput > div > div > input {
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(212,165,55,0.4);
-    border-radius: 10px;
+    background: rgba(107,92,231,0.08);
+    border: 1px solid rgba(107,92,231,0.3);
+    border-radius: 12px;
     color: #fff !important;
     font-weight: 600;
     font-size: 1.1rem;
@@ -65,37 +81,51 @@ section[data-testid="stSidebar"] .stTextInput > div > div > input {
     padding: 0.7rem;
 }
 section[data-testid="stSidebar"] .stTextInput > div > div > input:focus {
-    border-color: #D4A537;
-    box-shadow: 0 0 12px rgba(212,165,55,0.3);
+    border-color: #6B5CE7;
+    box-shadow: 0 0 15px rgba(107,92,231,0.3);
 }
 section[data-testid="stSidebar"] .stButton > button {
-    background: linear-gradient(135deg, #D4A537 0%, #F0C060 100%) !important;
-    color: #0B1D3A !important;
+    background: linear-gradient(135deg, #6B5CE7 0%, #9B8AFF 100%) !important;
+    color: #fff !important;
     font-weight: 700 !important;
     border: none !important;
-    border-radius: 10px !important;
+    border-radius: 12px !important;
     padding: 0.7rem 2rem !important;
     font-size: 0.95rem !important;
     letter-spacing: 0.5px;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(212,165,55,0.3);
+    box-shadow: 0 4px 20px rgba(107,92,231,0.3);
 }
 section[data-testid="stSidebar"] .stButton > button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(212,165,55,0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(107,92,231,0.5);
 }
 section[data-testid="stSidebar"] hr {
-    border-color: rgba(212,165,55,0.3) !important;
+    border-color: rgba(107,92,231,0.2) !important;
 }
 
-/* ── HEADER AREA ─────────────────────────────────────────── */
+/* ── HERO / HEADER ──────────────────────────────────────── */
 .hero-header {
-    background: linear-gradient(135deg, #0B1D3A 0%, #1a3a6e 100%);
-    border-radius: 16px;
+    background: linear-gradient(135deg, #0B0E1A 0%, #151933 50%, #1a1040 100%);
+    border-radius: 20px;
     padding: 2rem 2.5rem;
     margin-bottom: 1.5rem;
-    border-bottom: 4px solid #D4A537;
-    box-shadow: 0 8px 32px rgba(11,29,58,0.15);
+    border-bottom: 3px solid rgba(107,92,231,0.5);
+    box-shadow: 0 8px 40px rgba(11,14,26,0.4);
+    position: relative;
+    overflow: hidden;
+}
+.hero-header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.4) 0%, transparent 100%),
+                radial-gradient(1px 1px at 40% 70%, rgba(255,255,255,0.3) 0%, transparent 100%),
+                radial-gradient(1px 1px at 60% 20%, rgba(255,255,255,0.3) 0%, transparent 100%),
+                radial-gradient(1px 1px at 80% 50%, rgba(255,255,255,0.2) 0%, transparent 100%),
+                radial-gradient(1px 1px at 10% 80%, rgba(255,255,255,0.3) 0%, transparent 100%),
+                radial-gradient(1px 1px at 90% 10%, rgba(255,255,255,0.25) 0%, transparent 100%);
+    pointer-events: none;
 }
 .hero-title {
     font-size: 2.2rem;
@@ -103,17 +133,20 @@ section[data-testid="stSidebar"] hr {
     color: #ffffff;
     margin: 0;
     letter-spacing: -0.5px;
+    position: relative;
 }
+.hero-accent { color: #9B8AFF; }
 .hero-sub {
     font-size: 1rem;
-    color: #8BA4C7;
+    color: #A8A3C7;
     margin-top: 0.3rem;
     font-weight: 400;
+    position: relative;
 }
 .hero-tagline {
     display: inline-block;
-    background: rgba(212,165,55,0.15);
-    color: #D4A537;
+    background: rgba(107,92,231,0.15);
+    color: #9B8AFF;
     padding: 0.3rem 0.8rem;
     border-radius: 20px;
     font-size: 0.75rem;
@@ -121,16 +154,26 @@ section[data-testid="stSidebar"] hr {
     letter-spacing: 1px;
     text-transform: uppercase;
     margin-top: 0.5rem;
+    position: relative;
 }
 
 /* ── COMPANY HEADER CARD ─────────────────────────────────── */
 .company-card {
-    background: linear-gradient(135deg, #0B1D3A 0%, #142D5E 100%);
-    border-radius: 16px;
+    background: linear-gradient(135deg, #0B0E1A 0%, #151933 100%);
+    border-radius: 20px;
     padding: 1.8rem 2rem;
-    margin-bottom: 1.5rem;
-    border-left: 5px solid #D4A537;
-    box-shadow: 0 4px 20px rgba(11,29,58,0.12);
+    margin-bottom: 1.2rem;
+    border-left: 4px solid #6B5CE7;
+    box-shadow: 0 4px 30px rgba(11,14,26,0.3);
+    position: relative;
+    overflow: hidden;
+}
+.company-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 80% 20%, rgba(107,92,231,0.08) 0%, transparent 60%);
+    pointer-events: none;
 }
 .company-name {
     font-size: 1.8rem;
@@ -141,310 +184,249 @@ section[data-testid="stSidebar"] hr {
 }
 .company-meta {
     font-size: 0.85rem;
-    color: #8BA4C7;
+    color: #A8A3C7;
     margin-top: 0.25rem;
 }
-.company-meta span {
-    color: #D4A537;
-    font-weight: 600;
-}
-.price-tag {
-    font-size: 1.5rem;
-    font-weight: 700;
-    margin: 0;
-}
-.price-up { color: #4CAF50; }
-.price-down { color: #EF5350; }
+.company-meta span { color: #9B8AFF; font-weight: 600; }
+.price-tag { font-size: 1.5rem; font-weight: 700; margin: 0; }
+.price-up { color: #10B981; }
+.price-down { color: #EF4444; }
 .price-change {
-    font-size: 0.85rem;
-    font-weight: 600;
-    padding: 0.15rem 0.5rem;
-    border-radius: 6px;
-    display: inline-block;
-    margin-left: 0.5rem;
+    font-size: 0.85rem; font-weight: 600;
+    padding: 0.15rem 0.5rem; border-radius: 6px;
+    display: inline-block; margin-left: 0.5rem;
 }
-.change-up { background: rgba(76,175,80,0.15); color: #4CAF50; }
-.change-down { background: rgba(239,83,80,0.15); color: #EF5350; }
+.change-up { background: rgba(16,185,129,0.15); color: #10B981; }
+.change-down { background: rgba(239,68,68,0.15); color: #EF4444; }
 
 /* ── SECTION STYLING ─────────────────────────────────────── */
 .section-header {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    margin: 2rem 0 0.8rem 0;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid #E8ECF1;
+    display: flex; align-items: center; gap: 0.6rem;
+    margin: 2rem 0 0.8rem 0; padding-bottom: 0.5rem;
+    border-bottom: 2px solid #E5E7EB;
 }
 .section-header h3 {
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: #0B1D3A;
-    margin: 0;
+    font-size: 1.15rem; font-weight: 700; color: #1A1D2E; margin: 0;
 }
 .section-header .accent-bar {
-    width: 4px;
-    height: 22px;
-    background: #D4A537;
-    border-radius: 2px;
+    width: 4px; height: 22px; background: #6B5CE7; border-radius: 2px;
 }
-.section-divider { display: none; }
 
 /* ── METRIC CARDS ────────────────────────────────────────── */
 div[data-testid="stMetric"] {
-    background: #FAFBFC;
-    border: 1px solid #E8ECF1;
-    border-radius: 12px;
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 14px;
     padding: 0.8rem 1rem;
-    transition: all 0.2s ease;
+    transition: all 0.25s ease;
     box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 div[data-testid="stMetric"]:hover {
-    border-color: #D4A537;
-    box-shadow: 0 4px 16px rgba(212,165,55,0.12);
-    transform: translateY(-1px);
+    border-color: #6B5CE7;
+    box-shadow: 0 4px 20px rgba(107,92,231,0.12);
+    transform: translateY(-2px);
 }
 div[data-testid="stMetric"] label {
-    font-size: 0.7rem !important;
-    font-weight: 600 !important;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: #7A8B9E !important;
+    font-size: 0.7rem !important; font-weight: 600 !important;
+    text-transform: uppercase; letter-spacing: 0.8px; color: #6B7280 !important;
 }
 div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
-    font-size: 1.1rem !important;
-    font-weight: 700 !important;
-    color: #0B1D3A !important;
-}
-
-/* ── KPI ROW (compact) ───────────────────────────────────── */
-.kpi-row {
-    display: flex;
-    gap: 1rem;
-    margin: 0.5rem 0;
-}
-.kpi-item {
-    flex: 1;
-    background: #FAFBFC;
-    border: 1px solid #E8ECF1;
-    border-radius: 10px;
-    padding: 0.6rem 0.8rem;
-    text-align: center;
-}
-.kpi-label {
-    font-size: 0.65rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.7px;
-    color: #7A8B9E;
-    margin-bottom: 0.2rem;
-}
-.kpi-value {
-    font-size: 1rem;
-    font-weight: 700;
-    color: #0B1D3A;
+    font-size: 1.1rem !important; font-weight: 700 !important; color: #1A1D2E !important;
 }
 
 /* ── TABS ────────────────────────────────────────────────── */
 .stTabs [data-baseweb="tab-list"] {
-    gap: 0;
-    background: #F0F2F6;
-    border-radius: 10px;
-    padding: 4px;
+    gap: 0; background: #F3F4F6; border-radius: 12px; padding: 4px;
 }
 .stTabs [data-baseweb="tab"] {
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 0.82rem;
-    padding: 0.5rem 1.2rem;
-    color: #5A6C7F;
+    border-radius: 10px; font-weight: 600; font-size: 0.82rem;
+    padding: 0.5rem 1.2rem; color: #6B7280;
 }
 .stTabs [data-baseweb="tab"][aria-selected="true"] {
-    background: #0B1D3A;
-    color: #ffffff;
-    box-shadow: 0 2px 8px rgba(11,29,58,0.2);
+    background: #1A1D2E; color: #ffffff;
+    box-shadow: 0 2px 10px rgba(26,29,46,0.25);
 }
-.stTabs [data-baseweb="tab-highlight"] {
-    display: none;
-}
-.stTabs [data-baseweb="tab-border"] {
-    display: none;
-}
+.stTabs [data-baseweb="tab-highlight"] { display: none; }
+.stTabs [data-baseweb="tab-border"] { display: none; }
 
 /* ── EXPANDERS ───────────────────────────────────────────── */
 .streamlit-expanderHeader {
-    font-weight: 600 !important;
-    font-size: 0.95rem !important;
-    color: #0B1D3A !important;
-    background: #FAFBFC;
-    border: 1px solid #E8ECF1;
-    border-radius: 10px;
+    font-weight: 600 !important; font-size: 0.95rem !important;
+    color: #1A1D2E !important; background: #F9FAFB;
+    border: 1px solid #E5E7EB; border-radius: 12px;
 }
 
 /* ── DATAFRAMES ──────────────────────────────────────────── */
 .stDataFrame {
-    border: 1px solid #E8ECF1;
-    border-radius: 10px;
-    overflow: hidden;
+    border: 1px solid #E5E7EB; border-radius: 12px; overflow: hidden;
 }
 
 /* ── DOWNLOAD BUTTON ─────────────────────────────────────── */
 .stDownloadButton > button {
-    background: linear-gradient(135deg, #0B1D3A 0%, #1a3a6e 100%) !important;
-    color: white !important;
-    font-weight: 700 !important;
-    border: none !important;
-    border-radius: 12px !important;
-    padding: 0.8rem 2rem !important;
-    font-size: 1rem !important;
-    width: 100% !important;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(11,29,58,0.2);
-    letter-spacing: 0.3px;
+    background: linear-gradient(135deg, #6B5CE7 0%, #9B8AFF 100%) !important;
+    color: white !important; font-weight: 700 !important;
+    border: none !important; border-radius: 14px !important;
+    padding: 0.8rem 2rem !important; font-size: 1rem !important;
+    width: 100% !important; transition: all 0.3s ease;
+    box-shadow: 0 4px 20px rgba(107,92,231,0.25);
 }
 .stDownloadButton > button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(11,29,58,0.3);
+    box-shadow: 0 8px 30px rgba(107,92,231,0.4);
 }
 
 /* ── NEWS CARDS ──────────────────────────────────────────── */
 .news-item {
-    padding: 0.65rem 0;
-    border-bottom: 1px solid #F0F2F6;
+    padding: 0.65rem 0; border-bottom: 1px solid #F3F4F6;
     transition: background 0.15s;
 }
-.news-item:hover {
-    background: #FAFBFC;
-}
+.news-item:hover { background: #F9FAFB; }
 .news-title {
-    font-weight: 600;
-    color: #0B1D3A;
-    font-size: 0.88rem;
-    text-decoration: none;
+    font-weight: 600; color: #1A1D2E; font-size: 0.88rem; text-decoration: none;
 }
-.news-title:hover {
-    color: #1E90FF;
-}
-.news-pub {
-    font-size: 0.72rem;
-    color: #7A8B9E;
-    font-weight: 500;
-}
+.news-title:hover { color: #6B5CE7; }
+.news-pub { font-size: 0.72rem; color: #6B7280; font-weight: 500; }
 
-/* ── ESG GAUGE CARDS ─────────────────────────────────────── */
-.esg-card {
-    background: linear-gradient(135deg, #FAFBFC 0%, #F0F4F8 100%);
-    border: 1px solid #E0E7EF;
-    border-radius: 12px;
-    padding: 1rem;
-    text-align: center;
-}
-.esg-score {
-    font-size: 1.6rem;
-    font-weight: 800;
-    color: #0B1D3A;
-}
-.esg-label {
-    font-size: 0.7rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: #7A8B9E;
-    margin-top: 0.2rem;
-}
-
-/* ── BADGE / PILL ────────────────────────────────────────── */
+/* ── PILLS ──────────────────────────────────────────────── */
 .pill {
-    display: inline-block;
-    padding: 0.2rem 0.7rem;
-    border-radius: 20px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.5px;
+    display: inline-block; padding: 0.2rem 0.7rem; border-radius: 20px;
+    font-size: 0.72rem; font-weight: 600; letter-spacing: 0.5px;
 }
-.pill-gold { background: rgba(212,165,55,0.15); color: #B8860B; }
-.pill-blue { background: rgba(30,144,255,0.1); color: #1E90FF; }
-.pill-navy { background: rgba(11,29,58,0.08); color: #0B1D3A; }
+.pill-purple { background: rgba(107,92,231,0.12); color: #6B5CE7; }
+.pill-dark { background: rgba(26,29,46,0.08); color: #1A1D2E; }
+.pill-green { background: rgba(16,185,129,0.12); color: #10B981; }
 
-/* ── PLOTLY CHART CONTAINERS ─────────────────────────────── */
+/* ── PLOTLY CHARTS ──────────────────────────────────────── */
 .stPlotlyChart {
-    border: 1px solid #E8ECF1;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    border: 1px solid #E5E7EB; border-radius: 14px;
+    overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 
-/* ── LANDING PAGE ────────────────────────────────────────── */
-.landing-card {
-    background: #FAFBFC;
-    border: 1px solid #E8ECF1;
-    border-radius: 14px;
-    padding: 1.5rem 2rem;
-    margin: 0.5rem 0;
-    transition: all 0.2s ease;
-}
-.landing-card:hover {
-    border-color: #D4A537;
-    box-shadow: 0 4px 16px rgba(212,165,55,0.1);
-}
-.landing-step {
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    margin: 1rem 0;
-}
-.step-number {
-    background: linear-gradient(135deg, #D4A537, #F0C060);
-    color: #0B1D3A;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
-    font-size: 0.85rem;
-    flex-shrink: 0;
-}
-.step-text {
-    color: #0B1D3A;
-    font-size: 0.95rem;
-    font-weight: 500;
-    padding-top: 0.3rem;
-}
-
-/* ── SPINNER STYLING ─────────────────────────────────────── */
-.stSpinner > div > div {
-    border-top-color: #D4A537 !important;
-}
-
-/* ── SCROLLBAR ───────────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #F0F2F6; border-radius: 10px; }
-::-webkit-scrollbar-thumb { background: #C0C8D4; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #A0AAB8; }
-
-/* ── RADIO BUTTONS (period selector) ─────────────────────── */
-.stRadio > div {
-    gap: 0.3rem;
-}
+/* ── RADIO BUTTONS ──────────────────────────────────────── */
+.stRadio > div { gap: 0.3rem; }
 .stRadio > div > label {
-    background: #F0F2F6;
-    border-radius: 8px;
-    padding: 0.3rem 1rem;
-    font-weight: 600;
-    font-size: 0.8rem;
-    border: 1px solid transparent;
-    transition: all 0.15s;
+    background: #F3F4F6; border-radius: 8px; padding: 0.3rem 1rem;
+    font-weight: 600; font-size: 0.8rem; border: 1px solid transparent;
 }
 .stRadio > div > label[data-checked="true"] {
-    background: #0B1D3A;
-    color: #ffffff;
+    background: #1A1D2E; color: #ffffff;
 }
 
-/* ── HIDE STREAMLIT BRANDING ─────────────────────────────── */
+/* ── SCROLLBAR ──────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #F3F4F6; border-radius: 10px; }
+::-webkit-scrollbar-thumb { background: #C8C3E3; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #9B8AFF; }
+
+/* ── SPINNER ────────────────────────────────────────────── */
+.stSpinner > div > div { border-top-color: #6B5CE7 !important; }
+
+/* ── HIDE BRANDING ──────────────────────────────────────── */
 #MainMenu { visibility: hidden; }
 footer { visibility: hidden; }
 header { visibility: hidden; }
+
+/* ── SPLASH PAGE ────────────────────────────────────────── */
+.splash-hero {
+    background: linear-gradient(170deg, #0B0E1A 0%, #151933 40%, #1a1040 70%, #2d1b69 100%);
+    border-radius: 24px; padding: 4rem 3rem; text-align: center;
+    margin-bottom: 2rem; position: relative; overflow: hidden;
+    box-shadow: 0 12px 60px rgba(11,14,26,0.5);
+}
+.splash-hero::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(1.5px 1.5px at 15% 25%, rgba(255,255,255,0.5) 0%, transparent 100%),
+                radial-gradient(1px 1px at 30% 60%, rgba(255,255,255,0.3) 0%, transparent 100%),
+                radial-gradient(1.5px 1.5px at 50% 15%, rgba(255,255,255,0.4) 0%, transparent 100%),
+                radial-gradient(1px 1px at 70% 45%, rgba(255,255,255,0.3) 0%, transparent 100%),
+                radial-gradient(1px 1px at 85% 70%, rgba(255,255,255,0.25) 0%, transparent 100%),
+                radial-gradient(1.5px 1.5px at 25% 85%, rgba(255,255,255,0.3) 0%, transparent 100%),
+                radial-gradient(1px 1px at 60% 80%, rgba(255,255,255,0.2) 0%, transparent 100%),
+                radial-gradient(1px 1px at 95% 20%, rgba(255,255,255,0.3) 0%, transparent 100%);
+    pointer-events: none;
+}
+.splash-hero::after {
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0; height: 40%;
+    background: linear-gradient(180deg, transparent 0%, rgba(107,92,231,0.08) 100%);
+    pointer-events: none;
+}
+.splash-title {
+    font-size: 3.5rem; font-weight: 900; color: #ffffff; margin: 0;
+    letter-spacing: -1.5px; animation: fadeInUp 0.6s ease-out; position: relative;
+}
+.splash-accent {
+    background: linear-gradient(135deg, #9B8AFF, #E8638B);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.splash-subtitle {
+    font-size: 1.15rem; color: #A8A3C7; margin-top: 0.5rem;
+    font-weight: 300; animation: fadeInUp 0.8s ease-out; position: relative;
+}
+.splash-stats {
+    display: flex; justify-content: center; gap: 3rem; margin-top: 2rem;
+    animation: fadeInUp 1s ease-out; position: relative;
+}
+.splash-stat-value {
+    font-size: 1.6rem; font-weight: 800; color: #fff;
+}
+.splash-stat-label {
+    font-size: 0.7rem; color: #A8A3C7; text-transform: uppercase;
+    letter-spacing: 1px; font-weight: 500;
+}
+.step-grid {
+    display: flex; gap: 1rem; margin: 1.5rem 0;
+}
+.step-card {
+    flex: 1; background: #FFFFFF; border: 1px solid #E5E7EB;
+    border-radius: 16px; padding: 1.3rem; text-align: center;
+    transition: all 0.3s ease;
+}
+.step-card:hover {
+    border-color: #6B5CE7; transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(107,92,231,0.12);
+}
+.step-num {
+    background: linear-gradient(135deg, #6B5CE7, #9B8AFF);
+    color: #fff; width: 36px; height: 36px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 1rem; margin-bottom: 0.5rem;
+}
+.step-label { font-size: 0.85rem; font-weight: 700; color: #1A1D2E; }
+.step-detail { font-size: 0.72rem; color: #6B7280; margin-top: 0.2rem; }
+.feature-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 1rem; margin-top: 1rem;
+}
+.feature-card {
+    background: #FFFFFF; border: 1px solid #E5E7EB;
+    border-radius: 16px; padding: 1.3rem 1rem; text-align: center;
+    transition: all 0.3s ease; animation: fadeInUp 0.6s ease-out;
+}
+.feature-card:hover {
+    border-color: #6B5CE7; transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(107,92,231,0.1);
+}
+.feature-icon { font-size: 2rem; margin-bottom: 0.4rem; }
+.feature-title { font-size: 0.85rem; font-weight: 700; color: #1A1D2E; margin-bottom: 0.25rem; }
+.feature-desc { font-size: 0.72rem; color: #6B7280; line-height: 1.5; }
+.pill-row {
+    display: flex; justify-content: center; gap: 0.6rem; margin-top: 1.5rem;
+    animation: fadeInUp 1.2s ease-out; position: relative;
+}
+.feature-pill {
+    border: 1px solid rgba(107,92,231,0.3); border-radius: 20px;
+    padding: 0.35rem 0.9rem; font-size: 0.72rem; font-weight: 600;
+    color: #9B8AFF; background: rgba(107,92,231,0.06);
+}
+
+/* ── PRICE DISPLAY BAR ──────────────────────────────────── */
+.price-bar {
+    border-radius: 14px; padding: 1rem 1.5rem; margin-bottom: 1rem;
+    display: flex; gap: 1.5rem; align-items: center;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -460,14 +442,77 @@ def _section(title, icon=""):
     )
 
 
+# ── HELPER: Peer radar chart ────────────────────────────────
+def _build_peer_radar_chart(cd):
+    """Build a Plotly radar chart comparing target vs peer median."""
+    if not cd.peer_data:
+        return
+
+    metrics = ["P/E", "Fwd P/E", "EV/EBITDA", "Gross Margin", "Op Margin", "ROE"]
+
+    target_vals = [
+        cd.trailing_pe, cd.forward_pe, cd.ev_to_ebitda,
+        (cd.gross_margins or 0) * 100, (cd.operating_margins or 0) * 100,
+        (cd.return_on_equity or 0) * 100,
+    ]
+
+    peer_keys = ["trailing_pe", "forward_pe", "ev_to_ebitda",
+                 "gross_margins", "operating_margins", "return_on_equity"]
+    pct_keys = {"gross_margins", "operating_margins", "return_on_equity"}
+
+    peer_medians = []
+    for key in peer_keys:
+        vals = [p.get(key) for p in cd.peer_data if p.get(key) is not None]
+        if key in pct_keys:
+            vals = [v * 100 for v in vals]
+        peer_medians.append(float(np.median(vals)) if vals else 0)
+
+    # Normalize to 0-100 scale
+    norm_target, norm_peer = [], []
+    for t, p in zip(target_vals, peer_medians):
+        t = t if t is not None else 0
+        mx = max(abs(t), abs(p), 1)
+        norm_target.append(min(t / mx * 100, 120))
+        norm_peer.append(min(p / mx * 100, 120))
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(
+        r=norm_target + [norm_target[0]],
+        theta=metrics + [metrics[0]],
+        fill='toself', name=cd.ticker,
+        fillcolor='rgba(107,92,231,0.15)',
+        line=dict(color='#6B5CE7', width=2.5),
+    ))
+    fig.add_trace(go.Scatterpolar(
+        r=norm_peer + [norm_peer[0]],
+        theta=metrics + [metrics[0]],
+        fill='toself', name='Peer Median',
+        fillcolor='rgba(232,99,139,0.08)',
+        line=dict(color='#E8638B', width=2),
+    ))
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(visible=True, range=[0, 120], tickfont=dict(size=8, color="#999")),
+            angularaxis=dict(tickfont=dict(size=10, color="#4B5563")),
+            bgcolor="rgba(0,0,0,0)",
+        ),
+        showlegend=True, height=400,
+        margin=dict(t=40, b=40, l=60, r=60),
+        paper_bgcolor="rgba(0,0,0,0)",
+        legend=dict(font=dict(size=11)),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
 # ── Sidebar ──────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("")
     st.markdown(
         '<div style="text-align:center; padding: 1rem 0 0.5rem 0;">'
-        '<div style="font-size:1.4rem; font-weight:800; letter-spacing:-0.5px;">M&A Profile</div>'
-        '<div style="font-size:1.4rem; font-weight:800; color:#D4A537; margin-top:-0.3rem;">Builder</div>'
-        '<div style="font-size:0.7rem; color:#8BA4C7; margin-top:0.3rem; letter-spacing:1.5px; text-transform:uppercase;">Investment Research Platform</div>'
+        '<div style="font-size:1.4rem; font-weight:800; letter-spacing:-0.5px; color:#fff;">M&A Profile</div>'
+        '<div style="font-size:1.4rem; font-weight:800; background:linear-gradient(135deg,#9B8AFF,#E8638B);'
+        '-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-top:-0.3rem;">Builder</div>'
+        '<div style="font-size:0.7rem; color:#A8A3C7; margin-top:0.3rem; letter-spacing:1.5px; text-transform:uppercase;">Investment Research Platform</div>'
         '</div>',
         unsafe_allow_html=True,
     )
@@ -475,7 +520,7 @@ with st.sidebar:
 
     ticker_input = st.text_input(
         "Stock Ticker", value="AAPL", max_chars=10,
-        help="Enter a US stock ticker (e.g. AAPL, MSFT, TSLA, GOOGL)"
+        help="Enter any stock ticker (e.g. AAPL, RY.TO, NVDA.L, 7203.T)"
     ).strip().upper()
 
     generate_btn = st.button("Generate Profile", type="primary", use_container_width=True)
@@ -483,7 +528,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown(
         '<div style="text-align:center; padding: 0.5rem 0;">'
-        '<div style="font-size:0.65rem; color:#5A6C7F; letter-spacing:0.5px; line-height:1.8;">'
+        '<div style="font-size:0.65rem; color:#6B7280; letter-spacing:0.5px; line-height:1.8;">'
         'DATA: YAHOO FINANCE<br>'
         'M&A: WIKIPEDIA<br>'
         'CHARTS: PLOTLY<br>'
@@ -495,7 +540,7 @@ with st.sidebar:
 # ── Main Area ────────────────────────────────────────────────
 st.markdown(
     '<div class="hero-header">'
-    '<p class="hero-title">M&A Profile Builder</p>'
+    '<p class="hero-title">M&A Profile <span class="hero-accent">Builder</span></p>'
     '<p class="hero-sub">Comprehensive company research & 8-slide tear sheet generator</p>'
     '<span class="hero-tagline">Powered by Live Market Data</span>'
     '</div>',
@@ -511,23 +556,74 @@ if generate_btn and ticker_input:
             st.error(f"Failed to fetch data for **{ticker_input}**: {e}")
             st.stop()
 
-    with st.spinner("Generating AI insights..."):
+    with st.spinner("Fetching peer comparison data..."):
+        try:
+            cd = fetch_peer_data(cd)
+        except Exception:
+            pass  # Peer data is non-critical
+
+    with st.spinner("Generating insights..."):
         cd = generate_insights(cd)
 
+    cs = cd.currency_symbol  # shorthand
+
     # ══════════════════════════════════════════════════════
-    # 1. COMPANY HEADER CARD
+    # 1. COMPANY HEADER CARD (with logo)
     # ══════════════════════════════════════════════════════
     chg_class = "price-up" if cd.price_change >= 0 else "price-down"
     chg_badge = "change-up" if cd.price_change >= 0 else "change-down"
     arrow = "&#9650;" if cd.price_change >= 0 else "&#9660;"
 
+    logo_html = ""
+    if cd.logo_url:
+        logo_html = (
+            f'<img src="{cd.logo_url}" '
+            f'style="width:52px; height:52px; border-radius:10px; object-fit:contain; '
+            f'background:white; padding:4px; margin-right:1.2rem; flex-shrink:0;" '
+            f'onerror="this.style.display=\'none\'">'
+        )
+
     st.markdown(
         f'<div class="company-card">'
+        f'<div style="display:flex; align-items:center; position:relative;">'
+        f'{logo_html}'
+        f'<div>'
         f'<p class="company-name">{cd.name}</p>'
         f'<p class="company-meta"><span>{cd.ticker}</span> &nbsp;&middot;&nbsp; {cd.exchange} &nbsp;&middot;&nbsp; {cd.sector} &rarr; {cd.industry}</p>'
-        f'<div style="display:flex; align-items:baseline; gap:1rem; margin-top:0.8rem;">'
-        f'<p class="price-tag {chg_class}">${cd.current_price:,.2f}</p>'
+        f'</div>'
+        f'</div>'
+        f'<div style="display:flex; align-items:baseline; gap:1rem; margin-top:0.8rem; position:relative;">'
+        f'<p class="price-tag {chg_class}">{cs}{cd.current_price:,.2f}</p>'
         f'<span class="price-change {chg_badge}">{arrow} {cd.price_change:+.2f} ({cd.price_change_pct:+.2f}%)</span>'
+        f'<span style="font-size:0.75rem; color:#A8A3C7; margin-left:0.5rem;">{cd.currency_code}</span>'
+        f'</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    # ══════════════════════════════════════════════════════
+    # 2. PROMINENT PRICE / VOLUME DISPLAY
+    # ══════════════════════════════════════════════════════
+    price_color = "#10B981" if cd.price_change >= 0 else "#EF4444"
+    price_bg = "rgba(16,185,129,0.05)" if cd.price_change >= 0 else "rgba(239,68,68,0.05)"
+
+    st.markdown(
+        f'<div class="price-bar" style="background:{price_bg}; border:1px solid {"rgba(16,185,129,0.15)" if cd.price_change >= 0 else "rgba(239,68,68,0.15)"};">'
+        f'<div style="flex:1;">'
+        f'<div style="font-size:0.65rem; font-weight:600; color:#6B7280; text-transform:uppercase; letter-spacing:1px;">Current Price</div>'
+        f'<div style="font-size:2rem; font-weight:800; color:{price_color};">'
+        f'{cs}{cd.current_price:,.2f}'
+        f'<span style="font-size:0.9rem; margin-left:0.5rem;">{arrow} {cd.price_change:+.2f} ({cd.price_change_pct:+.2f}%)</span></div>'
+        f'</div>'
+        f'<div style="flex:0 0 180px; text-align:center; border-left:1px solid #E5E7EB; padding-left:1rem;">'
+        f'<div style="font-size:0.65rem; font-weight:600; color:#6B7280; text-transform:uppercase; letter-spacing:1px;">Volume</div>'
+        f'<div style="font-size:1.3rem; font-weight:700; color:#1A1D2E;">{format_number(cd.volume, prefix="", decimals=0)}</div>'
+        f'<div style="font-size:0.6rem; color:#6B7280;">Avg: {format_number(cd.avg_volume, prefix="", decimals=0)}</div>'
+        f'</div>'
+        f'<div style="flex:0 0 220px; text-align:center; border-left:1px solid #E5E7EB; padding-left:1rem;">'
+        f'<div style="font-size:0.65rem; font-weight:600; color:#6B7280; text-transform:uppercase; letter-spacing:1px;">52W Range</div>'
+        f'<div style="font-size:1.1rem; font-weight:600; color:#1A1D2E;">'
+        f'{cs}{cd.fifty_two_week_low:,.2f} &mdash; {cs}{cd.fifty_two_week_high:,.2f}</div>'
         f'</div>'
         f'</div>',
         unsafe_allow_html=True,
@@ -535,90 +631,39 @@ if generate_btn and ticker_input:
 
     # Quick KPI strip
     k1, k2, k3, k4, k5, k6 = st.columns(6)
-    k1.metric("Market Cap", format_number(cd.market_cap))
-    k2.metric("Enterprise Value", format_number(cd.enterprise_value))
-    k3.metric("Volume", format_number(cd.volume, prefix="", decimals=0))
-    k4.metric("Avg Volume", format_number(cd.avg_volume, prefix="", decimals=0))
-    k5.metric("52W Low", f"${cd.fifty_two_week_low:,.2f}")
-    k6.metric("52W High", f"${cd.fifty_two_week_high:,.2f}")
+    k1.metric("Market Cap", format_number(cd.market_cap, currency_symbol=cs))
+    k2.metric("Enterprise Value", format_number(cd.enterprise_value, currency_symbol=cs))
+    k3.metric("Revenue (TTM)", format_number(cd.revenue.iloc[0], currency_symbol=cs) if cd.revenue is not None and len(cd.revenue) > 0 else "N/A")
+    k4.metric("Net Income", format_number(cd.net_income.iloc[0], currency_symbol=cs) if cd.net_income is not None and len(cd.net_income) > 0 else "N/A")
+    k5.metric("Free Cash Flow", format_number(cd.free_cashflow_series.iloc[0], currency_symbol=cs) if cd.free_cashflow_series is not None and len(cd.free_cashflow_series) > 0 else "N/A")
+    k6.metric("Dividend Yield", format_pct(cd.dividend_yield) if cd.dividend_yield else "N/A")
 
     # ══════════════════════════════════════════════════════
-    # 2. BUSINESS OVERVIEW
+    # 3. BUSINESS OVERVIEW
     # ══════════════════════════════════════════════════════
-    _section("Business Overview", "")
+    _section("Business Overview")
     with st.expander("Company Description", expanded=True):
         if cd.long_business_summary:
-            st.markdown(f"<div style='line-height:1.7; color:#3A4A5C; font-size:0.9rem;'>{cd.long_business_summary}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='line-height:1.7; color:#4B5563; font-size:0.9rem;'>{cd.long_business_summary}</div>", unsafe_allow_html=True)
         else:
             st.info("Business description not available.")
-        st.markdown("")
         b1, b2, b3 = st.columns(3)
         with b1:
-            st.markdown(
-                f'<div class="kpi-item">'
-                f'<div class="kpi-label">Employees</div>'
-                f'<div class="kpi-value">{cd.full_time_employees:,}</div>'
-                f'</div>' if cd.full_time_employees else
-                '<div class="kpi-item"><div class="kpi-label">Employees</div><div class="kpi-value">N/A</div></div>',
-                unsafe_allow_html=True,
-            )
+            emp_val = f"{cd.full_time_employees:,}" if cd.full_time_employees else "N/A"
+            st.markdown(f'<div style="background:#F9FAFB; border:1px solid #E5E7EB; border-radius:10px; padding:0.6rem 0.8rem; text-align:center;"><div style="font-size:0.65rem; font-weight:600; text-transform:uppercase; letter-spacing:0.7px; color:#6B7280; margin-bottom:0.2rem;">Employees</div><div style="font-size:1rem; font-weight:700; color:#1A1D2E;">{emp_val}</div></div>', unsafe_allow_html=True)
         with b2:
             hq = f"{cd.city}, {cd.state}" if cd.city else "N/A"
             if cd.country and cd.country != "United States":
                 hq += f", {cd.country}"
-            st.markdown(
-                f'<div class="kpi-item">'
-                f'<div class="kpi-label">Headquarters</div>'
-                f'<div class="kpi-value">{hq}</div>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
+            st.markdown(f'<div style="background:#F9FAFB; border:1px solid #E5E7EB; border-radius:10px; padding:0.6rem 0.8rem; text-align:center;"><div style="font-size:0.65rem; font-weight:600; text-transform:uppercase; letter-spacing:0.7px; color:#6B7280; margin-bottom:0.2rem;">Headquarters</div><div style="font-size:1rem; font-weight:700; color:#1A1D2E;">{hq}</div></div>', unsafe_allow_html=True)
         with b3:
             web_display = cd.website.replace("https://", "").replace("http://", "").rstrip("/") if cd.website else "N/A"
-            st.markdown(
-                f'<div class="kpi-item">'
-                f'<div class="kpi-label">Website</div>'
-                f'<div class="kpi-value">{web_display}</div>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-
-    # ══════════════════════════════════════════════════════
-    # 3. KEY STATISTICS
-    # ══════════════════════════════════════════════════════
-    _section("Key Statistics", "")
-
-    # Valuation row
-    st.markdown("<p style='font-size:0.75rem; font-weight:600; color:#7A8B9E; text-transform:uppercase; letter-spacing:1px; margin:0.5rem 0 0.3rem 0;'>Valuation</p>", unsafe_allow_html=True)
-    v1, v2, v3, v4, v5 = st.columns(5)
-    v1.metric("P/E (TTM)", f"{cd.trailing_pe:.1f}" if cd.trailing_pe else "N/A")
-    v2.metric("Forward P/E", f"{cd.forward_pe:.1f}" if cd.forward_pe else "N/A")
-    v3.metric("PEG Ratio", f"{cd.peg_ratio:.2f}" if cd.peg_ratio else "N/A")
-    v4.metric("EV/EBITDA", format_multiple(cd.ev_to_ebitda))
-    v5.metric("EV/Revenue", format_multiple(cd.ev_to_revenue))
-
-    # Profitability row
-    st.markdown("<p style='font-size:0.75rem; font-weight:600; color:#7A8B9E; text-transform:uppercase; letter-spacing:1px; margin:0.8rem 0 0.3rem 0;'>Profitability</p>", unsafe_allow_html=True)
-    p1, p2, p3, p4, p5 = st.columns(5)
-    p1.metric("Gross Margin", format_pct(cd.gross_margins))
-    p2.metric("Op. Margin", format_pct(cd.operating_margins))
-    p3.metric("Net Margin", format_pct(cd.profit_margins))
-    p4.metric("ROE", format_pct(cd.return_on_equity))
-    p5.metric("ROA", format_pct(cd.return_on_assets))
-
-    # Financial health row
-    st.markdown("<p style='font-size:0.75rem; font-weight:600; color:#7A8B9E; text-transform:uppercase; letter-spacing:1px; margin:0.8rem 0 0.3rem 0;'>Financial Health</p>", unsafe_allow_html=True)
-    f1, f2, f3, f4, f5 = st.columns(5)
-    f1.metric("P/S (TTM)", f"{cd.price_to_sales:.2f}" if cd.price_to_sales else "N/A")
-    f2.metric("Price/Book", f"{cd.price_to_book:.2f}" if cd.price_to_book else "N/A")
-    f3.metric("Current Ratio", f"{cd.current_ratio:.2f}" if cd.current_ratio else "N/A")
-    f4.metric("D/E Ratio", f"{cd.debt_to_equity / 100:.2f}x" if cd.debt_to_equity else "N/A")
-    f5.metric("Beta", f"{cd.beta:.2f}" if cd.beta else "N/A")
+            st.markdown(f'<div style="background:#F9FAFB; border:1px solid #E5E7EB; border-radius:10px; padding:0.6rem 0.8rem; text-align:center;"><div style="font-size:0.65rem; font-weight:600; text-transform:uppercase; letter-spacing:0.7px; color:#6B7280; margin-bottom:0.2rem;">Website</div><div style="font-size:1rem; font-weight:700; color:#1A1D2E;">{web_display}</div></div>', unsafe_allow_html=True)
 
     # ══════════════════════════════════════════════════════
     # 4. PRICE CHART
     # ══════════════════════════════════════════════════════
-    _section("Price History", "")
+    _section("Price History")
 
     period_choice = st.radio("Period", ["1Y", "3Y", "5Y"], horizontal=True, index=2, label_visibility="collapsed")
 
@@ -635,15 +680,15 @@ if generate_btn and ticker_input:
         fig.add_trace(go.Scatter(
             x=plot_hist.index, y=plot_hist["Close"],
             mode="lines", name="Close",
-            line=dict(color="#1E90FF", width=2.5),
+            line=dict(color="#6B5CE7", width=2.5),
             fill="tozeroy",
-            fillcolor="rgba(30,144,255,0.05)",
+            fillcolor="rgba(107,92,231,0.06)",
         ))
         if "Volume" in plot_hist.columns:
             fig.add_trace(go.Bar(
                 x=plot_hist.index, y=plot_hist["Volume"],
                 name="Volume", yaxis="y2",
-                marker_color="rgba(11,29,58,0.08)",
+                marker_color="rgba(26,29,46,0.06)",
             ))
             fig.update_layout(
                 yaxis2=dict(overlaying="y", side="right", showgrid=False,
@@ -653,31 +698,155 @@ if generate_btn and ticker_input:
         fig.update_layout(
             height=420,
             margin=dict(t=10, b=30, l=50, r=50),
-            xaxis=dict(
-                showgrid=False,
-                tickfont=dict(size=9, color="#7A8B9E"),
-                rangeslider=dict(visible=False),
-            ),
+            xaxis=dict(showgrid=False, tickfont=dict(size=9, color="#6B7280"), rangeslider=dict(visible=False)),
             yaxis=dict(
-                title=dict(text="Price ($)", font=dict(size=10, color="#7A8B9E")),
-                gridcolor="rgba(0,0,0,0.04)",
-                tickfont=dict(size=9, color="#7A8B9E"),
-                tickprefix="$",
+                title=dict(text=f"Price ({cs})", font=dict(size=10, color="#6B7280")),
+                gridcolor="rgba(0,0,0,0.04)", tickfont=dict(size=9, color="#6B7280"),
+                tickprefix=cs,
             ),
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            showlegend=False,
-            hovermode="x unified",
-            hoverlabel=dict(bgcolor="#0B1D3A", font_size=11, font_color="#fff"),
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            showlegend=False, hovermode="x unified",
+            hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
         )
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("Price history not available.")
 
     # ══════════════════════════════════════════════════════
-    # 5. FINANCIAL STATEMENTS
+    # 5. VALUATION DASHBOARD
     # ══════════════════════════════════════════════════════
-    _section("Financial Statements", "")
+    _section("Valuation Dashboard")
+
+    vd1, vd2, vd3, vd4, vd5 = st.columns(5)
+    vd1.metric("P/E (TTM)", f"{cd.trailing_pe:.1f}x" if cd.trailing_pe else "N/A")
+    vd2.metric("Forward P/E", f"{cd.forward_pe:.1f}x" if cd.forward_pe else "N/A")
+    vd3.metric("EV/EBITDA", format_multiple(cd.ev_to_ebitda))
+    vd4.metric("P/S (TTM)", f"{cd.price_to_sales:.1f}x" if cd.price_to_sales else "N/A")
+    vd5.metric("PEG Ratio", f"{cd.peg_ratio:.2f}" if cd.peg_ratio else "N/A")
+
+    # Premium/Discount vs Peers
+    if cd.peer_data:
+        st.markdown("<p style='font-size:0.75rem; font-weight:600; color:#6B7280; text-transform:uppercase; letter-spacing:1px; margin:0.8rem 0 0.3rem 0;'>Premium / Discount vs. Peer Median</p>", unsafe_allow_html=True)
+
+        def _calc_premium(company_val, peers, key):
+            if company_val is None:
+                return None
+            vals = [p.get(key) for p in peers if p.get(key) is not None]
+            if not vals:
+                return None
+            median = float(np.median(vals))
+            if median == 0:
+                return None
+            return ((company_val - median) / abs(median)) * 100
+
+        premium_items = [
+            ("P/E", _calc_premium(cd.trailing_pe, cd.peer_data, "trailing_pe")),
+            ("Fwd P/E", _calc_premium(cd.forward_pe, cd.peer_data, "forward_pe")),
+            ("EV/EBITDA", _calc_premium(cd.ev_to_ebitda, cd.peer_data, "ev_to_ebitda")),
+            ("P/S", _calc_premium(cd.price_to_sales, cd.peer_data, "price_to_sales")),
+        ]
+
+        pc_cols = st.columns(4)
+        for col, (label, prem) in zip(pc_cols, premium_items):
+            if prem is not None:
+                word = "Premium" if prem > 0 else "Discount"
+                col.metric(f"{label} vs Peers", f"{prem:+.1f}%", delta=word,
+                           delta_color="inverse" if prem > 0 else "normal")
+            else:
+                col.metric(f"{label} vs Peers", "N/A")
+
+    # ══════════════════════════════════════════════════════
+    # 6. PEER COMPARISON
+    # ══════════════════════════════════════════════════════
+    if cd.peer_data:
+        _section("Peer Comparison")
+
+        peer_rows = []
+        peer_rows.append({
+            "Company": f"{cd.name} \u2605",
+            "Ticker": cd.ticker,
+            "Mkt Cap": format_number(cd.market_cap, currency_symbol=cs),
+            "P/E": f"{cd.trailing_pe:.1f}" if cd.trailing_pe else "N/A",
+            "Fwd P/E": f"{cd.forward_pe:.1f}" if cd.forward_pe else "N/A",
+            "EV/EBITDA": format_multiple(cd.ev_to_ebitda),
+            "P/S": f"{cd.price_to_sales:.1f}" if cd.price_to_sales else "N/A",
+            "Gross Margin": format_pct(cd.gross_margins),
+            "Op Margin": format_pct(cd.operating_margins),
+            "ROE": format_pct(cd.return_on_equity),
+        })
+        for p in cd.peer_data:
+            peer_rows.append({
+                "Company": p.get("name", p.get("ticker", "")),
+                "Ticker": p.get("ticker", ""),
+                "Mkt Cap": format_number(p.get("market_cap"), currency_symbol=cs),
+                "P/E": f"{p['trailing_pe']:.1f}" if p.get("trailing_pe") else "N/A",
+                "Fwd P/E": f"{p['forward_pe']:.1f}" if p.get("forward_pe") else "N/A",
+                "EV/EBITDA": format_multiple(p.get("ev_to_ebitda")),
+                "P/S": f"{p['price_to_sales']:.1f}" if p.get("price_to_sales") else "N/A",
+                "Gross Margin": format_pct(p.get("gross_margins")),
+                "Op Margin": format_pct(p.get("operating_margins")),
+                "ROE": format_pct(p.get("return_on_equity")),
+            })
+
+        peer_df = pd.DataFrame(peer_rows)
+
+        def _highlight_target(row):
+            if row["Ticker"] == cd.ticker:
+                return ["background-color: rgba(107,92,231,0.1); font-weight: bold"] * len(row)
+            return [""] * len(row)
+
+        styled = peer_df.style.apply(_highlight_target, axis=1)
+        st.dataframe(styled, use_container_width=True, hide_index=True, height=300)
+
+        # Radar chart
+        rc1, rc2 = st.columns([3, 2])
+        with rc1:
+            _build_peer_radar_chart(cd)
+        with rc2:
+            st.markdown("")
+            st.markdown("<p style='font-size:0.85rem; font-weight:700; color:#1A1D2E; margin-bottom:0.5rem;'>Peer Group</p>", unsafe_allow_html=True)
+            for p in cd.peer_data:
+                st.markdown(
+                    f"<div style='font-size:0.82rem; color:#4B5563; padding:0.2rem 0;'>"
+                    f"<span style='font-weight:600; color:#6B5CE7;'>{p['ticker']}</span> &mdash; {p.get('name', '')}"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+            st.markdown(f"<div style='font-size:0.7rem; color:#6B7280; margin-top:0.5rem;'>Industry: {cd.industry}</div>", unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════
+    # 7. KEY STATISTICS
+    # ══════════════════════════════════════════════════════
+    _section("Key Statistics")
+
+    st.markdown("<p style='font-size:0.75rem; font-weight:600; color:#6B7280; text-transform:uppercase; letter-spacing:1px; margin:0.5rem 0 0.3rem 0;'>Valuation</p>", unsafe_allow_html=True)
+    v1, v2, v3, v4, v5 = st.columns(5)
+    v1.metric("P/E (TTM)", f"{cd.trailing_pe:.1f}" if cd.trailing_pe else "N/A")
+    v2.metric("Forward P/E", f"{cd.forward_pe:.1f}" if cd.forward_pe else "N/A")
+    v3.metric("PEG Ratio", f"{cd.peg_ratio:.2f}" if cd.peg_ratio else "N/A")
+    v4.metric("EV/EBITDA", format_multiple(cd.ev_to_ebitda))
+    v5.metric("EV/Revenue", format_multiple(cd.ev_to_revenue))
+
+    st.markdown("<p style='font-size:0.75rem; font-weight:600; color:#6B7280; text-transform:uppercase; letter-spacing:1px; margin:0.8rem 0 0.3rem 0;'>Profitability</p>", unsafe_allow_html=True)
+    p1, p2, p3, p4, p5 = st.columns(5)
+    p1.metric("Gross Margin", format_pct(cd.gross_margins))
+    p2.metric("Op. Margin", format_pct(cd.operating_margins))
+    p3.metric("Net Margin", format_pct(cd.profit_margins))
+    p4.metric("ROE", format_pct(cd.return_on_equity))
+    p5.metric("ROA", format_pct(cd.return_on_assets))
+
+    st.markdown("<p style='font-size:0.75rem; font-weight:600; color:#6B7280; text-transform:uppercase; letter-spacing:1px; margin:0.8rem 0 0.3rem 0;'>Financial Health</p>", unsafe_allow_html=True)
+    f1, f2, f3, f4, f5 = st.columns(5)
+    f1.metric("P/S (TTM)", f"{cd.price_to_sales:.2f}" if cd.price_to_sales else "N/A")
+    f2.metric("Price/Book", f"{cd.price_to_book:.2f}" if cd.price_to_book else "N/A")
+    f3.metric("Current Ratio", f"{cd.current_ratio:.2f}" if cd.current_ratio else "N/A")
+    f4.metric("D/E Ratio", f"{cd.debt_to_equity / 100:.2f}x" if cd.debt_to_equity else "N/A")
+    f5.metric("Beta", f"{cd.beta:.2f}" if cd.beta else "N/A")
+
+    # ══════════════════════════════════════════════════════
+    # 8. FINANCIAL STATEMENTS (formatted)
+    # ══════════════════════════════════════════════════════
+    _section("Financial Statements")
 
     def _display_financial_df(df, label, quarterly=False):
         if df is not None and not df.empty:
@@ -692,7 +861,30 @@ if generate_btn and ticker_input:
                     col_str = f"{base} ({n})"
                 new_cols.append(col_str)
             display_df.columns = new_cols
-            st.dataframe(display_df, use_container_width=True, height=400)
+
+            # Format numeric values
+            def _fmt_cell(val):
+                if pd.isna(val):
+                    return "N/A"
+                try:
+                    v = float(val)
+                    abs_v = abs(v)
+                    sign = "-" if v < 0 else ""
+                    if abs_v >= 1e9:
+                        return f"{sign}{cs}{abs_v / 1e9:.1f}B"
+                    elif abs_v >= 1e6:
+                        return f"{sign}{cs}{abs_v / 1e6:.1f}M"
+                    elif abs_v >= 1e3:
+                        return f"{sign}{cs}{abs_v / 1e3:.1f}K"
+                    elif abs_v == 0:
+                        return f"{cs}0"
+                    else:
+                        return f"{sign}{cs}{abs_v:,.2f}"
+                except (TypeError, ValueError):
+                    return str(val)
+
+            formatted_df = display_df.map(_fmt_cell)
+            st.dataframe(formatted_df, use_container_width=True, height=400)
         else:
             st.info(f"{label} not available.")
 
@@ -709,9 +901,9 @@ if generate_btn and ticker_input:
         _display_financial_df(cd.quarterly_income_stmt, "Quarterly Income Statement", quarterly=True)
 
     # ══════════════════════════════════════════════════════
-    # 6. ANALYST CONSENSUS
+    # 9. ANALYST CONSENSUS
     # ══════════════════════════════════════════════════════
-    _section("Analyst Consensus", "")
+    _section("Analyst Consensus")
     a1, a2 = st.columns([3, 2])
 
     with a1:
@@ -721,7 +913,7 @@ if generate_btn and ticker_input:
                 cats = ["Strong Buy", "Buy", "Hold", "Sell", "Strong Sell"]
                 keys = ["strongBuy", "buy", "hold", "sell", "strongSell"]
                 vals = [int(row.get(k, 0)) for k in keys]
-                colors = ["#2E7D32", "#66BB6A", "#FFB74D", "#EF5350", "#B71C1C"]
+                colors = ["#10B981", "#34D399", "#F59E0B", "#EF4444", "#991B1B"]
                 total = sum(vals)
 
                 fig_rec = go.Figure(go.Bar(
@@ -729,24 +921,16 @@ if generate_btn and ticker_input:
                     marker_color=colors,
                     text=[f"  {v} ({v/total*100:.0f}%)" if total > 0 else f"  {v}" for v in vals],
                     textposition="outside",
-                    textfont=dict(size=11, color="#3A4A5C", family="Inter"),
+                    textfont=dict(size=11, color="#4B5563", family="Inter"),
                 ))
                 fig_rec.update_layout(
-                    height=280,
-                    margin=dict(t=40, b=20, l=110, r=60),
-                    title=dict(
-                        text="Analyst Recommendation Distribution",
-                        font=dict(size=13, color="#0B1D3A", family="Inter"),
-                    ),
-                    xaxis=dict(
-                        title=dict(text="# Analysts", font=dict(size=10)),
-                        showgrid=True, gridcolor="rgba(0,0,0,0.04)",
-                        tickfont=dict(size=9),
-                    ),
-                    yaxis=dict(autorange="reversed", tickfont=dict(size=11, color="#3A4A5C")),
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    bargap=0.35,
+                    height=280, margin=dict(t=40, b=20, l=110, r=60),
+                    title=dict(text="Analyst Recommendation Distribution",
+                               font=dict(size=13, color="#1A1D2E", family="Inter")),
+                    xaxis=dict(title=dict(text="# Analysts", font=dict(size=10)),
+                               showgrid=True, gridcolor="rgba(0,0,0,0.04)", tickfont=dict(size=9)),
+                    yaxis=dict(autorange="reversed", tickfont=dict(size=11, color="#4B5563")),
+                    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", bargap=0.35,
                 )
                 st.plotly_chart(fig_rec, use_container_width=True)
             except Exception:
@@ -757,22 +941,21 @@ if generate_btn and ticker_input:
     with a2:
         if cd.analyst_price_targets:
             pt = cd.analyst_price_targets
-            st.markdown("")
-            st.markdown("<p style='font-size:0.85rem; font-weight:700; color:#0B1D3A; margin-bottom:0.5rem;'>Price Targets</p>", unsafe_allow_html=True)
+            st.markdown("<p style='font-size:0.85rem; font-weight:700; color:#1A1D2E; margin-bottom:0.5rem;'>Price Targets</p>", unsafe_allow_html=True)
             pt1, pt2 = st.columns(2)
-            pt1.metric("Mean", f"${pt.get('mean', 0):,.2f}" if pt.get("mean") else "N/A")
-            pt2.metric("Median", f"${pt.get('median', 0):,.2f}" if pt.get("median") else "N/A")
+            pt1.metric("Mean", f"{cs}{pt.get('mean', 0):,.2f}" if pt.get("mean") else "N/A")
+            pt2.metric("Median", f"{cs}{pt.get('median', 0):,.2f}" if pt.get("median") else "N/A")
             pt3, pt4 = st.columns(2)
-            pt3.metric("Low", f"${pt.get('low', 0):,.2f}" if pt.get("low") else "N/A")
-            pt4.metric("High", f"${pt.get('high', 0):,.2f}" if pt.get("high") else "N/A")
+            pt3.metric("Low", f"{cs}{pt.get('low', 0):,.2f}" if pt.get("low") else "N/A")
+            pt4.metric("High", f"{cs}{pt.get('high', 0):,.2f}" if pt.get("high") else "N/A")
             if pt.get("mean") and cd.current_price:
                 upside = (pt["mean"] - cd.current_price) / cd.current_price * 100
-                color = "#2E7D32" if upside >= 0 else "#EF5350"
+                color = "#10B981" if upside >= 0 else "#EF4444"
                 st.markdown(
                     f'<div style="text-align:center; margin-top:0.5rem; padding:0.5rem; '
-                    f'background:{"rgba(46,125,50,0.08)" if upside >= 0 else "rgba(239,83,80,0.08)"}; '
+                    f'background:{"rgba(16,185,129,0.08)" if upside >= 0 else "rgba(239,68,68,0.08)"}; '
                     f'border-radius:10px;">'
-                    f'<span style="font-size:0.75rem; color:#7A8B9E; font-weight:600;">IMPLIED UPSIDE</span><br>'
+                    f'<span style="font-size:0.75rem; color:#6B7280; font-weight:600;">IMPLIED UPSIDE</span><br>'
                     f'<span style="font-size:1.3rem; font-weight:800; color:{color};">{upside:+.1f}%</span>'
                     f'</div>',
                     unsafe_allow_html=True,
@@ -781,47 +964,24 @@ if generate_btn and ticker_input:
             st.info("Price target data not available.")
 
     # ══════════════════════════════════════════════════════
-    # 7. OWNERSHIP & INSIDERS
+    # 10. EARNINGS HISTORY
     # ══════════════════════════════════════════════════════
-    _section("Ownership & Insiders", "")
-    own_tab1, own_tab2, own_tab3 = st.tabs([
-        "Major Holders", "Institutional Holders", "Insider Transactions"
-    ])
-    with own_tab1:
-        if cd.major_holders is not None and not cd.major_holders.empty:
-            st.dataframe(cd.major_holders, use_container_width=True, hide_index=True)
-        else:
-            st.info("Major holders data not available.")
-    with own_tab2:
-        if cd.institutional_holders is not None and not cd.institutional_holders.empty:
-            st.dataframe(cd.institutional_holders.head(15), use_container_width=True, hide_index=True)
-        else:
-            st.info("Institutional holders data not available.")
-    with own_tab3:
-        if cd.insider_transactions is not None and not cd.insider_transactions.empty:
-            st.dataframe(cd.insider_transactions.head(15), use_container_width=True, hide_index=True)
-        else:
-            st.info("Insider transaction data not available.")
-
-    # ══════════════════════════════════════════════════════
-    # 8. EARNINGS HISTORY
-    # ══════════════════════════════════════════════════════
-    _section("Earnings History", "")
+    _section("Earnings History")
     if cd.earnings_dates is not None and not cd.earnings_dates.empty:
         st.dataframe(cd.earnings_dates.head(8), use_container_width=True)
     else:
         st.info("Earnings data not available.")
 
     # ══════════════════════════════════════════════════════
-    # 9. M&A HISTORY
+    # 11. M&A HISTORY
     # ══════════════════════════════════════════════════════
-    _section("M&A History", "")
+    _section("M&A History")
     if cd.ma_deals:
         deal_count = len(cd.ma_deals)
-        source_link = f' &middot; <a href="{cd.ma_source}" target="_blank" style="color:#1E90FF; text-decoration:none; font-weight:500;">View on Wikipedia &rarr;</a>' if cd.ma_source else ""
+        source_link = f' &middot; <a href="{cd.ma_source}" target="_blank" style="color:#6B5CE7; text-decoration:none; font-weight:500;">View on Wikipedia &rarr;</a>' if cd.ma_source else ""
         st.markdown(
             f'<div style="margin-bottom:0.8rem;">'
-            f'<span class="pill pill-gold">{deal_count} Acquisitions</span>'
+            f'<span class="pill pill-purple">{deal_count} Acquisitions</span>'
             f'{source_link}'
             f'</div>',
             unsafe_allow_html=True,
@@ -845,10 +1005,9 @@ if generate_btn and ticker_input:
         st.info("No public M&A history found for this company.")
 
     # ══════════════════════════════════════════════════════
-    # 10. MANAGEMENT
+    # 12. MANAGEMENT
     # ══════════════════════════════════════════════════════
-    _section("Management Team", "")
-
+    _section("Management Team")
     mgmt_col1, mgmt_col2 = st.columns([3, 2])
     with mgmt_col1:
         if cd.officers:
@@ -858,26 +1017,25 @@ if generate_btn and ticker_input:
                     "Name": o.get("name", "N/A"),
                     "Title": o.get("title", "N/A"),
                     "Age": o.get("age", ""),
-                    "Total Pay": format_number(o.get("totalPay")) if o.get("totalPay") else "—",
+                    "Total Pay": format_number(o.get("totalPay"), currency_symbol=cs) if o.get("totalPay") else "\u2014",
                 })
             st.dataframe(pd.DataFrame(mgmt_data), use_container_width=True, hide_index=True)
         else:
             st.info("Management data not available.")
-
     with mgmt_col2:
         if cd.mgmt_sentiment:
-            st.markdown("<p style='font-size:0.85rem; font-weight:700; color:#0B1D3A; margin-bottom:0.3rem;'>Management Assessment</p>", unsafe_allow_html=True)
+            st.markdown("<p style='font-size:0.85rem; font-weight:700; color:#1A1D2E; margin-bottom:0.3rem;'>Management Assessment</p>", unsafe_allow_html=True)
             for line in cd.mgmt_sentiment.split("\n"):
                 line = line.strip()
                 if line.startswith("- "):
                     line = line[2:]
                 if line:
-                    st.markdown(f"<div style='font-size:0.82rem; color:#3A4A5C; line-height:1.7; padding:0.15rem 0;'>&bull; {line}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='font-size:0.82rem; color:#4B5563; line-height:1.7; padding:0.15rem 0;'>&bull; {line}</div>", unsafe_allow_html=True)
 
     # ══════════════════════════════════════════════════════
-    # 11. NEWS
+    # 13. NEWS
     # ══════════════════════════════════════════════════════
-    _section("Recent News", "")
+    _section("Recent News")
     if cd.news:
         for n in cd.news[:10]:
             title = n.get("title", "")
@@ -903,46 +1061,16 @@ if generate_btn and ticker_input:
         st.info("No recent news available.")
 
     # ══════════════════════════════════════════════════════
-    # 12. ESG SCORES
+    # 14. INSIGHTS (renamed from "AI-Generated Insights")
     # ══════════════════════════════════════════════════════
-    _section("ESG Scores", "")
-    if cd.esg_scores is not None and not cd.esg_scores.empty:
-        e1, e2, e3, e4 = st.columns(4)
-        esg_items = [
-            (e1, "totalEsg", "Total ESG", "#0B1D3A"),
-            (e2, "environmentScore", "Environment", "#2E7D32"),
-            (e3, "socialScore", "Social", "#1E90FF"),
-            (e4, "governanceScore", "Governance", "#D4A537"),
-        ]
-        for col_widget, key, label, color in esg_items:
-            with col_widget:
-                val = "N/A"
-                if key in cd.esg_scores.index:
-                    v = cd.esg_scores.loc[key]
-                    if hasattr(v, "values"):
-                        v = v.values[0]
-                    val = f"{v}"
-                st.markdown(
-                    f'<div class="esg-card">'
-                    f'<div class="esg-score" style="color:{color};">{val}</div>'
-                    f'<div class="esg-label">{label}</div>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-    else:
-        st.info("ESG data not available for this company.")
-
-    # ══════════════════════════════════════════════════════
-    # 13. AI INSIGHTS
-    # ══════════════════════════════════════════════════════
-    _section("AI-Generated Insights", "")
+    _section("Insights")
     ai_tab1, ai_tab2, ai_tab3, ai_tab4 = st.tabs([
         "Executive Summary", "Product Overview", "Industry Analysis", "Risk Factors"
     ])
     with ai_tab1:
         if cd.executive_summary_bullets:
             for b in cd.executive_summary_bullets:
-                st.markdown(f"<div style='font-size:0.88rem; color:#3A4A5C; line-height:1.7; padding:0.2rem 0;'>&bull; {b}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='font-size:0.88rem; color:#4B5563; line-height:1.7; padding:0.2rem 0;'>&bull; {b}</div>", unsafe_allow_html=True)
         else:
             st.info("Executive summary not available.")
     with ai_tab2:
@@ -952,7 +1080,7 @@ if generate_btn and ticker_input:
                 if line.startswith("- "):
                     line = line[2:]
                 if line:
-                    st.markdown(f"<div style='font-size:0.88rem; color:#3A4A5C; line-height:1.7; padding:0.2rem 0;'>&bull; {line}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='font-size:0.88rem; color:#4B5563; line-height:1.7; padding:0.2rem 0;'>&bull; {line}</div>", unsafe_allow_html=True)
         else:
             st.info("Product overview not available.")
     with ai_tab3:
@@ -962,7 +1090,7 @@ if generate_btn and ticker_input:
                 if line.startswith("- "):
                     line = line[2:]
                 if line:
-                    st.markdown(f"<div style='font-size:0.88rem; color:#3A4A5C; line-height:1.7; padding:0.2rem 0;'>&bull; {line}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='font-size:0.88rem; color:#4B5563; line-height:1.7; padding:0.2rem 0;'>&bull; {line}</div>", unsafe_allow_html=True)
         else:
             st.info("Industry analysis not available.")
     with ai_tab4:
@@ -972,16 +1100,16 @@ if generate_btn and ticker_input:
                 if line.startswith("- "):
                     line = line[2:]
                 if line:
-                    st.markdown(f"<div style='font-size:0.88rem; color:#3A4A5C; line-height:1.7; padding:0.2rem 0;'>&bull; {line}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='font-size:0.88rem; color:#4B5563; line-height:1.7; padding:0.2rem 0;'>&bull; {line}</div>", unsafe_allow_html=True)
         else:
             st.info("Risk factors not available.")
 
     # ══════════════════════════════════════════════════════
-    # 14. DOWNLOAD PPTX
+    # 15. DOWNLOAD PPTX
     # ══════════════════════════════════════════════════════
     st.markdown("")
     st.markdown("")
-    _section("Download Tear Sheet", "")
+    _section("Download Tear Sheet")
 
     if not os.path.exists("assets/template.pptx"):
         with st.spinner("Creating template..."):
@@ -1001,8 +1129,8 @@ if generate_btn and ticker_input:
             use_container_width=True,
         )
         st.markdown(
-            "<p style='text-align:center; font-size:0.72rem; color:#7A8B9E; margin-top:0.3rem;'>"
-            "Professional IB-grade presentation &middot; Navy/Gold palette &middot; Editable charts"
+            "<p style='text-align:center; font-size:0.72rem; color:#6B7280; margin-top:0.3rem;'>"
+            "Professional IB-grade presentation &middot; Editable charts &middot; Navy/Gold palette"
             "</p>",
             unsafe_allow_html=True,
         )
@@ -1011,43 +1139,110 @@ elif generate_btn and not ticker_input:
     st.warning("Please enter a ticker symbol in the sidebar.")
 else:
     # ══════════════════════════════════════════════════════
-    # LANDING PAGE
+    # SPLASH / LANDING PAGE — Sky.money inspired
     # ══════════════════════════════════════════════════════
-    st.markdown("")
+    st.markdown("""
+    <div class="splash-hero">
+        <p class="splash-title">M&A Profile <span class="splash-accent">Builder</span></p>
+        <p class="splash-subtitle">Institutional-grade company research & tear sheet generation</p>
+        <div class="pill-row">
+            <span class="feature-pill">Live Market Data</span>
+            <span class="feature-pill">Wikipedia M&A</span>
+            <span class="feature-pill">Peer Analysis</span>
+            <span class="feature-pill">AI Powered</span>
+            <span class="feature-pill">Global Exchanges</span>
+        </div>
+        <div class="splash-stats">
+            <div>
+                <div class="splash-stat-value">60+</div>
+                <div class="splash-stat-label">Data Points</div>
+            </div>
+            <div>
+                <div class="splash-stat-value">8</div>
+                <div class="splash-stat-label">PPTX Slides</div>
+            </div>
+            <div>
+                <div class="splash-stat-value">20+</div>
+                <div class="splash-stat-label">Exchanges</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    l1, l2 = st.columns([1, 1])
-    with l1:
-        st.markdown(
-            '<div class="landing-card">'
-            '<p style="font-size:1.1rem; font-weight:700; color:#0B1D3A; margin-bottom:1rem;">How It Works</p>'
-            '<div class="landing-step"><div class="step-number">1</div><div class="step-text">Enter a stock ticker in the sidebar</div></div>'
-            '<div class="landing-step"><div class="step-number">2</div><div class="step-text">Click <b>Generate Profile</b> to pull 60+ live data points</div></div>'
-            '<div class="landing-step"><div class="step-number">3</div><div class="step-text">Explore the interactive research dashboard</div></div>'
-            '<div class="landing-step"><div class="step-number">4</div><div class="step-text">Download the 8-slide IB-grade PowerPoint</div></div>'
-            '</div>',
-            unsafe_allow_html=True,
-        )
+    st.markdown("""
+    <div class="step-grid">
+        <div class="step-card">
+            <div class="step-num">1</div>
+            <div class="step-label">Enter Ticker</div>
+            <div class="step-detail">Any global exchange &mdash; AAPL, RY.TO, NVDA.L</div>
+        </div>
+        <div class="step-card">
+            <div class="step-num">2</div>
+            <div class="step-label">Generate Profile</div>
+            <div class="step-detail">60+ data points pulled in real-time</div>
+        </div>
+        <div class="step-card">
+            <div class="step-num">3</div>
+            <div class="step-label">Explore Dashboard</div>
+            <div class="step-detail">Charts, peer comparison & insights</div>
+        </div>
+        <div class="step-card">
+            <div class="step-num">4</div>
+            <div class="step-label">Download PPTX</div>
+            <div class="step-detail">8-slide IB-grade PowerPoint</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    with l2:
-        st.markdown(
-            '<div class="landing-card">'
-            '<p style="font-size:1.1rem; font-weight:700; color:#0B1D3A; margin-bottom:1rem;">What\'s Inside</p>'
-            '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.4rem;">'
-            '<span class="pill pill-navy" style="text-align:center;">Price & Market Data</span>'
-            '<span class="pill pill-navy" style="text-align:center;">Financial Statements</span>'
-            '<span class="pill pill-navy" style="text-align:center;">Valuation Multiples</span>'
-            '<span class="pill pill-navy" style="text-align:center;">Analyst Consensus</span>'
-            '<span class="pill pill-gold" style="text-align:center;">M&A Deal History</span>'
-            '<span class="pill pill-navy" style="text-align:center;">Ownership & Insiders</span>'
-            '<span class="pill pill-navy" style="text-align:center;">Management Team</span>'
-            '<span class="pill pill-navy" style="text-align:center;">ESG Scores</span>'
-            '<span class="pill pill-blue" style="text-align:center;">AI Insights</span>'
-            '<span class="pill pill-navy" style="text-align:center;">News & Events</span>'
-            '</div>'
-            '<p style="font-size:0.72rem; color:#7A8B9E; margin-top:0.8rem; text-align:center;">'
-            'M&A history scraped from Wikipedia &mdash; no API key needed<br>'
-            'Set <code>OPENAI_API_KEY</code> for enhanced AI insights'
-            '</p>'
-            '</div>',
-            unsafe_allow_html=True,
-        )
+    st.markdown("""
+    <div class="feature-grid">
+        <div class="feature-card">
+            <div class="feature-icon">&#128200;</div>
+            <div class="feature-title">Price & Valuation</div>
+            <div class="feature-desc">Live prices, multiples, and historical charts</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">&#128101;</div>
+            <div class="feature-title">Peer Comparison</div>
+            <div class="feature-desc">Side-by-side valuation vs industry peers</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">&#128202;</div>
+            <div class="feature-title">Financial Statements</div>
+            <div class="feature-desc">Income, balance sheet, cash flow analysis</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">&#129309;</div>
+            <div class="feature-title">M&A History</div>
+            <div class="feature-desc">Deal history scraped from Wikipedia</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">&#127919;</div>
+            <div class="feature-title">Analyst Consensus</div>
+            <div class="feature-desc">Recommendations & price targets</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">&#128161;</div>
+            <div class="feature-title">AI Insights</div>
+            <div class="feature-desc">Powered by GPT (optional API key)</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">&#127760;</div>
+            <div class="feature-title">Global Exchanges</div>
+            <div class="feature-desc">TSX, LSE, JPX and more with local currencies</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">&#128196;</div>
+            <div class="feature-title">PowerPoint Export</div>
+            <div class="feature-desc">8-slide professional presentation</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown(
+        '<p style="font-size:0.72rem; color:#6B7280; margin-top:1.5rem; text-align:center;">'
+        'M&A history scraped from Wikipedia &mdash; no API key needed<br>'
+        'Set <code>OPENAI_API_KEY</code> for enhanced insights'
+        '</p>',
+        unsafe_allow_html=True,
+    )

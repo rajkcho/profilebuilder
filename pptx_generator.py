@@ -203,8 +203,11 @@ def _render_5y_price_chart(cd: CompanyData) -> io.BytesIO:
 
         ax1.fill_between(dates, prices, alpha=0.12, color="#1E90FF")
         ax1.plot(dates, prices, color="#1E90FF", linewidth=1.5)
-        ax1.set_ylabel("Price ($)", fontsize=8, color="#333")
-        ax1.yaxis.set_major_formatter(mticker.FormatStrFormatter("$%.0f"))
+        cs = cd.currency_symbol
+        ax1.set_ylabel(f"Price ({cs})", fontsize=8, color="#333")
+        ax1.yaxis.set_major_formatter(mticker.FuncFormatter(
+            lambda x, _: f"{cs}{x:,.0f}"
+        ))
         ax1.xaxis.set_major_formatter(mdates.DateFormatter("%b '%y"))
         ax1.xaxis.set_major_locator(mdates.MonthLocator(interval=6))
         plt.xticks(rotation=45, fontsize=7)
@@ -249,8 +252,9 @@ def _render_revenue_margin_chart(cd: CompanyData) -> io.BytesIO:
         rev_vals.reverse()
 
         x = np.arange(len(years))
+        cs = cd.currency_symbol
         bars = ax1.bar(x, rev_vals, color="#1E90FF", alpha=0.8, width=0.5)
-        ax1.set_ylabel("Revenue ($B)", fontsize=8, color="#1E90FF")
+        ax1.set_ylabel(f"Revenue ({cs}B)", fontsize=8, color="#1E90FF")
         ax1.set_xticks(x)
         ax1.set_xticklabels(years, fontsize=7)
         ax1.tick_params(axis="y", labelsize=7, labelcolor="#1E90FF")
@@ -313,7 +317,8 @@ def _render_cashflow_chart(cd: CompanyData) -> io.BytesIO:
         ax.bar(x + w/2, fcf, w, label="Free CF", color="#2E7D32", alpha=0.85)
         ax.set_xticks(x)
         ax.set_xticklabels(years, fontsize=7)
-        ax.set_ylabel("$B", fontsize=8)
+        cs = cd.currency_symbol
+        ax.set_ylabel(f"{cs}B", fontsize=8)
         ax.tick_params(axis="y", labelsize=7)
         ax.legend(fontsize=7)
         ax.set_title("Cash Flow Trends", fontsize=9, fontweight="bold",
@@ -432,12 +437,14 @@ def _build_slide_1(prs, cd):
                  f"{cd.exchange}  |  {cd.sector}  >  {cd.industry}",
                  font_size=9, color=MED_GRAY)
 
+    cs = cd.currency_symbol
+
     # Price line
     chg_color = GREEN if cd.price_change >= 0 else RED
     _add_textbox(slide, Inches(0.5), Inches(1.1), Inches(6), Inches(0.35),
-                 f"${cd.current_price:,.2f}   {cd.price_change:+.2f} ({cd.price_change_pct:+.2f}%)"
-                 f"   |   Mkt Cap: {format_number(cd.market_cap)}"
-                 f"   |   EV: {format_number(cd.enterprise_value)}",
+                 f"{cs}{cd.current_price:,.2f}   {cd.price_change:+.2f} ({cd.price_change_pct:+.2f}%)"
+                 f"   |   Mkt Cap: {format_number(cd.market_cap, currency_symbol=cs)}"
+                 f"   |   EV: {format_number(cd.enterprise_value, currency_symbol=cs)}",
                  font_size=13, bold=True, color=chg_color)
 
     # Business description (left column, truncated)
@@ -462,7 +469,7 @@ def _build_slide_1(prs, cd):
         ["Revenue Growth", f"{cd.revenue_growth:+.1f}%" if cd.revenue_growth else "N/A",
          "Beta", f"{cd.beta:.2f}" if cd.beta else "N/A"],
         ["Div Yield", format_pct(cd.dividend_yield),
-         "52W Range", f"${cd.fifty_two_week_low:,.0f}-${cd.fifty_two_week_high:,.0f}"],
+         "52W Range", f"{cs}{cd.fifty_two_week_low:,.0f}-{cs}{cd.fifty_two_week_high:,.0f}"],
     ]
     _add_styled_table(slide,
                       ["Metric", "Value", "Metric", "Value"],
@@ -490,9 +497,10 @@ def _build_slide_2(prs, cd):
     """Slide 2 — Financial Analysis (Income Statement)."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     _slide_header(slide, f"Financial Analysis — {cd.name}")
+    cs = cd.currency_symbol
 
     years = _year_labels(cd.revenue, 4)
-    def _fmtv(v): return format_number(v) if v is not None else "N/A"
+    def _fmtv(v): return format_number(v, currency_symbol=cs) if v is not None else "N/A"
 
     rows = [
         ["Revenue"] + [_fmtv(v) for v in _series_vals(cd.revenue, 4)],
@@ -501,10 +509,10 @@ def _build_slide_2(prs, cd):
         ["Operating Income"] + [_fmtv(v) for v in _series_vals(cd.operating_income, 4)],
         ["EBITDA"] + [_fmtv(v) for v in _series_vals(cd.ebitda, 4)],
         ["Net Income"] + [_fmtv(v) for v in _series_vals(cd.net_income, 4)],
-        ["Basic EPS"] + [f"${float(v):.2f}" if v is not None else "N/A"
+        ["Basic EPS"] + [f"{cs}{float(v):.2f}" if v is not None else "N/A"
                          for v in _series_vals(cd.eps_basic, 4)],
     ]
-    _add_styled_table(slide, ["($ in millions)"] + years, rows,
+    _add_styled_table(slide, [f"({cd.currency_code} in millions)"] + years, rows,
                       Inches(0.5), Inches(1.0), Inches(6.2), Inches(3.2),
                       col_widths=[Inches(1.5)] + [Inches(1.15)] * 4)
 
@@ -537,9 +545,10 @@ def _build_slide_3(prs, cd):
     """Slide 3 — Balance Sheet & Cash Flow."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     _slide_header(slide, f"Balance Sheet & Cash Flow — {cd.name}")
+    cs = cd.currency_symbol
 
     years = _year_labels(cd.total_assets, 4)
-    def _fmtv(v): return format_number(v) if v is not None else "N/A"
+    def _fmtv(v): return format_number(v, currency_symbol=cs) if v is not None else "N/A"
 
     # Balance Sheet table
     bs_rows = [
@@ -551,7 +560,7 @@ def _build_slide_3(prs, cd):
     ]
     _add_textbox(slide, Inches(0.5), Inches(0.9), Inches(6.2), Inches(0.25),
                  "Balance Sheet Highlights", font_size=10, bold=True, color=NAVY)
-    _add_styled_table(slide, ["($ in millions)"] + years, bs_rows,
+    _add_styled_table(slide, [f"({cd.currency_code} in millions)"] + years, bs_rows,
                       Inches(0.5), Inches(1.2), Inches(6.2), Inches(2.2),
                       col_widths=[Inches(1.5)] + [Inches(1.15)] * 4)
 
@@ -565,7 +574,7 @@ def _build_slide_3(prs, cd):
     ]
     _add_textbox(slide, Inches(0.5), Inches(3.7), Inches(6.2), Inches(0.25),
                  "Cash Flow Summary", font_size=10, bold=True, color=NAVY)
-    _add_styled_table(slide, ["($ in millions)"] + cf_years, cf_rows,
+    _add_styled_table(slide, [f"({cd.currency_code} in millions)"] + cf_years, cf_rows,
                       Inches(0.5), Inches(4.0), Inches(6.2), Inches(1.8),
                       col_widths=[Inches(1.5)] + [Inches(1.15)] * 4)
 
@@ -590,9 +599,9 @@ def _build_slide_3(prs, cd):
             pass
     if net_debt is not None:
         _add_textbox(slide, Inches(7.0), Inches(4.0), Inches(5.8), Inches(0.3),
-                     f"Net Debt: {format_number(net_debt)}   |   "
-                     f"Total Cash: {format_number(cd.total_cash)}   |   "
-                     f"Total Debt: {format_number(cd.total_debt_info)}",
+                     f"Net Debt: {format_number(net_debt, currency_symbol=cs)}   |   "
+                     f"Total Cash: {format_number(cd.total_cash, currency_symbol=cs)}   |   "
+                     f"Total Debt: {format_number(cd.total_debt_info, currency_symbol=cs)}",
                      font_size=9, bold=True, color=NAVY)
 
     _slide_footer(slide, cd)
@@ -602,6 +611,7 @@ def _build_slide_4(prs, cd):
     """Slide 4 — Valuation & Analyst Sentiment."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     _slide_header(slide, f"Valuation & Analyst Sentiment — {cd.name}")
+    cs = cd.currency_symbol
 
     # Valuation table
     val_rows = [
@@ -625,11 +635,11 @@ def _build_slide_4(prs, cd):
                      "Analyst Price Targets", font_size=10, bold=True, color=NAVY)
         pt = cd.analyst_price_targets
         pt_rows = [
-            ["Current Price", f"${cd.current_price:,.2f}"],
-            ["Mean Target", f"${pt.get('mean', 0):,.2f}" if pt.get("mean") else "N/A"],
-            ["Median Target", f"${pt.get('median', 0):,.2f}" if pt.get("median") else "N/A"],
-            ["Low Target", f"${pt.get('low', 0):,.2f}" if pt.get("low") else "N/A"],
-            ["High Target", f"${pt.get('high', 0):,.2f}" if pt.get("high") else "N/A"],
+            ["Current Price", f"{cs}{cd.current_price:,.2f}"],
+            ["Mean Target", f"{cs}{pt.get('mean', 0):,.2f}" if pt.get("mean") else "N/A"],
+            ["Median Target", f"{cs}{pt.get('median', 0):,.2f}" if pt.get("median") else "N/A"],
+            ["Low Target", f"{cs}{pt.get('low', 0):,.2f}" if pt.get("low") else "N/A"],
+            ["High Target", f"{cs}{pt.get('high', 0):,.2f}" if pt.get("high") else "N/A"],
         ]
         # Upside/downside
         if pt.get("mean") and cd.current_price:
@@ -664,56 +674,108 @@ def _build_slide_4(prs, cd):
 
 
 def _build_slide_5(prs, cd):
-    """Slide 5 — Ownership & Insider Activity."""
+    """Slide 5 — Peer Comparison."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
-    _slide_header(slide, f"Ownership & Insider Activity — {cd.name}")
+    _slide_header(slide, f"Peer Comparison — {cd.name}")
+    cs = cd.currency_symbol
 
-    # Major holders summary
-    _add_textbox(slide, Inches(0.5), Inches(0.9), Inches(5.5), Inches(0.25),
-                 "Ownership Breakdown", font_size=10, bold=True, color=NAVY)
-    if cd.major_holders is not None and not cd.major_holders.empty:
-        mh_rows = []
-        for _, row in cd.major_holders.iterrows():
-            vals = [str(v) for v in row.values]
-            mh_rows.append(vals)
-        headers = list(cd.major_holders.columns) if len(cd.major_holders.columns) > 1 else ["Metric", "Value"]
-        _add_styled_table(slide, headers, mh_rows,
-                          Inches(0.5), Inches(1.2), Inches(5.5), Inches(1.5))
+    if cd.peer_data:
+        _add_textbox(slide, Inches(0.5), Inches(0.9), Inches(12), Inches(0.25),
+                     f"Comparative Valuation — {cd.industry}",
+                     font_size=10, bold=True, color=NAVY)
+
+        # Build peer comparison table
+        headers = ["Company", "Ticker", "Mkt Cap", "P/E", "Fwd P/E",
+                   "EV/EBITDA", "P/S", "Gross Mgn", "Op Mgn", "ROE"]
+
+        rows = []
+        # Target company first
+        rows.append([
+            cd.name[:25], cd.ticker,
+            format_number(cd.market_cap, currency_symbol=cs),
+            f"{cd.trailing_pe:.1f}" if cd.trailing_pe else "N/A",
+            f"{cd.forward_pe:.1f}" if cd.forward_pe else "N/A",
+            format_multiple(cd.ev_to_ebitda),
+            f"{cd.price_to_sales:.1f}" if cd.price_to_sales else "N/A",
+            format_pct(cd.gross_margins),
+            format_pct(cd.operating_margins),
+            format_pct(cd.return_on_equity),
+        ])
+        # Peers
+        for p in cd.peer_data:
+            rows.append([
+                str(p.get("name", p.get("ticker", "")))[:25],
+                p.get("ticker", ""),
+                format_number(p.get("market_cap"), currency_symbol=cs),
+                f"{p['trailing_pe']:.1f}" if p.get("trailing_pe") else "N/A",
+                f"{p['forward_pe']:.1f}" if p.get("forward_pe") else "N/A",
+                format_multiple(p.get("ev_to_ebitda")),
+                f"{p['price_to_sales']:.1f}" if p.get("price_to_sales") else "N/A",
+                format_pct(p.get("gross_margins")),
+                format_pct(p.get("operating_margins")),
+                format_pct(p.get("return_on_equity")),
+            ])
+
+        _add_styled_table(
+            slide, headers, rows,
+            Inches(0.5), Inches(1.2), Inches(12.3), Inches(3.2),
+            col_widths=[Inches(2.0), Inches(0.8), Inches(1.3), Inches(0.9),
+                        Inches(0.9), Inches(1.1), Inches(0.8), Inches(1.1),
+                        Inches(1.1), Inches(1.1)],
+            num_cols_right_align=2,
+        )
+
+        # Premium/Discount summary
+        def _peer_median(key):
+            vals = [p.get(key) for p in cd.peer_data if p.get(key) is not None]
+            return float(np.median(vals)) if vals else None
+
+        _add_rect(slide, Inches(0.5), Inches(4.6), Inches(12.3), Inches(0.03), GOLD)
+        _add_textbox(slide, Inches(0.5), Inches(4.8), Inches(12), Inches(0.25),
+                     "Premium / Discount vs. Peer Median",
+                     font_size=10, bold=True, color=NAVY)
+
+        premium_items = []
+        for label, co_val, key in [
+            ("P/E", cd.trailing_pe, "trailing_pe"),
+            ("Fwd P/E", cd.forward_pe, "forward_pe"),
+            ("EV/EBITDA", cd.ev_to_ebitda, "ev_to_ebitda"),
+            ("P/S", cd.price_to_sales, "price_to_sales"),
+            ("Gross Margin", cd.gross_margins, "gross_margins"),
+            ("ROE", cd.return_on_equity, "return_on_equity"),
+        ]:
+            med = _peer_median(key)
+            if co_val is not None and med is not None and med != 0:
+                prem = ((co_val - med) / abs(med)) * 100
+                premium_items.append([label, f"{co_val:.1f}", f"{med:.1f}", f"{prem:+.1f}%"])
+            else:
+                premium_items.append([label, "N/A", "N/A", "N/A"])
+
+        _add_styled_table(
+            slide,
+            ["Metric", cd.ticker, "Peer Median", "Premium/Discount"],
+            premium_items,
+            Inches(0.5), Inches(5.1), Inches(6), Inches(2.2),
+            col_widths=[Inches(1.5), Inches(1.2), Inches(1.5), Inches(1.5)],
+            num_cols_right_align=1,
+        )
+
+        # Peer list (right of premium table)
+        _add_textbox(slide, Inches(7.0), Inches(4.8), Inches(5.5), Inches(0.25),
+                     "Peer Group", font_size=10, bold=True, color=NAVY)
+        peer_box = _add_textbox(slide, Inches(7.0), Inches(5.1), Inches(5.5), Inches(2.0),
+                                "", font_size=9, color=DARK_GRAY)
+        tf = peer_box.text_frame
+        for p in cd.peer_data:
+            _add_para(tf, f"{p['ticker']}  —  {p.get('name', '')}",
+                      font_size=8, color=DARK_GRAY, space_before=Pt(3))
+        _add_para(tf, f"Industry: {cd.industry}",
+                  font_size=7, color=MED_GRAY, space_before=Pt(8))
+
     else:
-        _add_textbox(slide, Inches(0.5), Inches(1.2), Inches(5.5), Inches(0.3),
-                     "Major holders data not available", font_size=9, color=MED_GRAY)
-
-    # Institutional holders (right)
-    _add_textbox(slide, Inches(6.5), Inches(0.9), Inches(6.3), Inches(0.25),
-                 "Top Institutional Holders", font_size=10, bold=True, color=NAVY)
-    if cd.institutional_holders is not None and not cd.institutional_holders.empty:
-        ih = cd.institutional_holders.head(10)
-        ih_headers = ["Holder", "Shares", "% Out", "Value"]
-        ih_rows = []
-        for _, row in ih.iterrows():
-            holder = str(row.get("Holder", ""))[:30]
-            shares = format_number(row.get("Shares", 0), prefix="", decimals=0)
-            pct = f"{row.get('% Out', 0) * 100:.2f}%" if row.get("% Out") else "N/A"
-            value = format_number(row.get("Value", 0))
-            ih_rows.append([holder, shares, pct, value])
-        _add_styled_table(slide, ih_headers, ih_rows,
-                          Inches(6.5), Inches(1.2), Inches(6.3), Inches(3.0),
-                          col_widths=[Inches(2.2), Inches(1.2), Inches(1.0), Inches(1.2)])
-
-    # Insider transactions (bottom)
-    _add_textbox(slide, Inches(0.5), Inches(4.5), Inches(12.3), Inches(0.25),
-                 "Recent Insider Transactions", font_size=10, bold=True, color=NAVY)
-    if cd.insider_transactions is not None and not cd.insider_transactions.empty:
-        it = cd.insider_transactions.head(8)
-        it_headers = list(it.columns[:5])
-        it_rows = []
-        for _, row in it.iterrows():
-            it_rows.append([str(v)[:25] for v in row.values[:5]])
-        _add_styled_table(slide, it_headers, it_rows,
-                          Inches(0.5), Inches(4.8), Inches(12.3), Inches(2.0))
-    else:
-        _add_textbox(slide, Inches(0.5), Inches(4.8), Inches(12), Inches(0.3),
-                     "Insider transaction data not available", font_size=9, color=MED_GRAY)
+        _add_textbox(slide, Inches(0.5), Inches(1.0), Inches(12), Inches(0.3),
+                     "Peer comparison data not available for this industry.",
+                     font_size=10, color=MED_GRAY)
 
     _slide_footer(slide, cd)
 
@@ -787,13 +849,14 @@ def _build_slide_7(prs, cd):
     # Executives table
     _add_textbox(slide, Inches(0.5), Inches(0.9), Inches(6), Inches(0.25),
                  "Key Executives", font_size=10, bold=True, color=NAVY)
+    cs = cd.currency_symbol
     if cd.officers:
         exec_rows = []
         for o in cd.officers[:8]:
             name = o.get("name", "N/A")
             title = o.get("title", "N/A")
             age = str(o.get("age", "")) if o.get("age") else ""
-            pay = format_number(o.get("totalPay", None)) if o.get("totalPay") else ""
+            pay = format_number(o.get("totalPay", None), currency_symbol=cs) if o.get("totalPay") else ""
             exec_rows.append([name, title, age, pay])
         _add_styled_table(slide, ["Name", "Title", "Age", "Compensation"], exec_rows,
                           Inches(0.5), Inches(1.2), Inches(6.2), Inches(3.0),
@@ -816,27 +879,10 @@ def _build_slide_7(prs, cd):
             if line:
                 _add_para(tf, f"\u2022  {line}", font_size=8, color=DARK_GRAY, space_before=Pt(4))
 
-    # ESG Scores (bottom)
+    # Company info (bottom)
     _add_rect(slide, Inches(0.5), Inches(4.5), Inches(12.3), Inches(0.03), GOLD)
-    _add_textbox(slide, Inches(0.5), Inches(4.7), Inches(12), Inches(0.25),
-                 "ESG & Sustainability", font_size=10, bold=True, color=NAVY)
-    if cd.esg_scores is not None and not cd.esg_scores.empty:
-        esg_text_parts = []
-        for key in ["totalEsg", "environmentScore", "socialScore", "governanceScore"]:
-            if key in cd.esg_scores.index:
-                val = cd.esg_scores.loc[key]
-                if hasattr(val, "values"):
-                    val = val.values[0]
-                label = key.replace("Score", "").replace("total", "Total ")
-                esg_text_parts.append(f"{label}: {val}")
-        esg_text = "     ".join(esg_text_parts) if esg_text_parts else "ESG data available — see detail in appendix"
-        _add_textbox(slide, Inches(0.5), Inches(5.0), Inches(12), Inches(0.4),
-                     esg_text, font_size=9, color=DARK_GRAY)
-    else:
-        _add_textbox(slide, Inches(0.5), Inches(5.0), Inches(12), Inches(0.3),
-                     "ESG data not available for this company", font_size=9, color=MED_GRAY)
 
-    # Company info footer
+    # Company info
     info_parts = []
     if cd.city:
         hq = f"{cd.city}"
@@ -850,8 +896,8 @@ def _build_slide_7(prs, cd):
     if cd.website:
         info_parts.append(f"Web: {cd.website}")
     if info_parts:
-        _add_textbox(slide, Inches(0.5), Inches(5.6), Inches(12), Inches(0.4),
-                     "   |   ".join(info_parts), font_size=8, color=MED_GRAY)
+        _add_textbox(slide, Inches(0.5), Inches(4.7), Inches(12), Inches(0.4),
+                     "   |   ".join(info_parts), font_size=9, color=DARK_GRAY)
 
     _slide_footer(slide, cd)
 
@@ -924,7 +970,7 @@ def generate_presentation(cd: CompanyData, template_path: str = "assets/template
     _build_slide_2(prs, cd)   # Financial Analysis
     _build_slide_3(prs, cd)   # Balance Sheet & Cash Flow
     _build_slide_4(prs, cd)   # Valuation & Analyst Sentiment
-    _build_slide_5(prs, cd)   # Ownership & Insider Activity
+    _build_slide_5(prs, cd)   # Peer Comparison
     _build_slide_6(prs, cd)   # M&A History
     _build_slide_7(prs, cd)   # Management & Governance
     _build_slide_8(prs, cd)   # News & Market Context
