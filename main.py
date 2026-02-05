@@ -325,8 +325,8 @@ section[data-testid="stSidebar"] .stButton > button {{
     padding: 0.7rem 2rem !important;
     font-size: 0.95rem !important;
     letter-spacing: 0.5px;
-    transition: all 0.3s ease;
     box-shadow: 0 4px 20px rgba(107,92,231,0.3);
+    animation: sb-btn-pulse 2s ease-in-out infinite;
 }}
 section[data-testid="stSidebar"] .stButton > button:hover {{
     transform: translateY(-2px);
@@ -339,8 +339,7 @@ section[data-testid="stSidebar"] hr {{
 /* ── SIDEBAR SECTIONS (merger mode) ─────────────────────── */
 .sb-section {{
     background: linear-gradient(135deg, rgba(107,92,231,0.1), rgba(232,99,139,0.03));
-    border-left: 3px solid;
-    border-image: linear-gradient(180deg, #6B5CE7, #9B8AFF) 1;
+    border-left: 3px solid #6B5CE7;
     border-radius: 0 8px 8px 0;
     padding: 0.45rem 0.75rem;
     margin: 0.9rem 0 0.4rem 0;
@@ -402,9 +401,6 @@ section[data-testid="stSidebar"] .stSlider label p {{
     border: none;
     margin: 0.6rem 0;
     background: linear-gradient(90deg, transparent, rgba(107,92,231,0.3), transparent);
-}}
-section[data-testid="stSidebar"] .stButton > button {{
-    animation: sb-btn-pulse 2s ease-in-out infinite;
 }}
 
 /* ── HERO / HEADER (profile view) ──────────────────────── */
