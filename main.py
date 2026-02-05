@@ -275,10 +275,6 @@ html, body, [class*="css"] {{
     0% {{ transform: scale(1); opacity: 0.6; }}
     100% {{ transform: scale(1.5); opacity: 0; }}
 }}
-@keyframes sb-border-glow {{
-    0%, 100% {{ border-color: rgba(107,92,231,0.15); }}
-    50% {{ border-color: rgba(107,92,231,0.4); }}
-}}
 @keyframes sb-fill {{
     from {{ max-width: 0; }}
     to {{ max-width: 100%; }}
@@ -298,8 +294,9 @@ html, body, [class*="css"] {{
 
 /* ── SIDEBAR ─────────────────────────────────────────────── */
 section[data-testid="stSidebar"] {{
-    background: linear-gradient(180deg, #0B0E1A 0%, #151933 100%);
-    border-right: 2px solid rgba(107,92,231,0.3);
+    background: linear-gradient(180deg, #0B0E1A 0%, #10132A 50%, #151933 100%);
+    border-right: 1px solid rgba(107,92,231,0.2);
+    box-shadow: 4px 0 30px rgba(107,92,231,0.08);
 }}
 section[data-testid="stSidebar"] * {{
     color: #C8C3E3 !important;
@@ -339,29 +336,35 @@ section[data-testid="stSidebar"] hr {{
     border-color: rgba(107,92,231,0.2) !important;
 }}
 
-/* ── SIDEBAR CARDS (merger mode) ────────────────────────── */
-.sb-card {{
-    background: rgba(107,92,231,0.06);
-    border: 1px solid rgba(107,92,231,0.15);
-    border-radius: 14px;
-    padding: 0.8rem 0.9rem 0.6rem;
-    margin-bottom: 0.7rem;
-    animation: sb-border-glow 3s ease-in-out infinite;
-    transition: all 0.25s ease;
-}}
-.sb-card:hover {{
-    transform: translateY(-1px);
-    border-color: rgba(107,92,231,0.35);
-    box-shadow: 0 4px 18px rgba(107,92,231,0.15);
-    animation-play-state: paused;
-}}
-.sb-card-header {{
-    font-size: 0.6rem;
+/* ── SIDEBAR SECTIONS (merger mode) ─────────────────────── */
+.sb-section {{
+    background: linear-gradient(135deg, rgba(107,92,231,0.1), rgba(232,99,139,0.03));
+    border-left: 3px solid;
+    border-image: linear-gradient(180deg, #6B5CE7, #9B8AFF) 1;
+    border-radius: 0 8px 8px 0;
+    padding: 0.45rem 0.75rem;
+    margin: 0.9rem 0 0.4rem 0;
+    font-size: 0.65rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 1.5px;
+    letter-spacing: 1.8px;
+    color: #A8A3C7 !important;
+    animation: slideInLeft 0.4s ease-out both;
+}}
+.sb-section-icon {{
+    color: #9B8AFF !important;
+    margin-right: 0.3rem;
+    font-size: 0.55rem;
+}}
+section[data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [role="slider"] {{
+    background: #9B8AFF !important;
+    border-color: #6B5CE7 !important;
+    box-shadow: 0 0 8px rgba(107,92,231,0.4);
+    width: 14px !important; height: 14px !important;
+}}
+section[data-testid="stSidebar"] .stSlider label p {{
+    font-size: 0.72rem !important;
     color: #8A85AD !important;
-    margin-bottom: 0.5rem;
 }}
 .sb-split-bar {{
     display: flex;
@@ -400,7 +403,7 @@ section[data-testid="stSidebar"] hr {{
     margin: 0.6rem 0;
     background: linear-gradient(90deg, transparent, rgba(107,92,231,0.3), transparent);
 }}
-section[data-testid="stSidebar"] .stButton > button.sb-analyze {{
+section[data-testid="stSidebar"] .stButton > button {{
     animation: sb-btn-pulse 2s ease-in-out infinite;
 }}
 
@@ -1924,8 +1927,11 @@ with st.sidebar:
         ticker_input = ""
         generate_btn = False
 
-        # ── Card 1: Tickers ──
-        st.markdown('<div class="sb-card"><div class="sb-card-header">&#9670; Tickers</div>', unsafe_allow_html=True)
+        # ── Section: Tickers ──
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">&#9670;</span> TICKERS</div>',
+            unsafe_allow_html=True,
+        )
         acquirer_input = st.text_input(
             "Acquirer Ticker", value="MSFT", max_chars=10,
             label_visibility="collapsed", placeholder="Acquirer (e.g. MSFT)",
@@ -1934,10 +1940,12 @@ with st.sidebar:
             "Target Ticker", value="ATVI", max_chars=10,
             label_visibility="collapsed", placeholder="Target (e.g. ATVI)",
         ).strip().upper()
-        st.markdown('</div>', unsafe_allow_html=True)
 
-        # ── Card 2: Deal Structure ──
-        st.markdown('<div class="sb-card"><div class="sb-card-header">&#9670; Deal Structure</div>', unsafe_allow_html=True)
+        # ── Section: Deal Structure ──
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">&#9670;</span> DEAL STRUCTURE</div>',
+            unsafe_allow_html=True,
+        )
         offer_premium = st.slider("Offer Premium (%)", 0, 100, 30, 5)
         pct_cash = st.slider("Cash Consideration (%)", 0, 100, 50, 5)
         pct_stock = 100 - pct_cash
@@ -1952,20 +1960,23 @@ with st.sidebar:
             f'</div>',
             unsafe_allow_html=True,
         )
-        st.markdown('</div>', unsafe_allow_html=True)
 
-        # ── Card 3: Synergies ──
-        st.markdown('<div class="sb-card"><div class="sb-card-header">&#9670; Synergies</div>', unsafe_allow_html=True)
+        # ── Section: Synergies ──
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">&#9670;</span> SYNERGIES</div>',
+            unsafe_allow_html=True,
+        )
         cost_syn = st.slider("Cost Synergies (% of Target SG&A)", 0, 30, 10, 1)
         rev_syn = st.slider("Revenue Synergies (% of Target Rev)", 0, 10, 2, 1)
-        st.markdown('</div>', unsafe_allow_html=True)
 
-        # ── Card 4: Financing & Fees ──
-        st.markdown('<div class="sb-card"><div class="sb-card-header">&#9670; Financing &amp; Fees</div>', unsafe_allow_html=True)
+        # ── Section: Financing & Fees ──
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">&#9670;</span> FINANCING &amp; FEES</div>',
+            unsafe_allow_html=True,
+        )
         txn_fees = st.slider("Transaction Fees (%)", 0.5, 5.0, 2.0, 0.5)
         adv_cost_of_debt = st.slider("Cost of Debt (%)", 2.0, 10.0, 5.0, 0.5)
         adv_tax_rate = st.slider("Tax Rate (%)", 10, 40, 25, 1)
-        st.markdown('</div>', unsafe_allow_html=True)
 
         merger_assumptions = MergerAssumptions(
             offer_premium_pct=offer_premium,
