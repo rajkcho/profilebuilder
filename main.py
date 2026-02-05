@@ -2842,7 +2842,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         matched_tag = False
         for tag, label, color, bg, border in _sr_tag_config:
             if line.startswith(tag):
-                line = line[len(tag):].strip()
+                line = line[len(tag):].strip().replace("$", "&#36;")
                 st.markdown(
                     f'<div style="border-left:3px solid {border}; background:{bg}; '
                     f'padding:0.5rem 0.8rem; margin-bottom:0.5rem; border-radius:0 8px 8px 0;">'
@@ -2855,6 +2855,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
                 matched_tag = True
                 break
         if not matched_tag and line:
+            line = line.replace("$", "&#36;")
             st.markdown(f"<div style='font-size:0.88rem; color:#B8B3D7; line-height:1.7; padding:0.2rem 0;'>&bull; {line}</div>", unsafe_allow_html=True)
 
     _divider()
@@ -2899,7 +2900,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
                 tag_border = border
                 break
 
-        # Severity-based tint adjustment
+        # Severity-based tint adjustment (before escaping)
         line_lower = line.lower()
         has_high = any(w in line_lower for w in _high_severity_words)
         has_low = any(w in line_lower for w in _low_severity_words)
@@ -2918,6 +2919,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
                 f'letter-spacing:0.5px; margin-bottom:0.2rem;">{tag_label}{severity_indicator}</div>'
             )
 
+        line = line.replace("$", "&#36;")
         st.markdown(
             f'<div style="border-left:3px solid {tag_border}; background:{tag_bg}; '
             f'padding:0.5rem 0.8rem; margin-bottom:0.5rem; border-radius:0 8px 8px 0;">'
@@ -2963,7 +2965,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         matched_tag = False
         for tag, (label, color, bg, border) in _verdict_tag_config.items():
             if line.startswith(tag):
-                line = line[len(tag):].strip()
+                line = line[len(tag):].strip().replace("$", "&#36;")
                 header_color = color or "#B8B3D7"
                 st.markdown(
                     f'<div style="border-left:3px solid {border}; background:{bg}; '
@@ -2978,6 +2980,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
                 break
 
         if not matched_tag and line:
+            line = line.replace("$", "&#36;")
             st.markdown(f"<div style='font-size:0.88rem; color:#B8B3D7; line-height:1.7; padding:0.2rem 0;'>&bull; {line}</div>", unsafe_allow_html=True)
 
     _divider()
