@@ -14,6 +14,7 @@ import pandas as pd
 import numpy as np
 import os
 import random
+import time
 
 from data_engine import (
     fetch_company_data, fetch_peer_data,
@@ -2212,8 +2213,6 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     # MERGER ANALYSIS DASHBOARD
     # ══════════════════════════════════════════════════════
 
-    import time as _time
-
     # ── Fetch data for both companies ─────────────────────
     with st.spinner(f"Fetching data for {acquirer_input}..."):
         try:
@@ -2222,7 +2221,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
             st.error(f"Failed to fetch data for **{acquirer_input}**: {e}")
             st.stop()
 
-    _time.sleep(1)  # Avoid rate limits
+    time.sleep(1)  # Avoid rate limits
 
     with st.spinner(f"Fetching data for {target_input}..."):
         try:
