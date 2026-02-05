@@ -473,15 +473,25 @@ def fetch_ma_deals(company_name: str) -> tuple:
 
 
 def _retry_yf_info(tk, max_retries=3):
-    """Fetch ticker.info with exponential backoff on rate-limit errors."""
+    """Fetch ticker.info with exponential backoff on rate-limit errors.
+
+    NOTE: tk.info is a property that makes a new HTTP request on every access,
+    so we must cache the result and never call it more than necessary.
+    """
+    last_result = {}
     for attempt in range(max_retries):
         try:
-            info = tk.info
-            if info and info.get("symbol"):
-                return info
-            # Empty or stub response — may be transient
+            info = tk.info  # single HTTP call
+            if info:
+                last_result = info
+                # Accept any non-trivial response (>5 keys means real data)
+                if len(info) > 5:
+                    return info
+            # Sparse/stub response — may be transient rate-limit stub
             if attempt < max_retries - 1:
-                time.sleep(2 ** attempt)
+                wait = 2 ** (attempt + 1)
+                print(f"Sparse response (attempt {attempt + 1}/{max_retries}), retrying in {wait}s...")
+                time.sleep(wait)
         except Exception as e:
             err_msg = str(e).lower()
             if "too many requests" in err_msg or "rate" in err_msg or "429" in err_msg:
@@ -490,7 +500,7 @@ def _retry_yf_info(tk, max_retries=3):
                 time.sleep(wait)
             else:
                 raise
-    return tk.info or {}
+    return last_result
 
 
 def fetch_company_data(ticker_str: str) -> CompanyData:
@@ -679,14 +689,20 @@ def fetch_company_data(ticker_str: str) -> CompanyData:
     # ── Analyst Data ─────────────────────────────────────
     try:
         targets = tk.analyst_price_targets
-        if targets is not None and not targets.empty:
-            cd.analyst_price_targets = {
-                "current": _safe_get(dict(targets), "current"),
-                "low": _safe_get(dict(targets), "low"),
-                "high": _safe_get(dict(targets), "high"),
-                "mean": _safe_get(dict(targets), "mean"),
-                "median": _safe_get(dict(targets), "median"),
-            }
+        # yfinance >=1.1.0 returns a dict; older versions return a DataFrame
+        if targets is not None:
+            if isinstance(targets, dict):
+                tgt = targets
+            else:
+                tgt = dict(targets) if not getattr(targets, "empty", True) else {}
+            if tgt:
+                cd.analyst_price_targets = {
+                    "current": tgt.get("current"),
+                    "low": tgt.get("low"),
+                    "high": tgt.get("high"),
+                    "mean": tgt.get("mean"),
+                    "median": tgt.get("median"),
+                }
     except Exception:
         pass
 
@@ -821,7 +837,9 @@ def fetch_peer_data(cd: CompanyData) -> CompanyData:
     cd.peer_tickers = peer_tickers
     peers = []
 
-    for pticker in peer_tickers:
+    for i, pticker in enumerate(peer_tickers):
+        if i > 0:
+            time.sleep(0.5)  # Throttle to avoid Yahoo Finance rate limiting
         try:
             pk = yf.Ticker(pticker)
             pinfo = _retry_yf_info(pk)
