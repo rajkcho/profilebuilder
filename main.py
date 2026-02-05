@@ -939,7 +939,7 @@ def _build_peer_radar_chart(cd):
 
 
 # ── CHART: Revenue & Margins ──────────────────────────────────
-def _build_revenue_margin_chart(cd):
+def _build_revenue_margin_chart(cd, key="rev_margin"):
     """Revenue bars with gross/EBITDA/net margin lines on secondary y-axis."""
     if cd.revenue is None or len(cd.revenue) == 0:
         st.info("Revenue data not available for chart.")
@@ -979,11 +979,11 @@ def _build_revenue_margin_chart(cd):
         barmode="group", hovermode="x unified",
         hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key=key)
 
 
 # ── CHART: Cash Flow ──────────────────────────────────────────
-def _build_cashflow_chart(cd):
+def _build_cashflow_chart(cd, key="cashflow"):
     """Grouped bars: OCF, CapEx (negative), FCF, dividends."""
     series_map = [
         (cd.operating_cashflow_series, "Operating CF", "#6B5CE7"),
@@ -1014,11 +1014,11 @@ def _build_cashflow_chart(cd):
         barmode="group", hovermode="x unified",
         hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key=key)
 
 
 # ── CHART: Balance Sheet ──────────────────────────────────────
-def _build_balance_sheet_chart(cd):
+def _build_balance_sheet_chart(cd, key="balance_sheet"):
     """Stacked equity+debt bars with cash and total assets overlay lines."""
     has_data = any(
         s is not None and len(s) > 0
@@ -1059,11 +1059,11 @@ def _build_balance_sheet_chart(cd):
         barmode="stack", hovermode="x unified",
         hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key=key)
 
 
 # ── CHART: Peer Valuation Comparison ──────────────────────────
-def _build_peer_valuation_chart(cd):
+def _build_peer_valuation_chart(cd, key="peer_val"):
     """Horizontal grouped bars: company vs peer median on key multiples."""
     if not cd.peer_data:
         st.info("Peer data not available for valuation comparison.")
@@ -1107,11 +1107,11 @@ def _build_peer_valuation_chart(cd):
         barmode="group",
         hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key=key)
 
 
 # ── CHART: Earnings Surprise ─────────────────────────────────
-def _build_earnings_surprise_chart(cd):
+def _build_earnings_surprise_chart(cd, key="earnings_surprise"):
     """Color-coded bars: green for beats, red for misses."""
     if cd.earnings_dates is None or cd.earnings_dates.empty:
         st.info("Earnings data not available for surprise chart.")
@@ -1152,7 +1152,7 @@ def _build_earnings_surprise_chart(cd):
                    gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD")),
         hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key=key)
 
 
 # ── RENDER: SWOT Grid ─────────────────────────────────────────
@@ -1884,7 +1884,7 @@ if generate_btn and ticker_input:
             _render_growth_outlook(cd.growth_outlook, cd)
         with go_right:
             st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Revenue & Margin Trends</div>', unsafe_allow_html=True)
-            _build_revenue_margin_chart(cd)
+            _build_revenue_margin_chart(cd, key="rev_margin_growth")
 
     # ── Tab 5: Capital Allocation ────────────────────
     with ai_tab5:
@@ -1893,7 +1893,7 @@ if generate_btn and ticker_input:
             _render_capital_allocation(cd.capital_allocation_analysis, cd)
         with ca_right:
             st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Cash Flow Trends</div>', unsafe_allow_html=True)
-            _build_cashflow_chart(cd)
+            _build_cashflow_chart(cd, key="cashflow_capalloc")
 
     # ── Tab 6: Industry Analysis ─────────────────────
     with ai_tab6:
