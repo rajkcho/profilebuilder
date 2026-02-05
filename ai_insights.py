@@ -254,11 +254,26 @@ def _format_deal(deal: dict) -> str:
 
 def _call_llm(prompt: str, system_msg: str = "You are a senior M&A analyst.",
               max_tokens: int = 1500) -> str:
-    """Make an OpenAI API call and return the response text."""
+    """Make an LLM API call via OpenAI or OpenRouter and return the response text."""
     from openai import OpenAI
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY")
+    openai_key = os.environ.get("OPENAI_API_KEY")
+
+    if openrouter_key:
+        client = OpenAI(
+            api_key=openrouter_key,
+            base_url="https://openrouter.ai/api/v1",
+        )
+        model = "gpt-4o-mini"
+    elif openai_key:
+        client = OpenAI(api_key=openai_key)
+        model = "gpt-4o-mini"
+    else:
+        raise RuntimeError("No API key set")
+
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=model,
         messages=[
             {"role": "system", "content": system_msg},
             {"role": "user", "content": prompt},
@@ -439,7 +454,7 @@ def generate_insights_fallback(cd: CompanyData) -> CompanyData:
 
 def generate_insights(cd: CompanyData) -> CompanyData:
     """Main entry point: orchestrate all insight generation."""
-    if os.environ.get("OPENAI_API_KEY"):
+    if os.environ.get("OPENROUTER_API_KEY") or os.environ.get("OPENAI_API_KEY"):
         generate_insights_llm(cd)
         generate_ma_history_llm(cd)
         generate_industry_analysis_llm(cd)

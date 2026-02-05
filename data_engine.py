@@ -13,6 +13,7 @@ import numpy as np
 import urllib.request
 import json
 import re
+import time
 from io import StringIO
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict
@@ -471,10 +472,31 @@ def fetch_ma_deals(company_name: str) -> tuple:
         return [], ""
 
 
+def _retry_yf_info(tk, max_retries=3):
+    """Fetch ticker.info with exponential backoff on rate-limit errors."""
+    for attempt in range(max_retries):
+        try:
+            info = tk.info
+            if info and info.get("symbol"):
+                return info
+            # Empty or stub response — may be transient
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+        except Exception as e:
+            err_msg = str(e).lower()
+            if "too many requests" in err_msg or "rate" in err_msg or "429" in err_msg:
+                wait = 2 ** (attempt + 1)
+                print(f"Rate limited (attempt {attempt + 1}/{max_retries}), retrying in {wait}s...")
+                time.sleep(wait)
+            else:
+                raise
+    return tk.info or {}
+
+
 def fetch_company_data(ticker_str: str) -> CompanyData:
     """Pull all available data for a given ticker."""
     tk = yf.Ticker(ticker_str)
-    info = tk.info or {}
+    info = _retry_yf_info(tk)
 
     cd = CompanyData(ticker=ticker_str.upper())
 
@@ -802,7 +824,7 @@ def fetch_peer_data(cd: CompanyData) -> CompanyData:
     for pticker in peer_tickers:
         try:
             pk = yf.Ticker(pticker)
-            pinfo = pk.info or {}
+            pinfo = _retry_yf_info(pk)
             peer = {
                 "ticker": pticker,
                 "name": _safe_get(pinfo, "shortName", pticker),
