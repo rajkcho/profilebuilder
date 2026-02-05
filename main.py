@@ -938,6 +938,335 @@ def _build_peer_radar_chart(cd):
     st.plotly_chart(fig, use_container_width=True)
 
 
+# ── CHART: Revenue & Margins ──────────────────────────────────
+def _build_revenue_margin_chart(cd):
+    """Revenue bars with gross/EBITDA/net margin lines on secondary y-axis."""
+    if cd.revenue is None or len(cd.revenue) == 0:
+        st.info("Revenue data not available for chart.")
+        return
+    rev = cd.revenue.dropna().sort_index()
+    years = [idx.strftime("%Y") if hasattr(idx, "strftime") else str(idx) for idx in rev.index]
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=years, y=rev.values, name="Revenue",
+        marker_color="rgba(107,92,231,0.6)",
+        text=[format_number(v, currency_symbol=cd.currency_symbol) for v in rev.values],
+        textposition="outside", textfont=dict(size=9, color="#B8B3D7"),
+    ))
+    for series, name, color in [
+        (cd.gross_margin_series, "Gross Margin", "#10B981"),
+        (cd.ebitda_margin, "EBITDA Margin", "#E8638B"),
+        (cd.net_margin_series, "Net Margin", "#F5A623"),
+    ]:
+        if series is not None and len(series) > 0:
+            s = series.dropna().sort_index()
+            yrs = [idx.strftime("%Y") if hasattr(idx, "strftime") else str(idx) for idx in s.index]
+            fig.add_trace(go.Scatter(
+                x=yrs, y=s.values, name=name, yaxis="y2",
+                line=dict(color=color, width=2.5), mode="lines+markers",
+                marker=dict(size=6),
+            ))
+    fig.update_layout(
+        height=380, margin=dict(t=30, b=30, l=50, r=50),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(tickfont=dict(size=9, color="#8A85AD"), showgrid=False),
+        yaxis=dict(title=dict(text="Revenue", font=dict(size=10, color="#8A85AD")),
+                   gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD")),
+        yaxis2=dict(title=dict(text="Margin %", font=dict(size=10, color="#8A85AD")),
+                    overlaying="y", side="right", showgrid=False,
+                    tickfont=dict(size=9, color="#8A85AD"), ticksuffix="%"),
+        legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
+        barmode="group", hovermode="x unified",
+        hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# ── CHART: Cash Flow ──────────────────────────────────────────
+def _build_cashflow_chart(cd):
+    """Grouped bars: OCF, CapEx (negative), FCF, dividends."""
+    series_map = [
+        (cd.operating_cashflow_series, "Operating CF", "#6B5CE7"),
+        (cd.capital_expenditure, "CapEx", "#EF4444"),
+        (cd.free_cashflow_series, "Free CF", "#10B981"),
+        (cd.dividends_paid, "Dividends", "#F5A623"),
+    ]
+    has_data = any(s is not None and len(s) > 0 for s, _, _ in series_map)
+    if not has_data:
+        st.info("Cash flow data not available for chart.")
+        return
+    fig = go.Figure()
+    for series, name, color in series_map:
+        if series is not None and len(series) > 0:
+            s = series.dropna().sort_index()
+            years = [idx.strftime("%Y") if hasattr(idx, "strftime") else str(idx) for idx in s.index]
+            fig.add_trace(go.Bar(
+                x=years, y=s.values, name=name,
+                marker_color=color, opacity=0.85,
+            ))
+    fig.update_layout(
+        height=380, margin=dict(t=30, b=30, l=50, r=50),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(tickfont=dict(size=9, color="#8A85AD"), showgrid=False),
+        yaxis=dict(title=dict(text="Amount", font=dict(size=10, color="#8A85AD")),
+                   gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD")),
+        legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
+        barmode="group", hovermode="x unified",
+        hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# ── CHART: Balance Sheet ──────────────────────────────────────
+def _build_balance_sheet_chart(cd):
+    """Stacked equity+debt bars with cash and total assets overlay lines."""
+    has_data = any(
+        s is not None and len(s) > 0
+        for s in [cd.total_equity, cd.total_debt, cd.cash_and_equivalents, cd.total_assets]
+    )
+    if not has_data:
+        st.info("Balance sheet data not available for chart.")
+        return
+    fig = go.Figure()
+    # Stacked bars: equity + debt
+    for series, name, color in [
+        (cd.total_equity, "Equity", "rgba(107,92,231,0.6)"),
+        (cd.total_debt, "Debt", "rgba(239,68,68,0.5)"),
+    ]:
+        if series is not None and len(series) > 0:
+            s = series.dropna().sort_index()
+            years = [idx.strftime("%Y") if hasattr(idx, "strftime") else str(idx) for idx in s.index]
+            fig.add_trace(go.Bar(x=years, y=s.values, name=name, marker_color=color))
+    # Overlay lines: cash and total assets
+    for series, name, color in [
+        (cd.cash_and_equivalents, "Cash", "#10B981"),
+        (cd.total_assets, "Total Assets", "#F5A623"),
+    ]:
+        if series is not None and len(series) > 0:
+            s = series.dropna().sort_index()
+            years = [idx.strftime("%Y") if hasattr(idx, "strftime") else str(idx) for idx in s.index]
+            fig.add_trace(go.Scatter(
+                x=years, y=s.values, name=name,
+                line=dict(color=color, width=2.5), mode="lines+markers",
+                marker=dict(size=6),
+            ))
+    fig.update_layout(
+        height=380, margin=dict(t=30, b=30, l=50, r=50),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(tickfont=dict(size=9, color="#8A85AD"), showgrid=False),
+        yaxis=dict(gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD")),
+        legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
+        barmode="stack", hovermode="x unified",
+        hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# ── CHART: Peer Valuation Comparison ──────────────────────────
+def _build_peer_valuation_chart(cd):
+    """Horizontal grouped bars: company vs peer median on key multiples."""
+    if not cd.peer_data:
+        st.info("Peer data not available for valuation comparison.")
+        return
+    metrics = [
+        ("P/E", "trailing_pe", cd.trailing_pe),
+        ("Fwd P/E", "forward_pe", cd.forward_pe),
+        ("EV/EBITDA", "ev_to_ebitda", cd.ev_to_ebitda),
+        ("P/S", "price_to_sales", cd.price_to_sales),
+    ]
+    labels, company_vals, peer_vals = [], [], []
+    for label, key, company_val in metrics:
+        if company_val is None:
+            continue
+        peer_raw = [p.get(key) for p in cd.peer_data if p.get(key) is not None]
+        if not peer_raw:
+            continue
+        labels.append(label)
+        company_vals.append(company_val)
+        peer_vals.append(float(np.median(peer_raw)))
+    if not labels:
+        st.info("Insufficient data for peer valuation chart.")
+        return
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        y=labels, x=company_vals, orientation="h", name=cd.ticker,
+        marker_color="#6B5CE7", text=[f"{v:.1f}x" for v in company_vals],
+        textposition="outside", textfont=dict(size=10, color="#B8B3D7"),
+    ))
+    fig.add_trace(go.Bar(
+        y=labels, x=peer_vals, orientation="h", name="Peer Median",
+        marker_color="#E8638B", text=[f"{v:.1f}x" for v in peer_vals],
+        textposition="outside", textfont=dict(size=10, color="#B8B3D7"),
+    ))
+    fig.update_layout(
+        height=280, margin=dict(t=30, b=20, l=80, r=60),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD")),
+        yaxis=dict(tickfont=dict(size=10, color="#8A85AD"), autorange="reversed"),
+        legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
+        barmode="group",
+        hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# ── CHART: Earnings Surprise ─────────────────────────────────
+def _build_earnings_surprise_chart(cd):
+    """Color-coded bars: green for beats, red for misses."""
+    if cd.earnings_dates is None or cd.earnings_dates.empty:
+        st.info("Earnings data not available for surprise chart.")
+        return
+    df = cd.earnings_dates.copy()
+    # Try to find EPS columns
+    est_col = None
+    act_col = None
+    for c in df.columns:
+        cl = str(c).lower()
+        if "estimate" in cl or "eps estimate" in cl:
+            est_col = c
+        if "reported" in cl or "actual" in cl or "eps actual" in cl:
+            act_col = c
+    if est_col is None or act_col is None:
+        st.info("Earnings surprise data not available.")
+        return
+    df = df.dropna(subset=[est_col, act_col])
+    if df.empty:
+        st.info("No earnings surprise data to display.")
+        return
+    df = df.head(8).sort_index()
+    surprises = df[act_col].astype(float) - df[est_col].astype(float)
+    colors = ["#10B981" if s >= 0 else "#EF4444" for s in surprises]
+    labels = [f"{s:+.2f}" for s in surprises]
+    dates = [idx.strftime("%b %Y") if hasattr(idx, "strftime") else str(idx) for idx in df.index]
+
+    fig = go.Figure(go.Bar(
+        x=dates, y=surprises.values, marker_color=colors,
+        text=labels, textposition="outside",
+        textfont=dict(size=10, color="#B8B3D7"),
+    ))
+    fig.update_layout(
+        height=280, margin=dict(t=30, b=30, l=50, r=30),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(tickfont=dict(size=9, color="#8A85AD"), showgrid=False),
+        yaxis=dict(title=dict(text="EPS Surprise", font=dict(size=10, color="#8A85AD")),
+                   gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD")),
+        hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# ── RENDER: SWOT Grid ─────────────────────────────────────────
+def _render_swot_grid(swot):
+    """2x2 CSS grid with color-coded SWOT cards."""
+    if not swot:
+        st.info("SWOT analysis not available.")
+        return
+    quadrants = [
+        ("Strengths", swot.get("strengths", []), "#10B981", "rgba(16,185,129,0.08)", "rgba(16,185,129,0.25)"),
+        ("Weaknesses", swot.get("weaknesses", []), "#EF4444", "rgba(239,68,68,0.08)", "rgba(239,68,68,0.25)"),
+        ("Opportunities", swot.get("opportunities", []), "#6B5CE7", "rgba(107,92,231,0.08)", "rgba(107,92,231,0.25)"),
+        ("Threats", swot.get("threats", []), "#F5A623", "rgba(245,166,35,0.08)", "rgba(245,166,35,0.25)"),
+    ]
+    html = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">'
+    for title, items, color, bg, border_color in quadrants:
+        bullets = "".join(
+            f'<div style="font-size:0.84rem; color:#B8B3D7; line-height:1.7; padding:0.15rem 0;">&bull; {item}</div>'
+            for item in items
+        ) if items else '<div style="font-size:0.84rem; color:#8A85AD;">No data available</div>'
+        html += (
+            f'<div style="background:{bg}; border:1px solid {border_color}; border-radius:14px; padding:1.2rem;">'
+            f'<div style="font-size:0.85rem; font-weight:700; color:{color}; margin-bottom:0.5rem; text-transform:uppercase; letter-spacing:0.5px;">{title}</div>'
+            f'{bullets}'
+            f'</div>'
+        )
+    html += '</div>'
+    st.markdown(html, unsafe_allow_html=True)
+
+
+# ── RENDER: Growth Outlook ────────────────────────────────────
+def _render_growth_outlook(growth, cd):
+    """Rating badge + thesis sub-sections + catalyst/risk columns."""
+    if not growth:
+        st.info("Growth outlook not available.")
+        return
+    rating = growth.get("growth_rating", "MODERATE")
+    rating_colors = {"STRONG": "#10B981", "MODERATE": "#F5A623", "WEAK": "#EF4444"}
+    rating_color = rating_colors.get(rating, "#8A85AD")
+    rating_bg = {"STRONG": "rgba(16,185,129,0.12)", "MODERATE": "rgba(245,166,35,0.12)", "WEAK": "rgba(239,68,68,0.12)"}
+
+    st.markdown(
+        f'<div style="display:inline-block; background:{rating_bg.get(rating, "rgba(138,133,173,0.12)")}; '
+        f'color:{rating_color}; padding:0.4rem 1.2rem; border-radius:20px; font-weight:700; '
+        f'font-size:0.9rem; letter-spacing:1px; margin-bottom:1rem;">Growth Rating: {rating}</div>',
+        unsafe_allow_html=True,
+    )
+
+    for key, title in [("revenue_thesis", "Revenue Thesis"), ("margin_thesis", "Margin Thesis"), ("earnings_path", "Earnings Path")]:
+        text = growth.get(key, "")
+        if text:
+            # Clean bullet prefix
+            clean = text.strip()
+            if clean.startswith("- "):
+                clean = clean[2:]
+            st.markdown(
+                f'<div style="margin-bottom:0.8rem;">'
+                f'<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.2rem;">{title}</div>'
+                f'<div style="font-size:0.85rem; color:#B8B3D7; line-height:1.7;">{clean}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+    # Catalysts & Risks in two columns
+    cat_col, risk_col = st.columns(2)
+    with cat_col:
+        st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#10B981; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Key Catalysts</div>', unsafe_allow_html=True)
+        for item in growth.get("key_catalysts", []):
+            st.markdown(f'<div style="font-size:0.84rem; color:#B8B3D7; line-height:1.7; padding:0.1rem 0;">&bull; {item}</div>', unsafe_allow_html=True)
+    with risk_col:
+        st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#EF4444; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Key Risks to Growth</div>', unsafe_allow_html=True)
+        for item in growth.get("key_risks_to_growth", []):
+            st.markdown(f'<div style="font-size:0.84rem; color:#B8B3D7; line-height:1.7; padding:0.1rem 0;">&bull; {item}</div>', unsafe_allow_html=True)
+
+
+# ── RENDER: Capital Allocation ────────────────────────────────
+def _render_capital_allocation(ca, cd):
+    """Letter grade badge + border-left styled sub-section cards."""
+    if not ca:
+        st.info("Capital allocation analysis not available.")
+        return
+    grade = ca.get("capital_allocation_grade", "B")
+    grade_colors = {"A": "#10B981", "B": "#6B5CE7", "C": "#F5A623", "D": "#EF4444"}
+    grade_color = grade_colors.get(grade, "#8A85AD")
+    grade_bg = {"A": "rgba(16,185,129,0.12)", "B": "rgba(107,92,231,0.12)", "C": "rgba(245,166,35,0.12)", "D": "rgba(239,68,68,0.12)"}
+
+    st.markdown(
+        f'<div style="display:inline-block; background:{grade_bg.get(grade, "rgba(138,133,173,0.12)")}; '
+        f'color:{grade_color}; padding:0.4rem 1.2rem; border-radius:20px; font-weight:700; '
+        f'font-size:0.9rem; letter-spacing:1px; margin-bottom:1rem;">Capital Allocation Grade: {grade}</div>',
+        unsafe_allow_html=True,
+    )
+
+    sections = [
+        ("Strategy Summary", ca.get("strategy_summary", ""), "#6B5CE7"),
+        ("CapEx Assessment", ca.get("capex_assessment", ""), "#E8638B"),
+        ("Shareholder Returns", ca.get("shareholder_returns", ""), "#10B981"),
+        ("M&A Strategy", ca.get("ma_strategy", ""), "#F5A623"),
+        ("Debt Management", ca.get("debt_management", ""), "#8A85AD"),
+    ]
+    for title, text, color in sections:
+        if text:
+            clean = text.strip()
+            if clean.startswith("- "):
+                clean = clean[2:]
+            st.markdown(
+                f'<div style="border-left:3px solid {color}; padding:0.6rem 0 0.6rem 1rem; margin-bottom:0.6rem;">'
+                f'<div style="font-size:0.8rem; font-weight:700; color:{color}; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.15rem;">{title}</div>'
+                f'<div style="font-size:0.85rem; color:#B8B3D7; line-height:1.7;">{clean}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+
 # ── Sidebar ──────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("")
@@ -1503,29 +1832,71 @@ if generate_btn and ticker_input:
         st.info("No recent news available.")
 
     # ══════════════════════════════════════════════════════
-    # 14. INSIGHTS (renamed from "AI-Generated Insights")
+    # 14. INSIGHTS — 7 Rich Tabs
     # ══════════════════════════════════════════════════════
     _section("Insights")
-    ai_tab1, ai_tab2, ai_tab3, ai_tab4 = st.tabs([
-        "Executive Summary", "Product Overview", "Industry Analysis", "Risk Factors"
+    ai_tab1, ai_tab2, ai_tab3, ai_tab4, ai_tab5, ai_tab6, ai_tab7 = st.tabs([
+        "Executive Summary", "Financial Trends", "SWOT Analysis",
+        "Growth Outlook", "Capital Allocation", "Industry Analysis", "Risk Factors"
     ])
+
+    # ── Tab 1: Executive Summary ──────────────────────
     with ai_tab1:
-        if cd.executive_summary_bullets:
-            for b in cd.executive_summary_bullets:
-                st.markdown(f"<div style='font-size:0.88rem; color:#B8B3D7; line-height:1.7; padding:0.2rem 0;'>&bull; {b}</div>", unsafe_allow_html=True)
-        else:
-            st.info("Executive summary not available.")
+        es_left, es_right = st.columns([3, 2])
+        with es_left:
+            if cd.executive_summary_bullets:
+                for b in cd.executive_summary_bullets:
+                    st.markdown(f"<div style='font-size:0.88rem; color:#B8B3D7; line-height:1.7; padding:0.2rem 0;'>&bull; {b}</div>", unsafe_allow_html=True)
+            else:
+                st.info("Executive summary not available.")
+            if cd.product_overview:
+                st.markdown('<div style="margin-top:1rem;"><div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Product Overview</div></div>', unsafe_allow_html=True)
+                for line in cd.product_overview.split("\n"):
+                    line = line.strip()
+                    if line.startswith("- "):
+                        line = line[2:]
+                    if line:
+                        st.markdown(f"<div style='font-size:0.84rem; color:#B8B3D7; line-height:1.7; padding:0.15rem 0;'>&bull; {line}</div>", unsafe_allow_html=True)
+        with es_right:
+            _build_peer_valuation_chart(cd)
+            _build_earnings_surprise_chart(cd)
+
+    # ── Tab 2: Financial Trends ───────────────────────
     with ai_tab2:
-        if cd.product_overview:
-            for line in cd.product_overview.split("\n"):
-                line = line.strip()
-                if line.startswith("- "):
-                    line = line[2:]
-                if line:
-                    st.markdown(f"<div style='font-size:0.88rem; color:#B8B3D7; line-height:1.7; padding:0.2rem 0;'>&bull; {line}</div>", unsafe_allow_html=True)
-        else:
-            st.info("Product overview not available.")
+        ft_c1, ft_c2 = st.columns(2)
+        with ft_c1:
+            st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Revenue & Margins</div>', unsafe_allow_html=True)
+            _build_revenue_margin_chart(cd)
+        with ft_c2:
+            st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Cash Flow</div>', unsafe_allow_html=True)
+            _build_cashflow_chart(cd)
+        st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem; margin-top:0.5rem;">Balance Sheet</div>', unsafe_allow_html=True)
+        _build_balance_sheet_chart(cd)
+
+    # ── Tab 3: SWOT Analysis ─────────────────────────
     with ai_tab3:
+        _render_swot_grid(cd.swot_analysis)
+
+    # ── Tab 4: Growth Outlook ────────────────────────
+    with ai_tab4:
+        go_left, go_right = st.columns([3, 2])
+        with go_left:
+            _render_growth_outlook(cd.growth_outlook, cd)
+        with go_right:
+            st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Revenue & Margin Trends</div>', unsafe_allow_html=True)
+            _build_revenue_margin_chart(cd)
+
+    # ── Tab 5: Capital Allocation ────────────────────
+    with ai_tab5:
+        ca_left, ca_right = st.columns([3, 2])
+        with ca_left:
+            _render_capital_allocation(cd.capital_allocation_analysis, cd)
+        with ca_right:
+            st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Cash Flow Trends</div>', unsafe_allow_html=True)
+            _build_cashflow_chart(cd)
+
+    # ── Tab 6: Industry Analysis ─────────────────────
+    with ai_tab6:
         if cd.industry_analysis:
             for line in cd.industry_analysis.split("\n"):
                 line = line.strip()
@@ -1535,14 +1906,42 @@ if generate_btn and ticker_input:
                     st.markdown(f"<div style='font-size:0.88rem; color:#B8B3D7; line-height:1.7; padding:0.2rem 0;'>&bull; {line}</div>", unsafe_allow_html=True)
         else:
             st.info("Industry analysis not available.")
-    with ai_tab4:
+
+    # ── Tab 7: Risk Factors (color-coded severity) ───
+    with ai_tab7:
         if cd.risk_factors:
             for line in cd.risk_factors.split("\n"):
                 line = line.strip()
                 if line.startswith("- "):
                     line = line[2:]
-                if line:
-                    st.markdown(f"<div style='font-size:0.88rem; color:#B8B3D7; line-height:1.7; padding:0.2rem 0;'>&bull; {line}</div>", unsafe_allow_html=True)
+                if not line:
+                    continue
+                # Detect severity tag
+                severity_color = "#8A85AD"
+                severity_bg = "rgba(138,133,173,0.05)"
+                severity_border = "rgba(138,133,173,0.2)"
+                if line.startswith("[HIGH]"):
+                    line = line[6:].strip()
+                    severity_color = "#EF4444"
+                    severity_bg = "rgba(239,68,68,0.06)"
+                    severity_border = "rgba(239,68,68,0.3)"
+                elif line.startswith("[MEDIUM]"):
+                    line = line[8:].strip()
+                    severity_color = "#F5A623"
+                    severity_bg = "rgba(245,166,35,0.06)"
+                    severity_border = "rgba(245,166,35,0.3)"
+                elif line.startswith("[LOW]"):
+                    line = line[5:].strip()
+                    severity_color = "#10B981"
+                    severity_bg = "rgba(16,185,129,0.06)"
+                    severity_border = "rgba(16,185,129,0.3)"
+                st.markdown(
+                    f'<div style="border-left:3px solid {severity_border}; background:{severity_bg}; '
+                    f'padding:0.5rem 0.8rem; margin-bottom:0.4rem; border-radius:0 8px 8px 0;">'
+                    f'<div style="font-size:0.86rem; color:#B8B3D7; line-height:1.7;">{line}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
         else:
             st.info("Risk factors not available.")
 

@@ -176,6 +176,9 @@ class CompanyData:
     ma_history: str = ""           # legacy markdown string (now built from ma_deals)
     industry_analysis: str = ""
     risk_factors: str = ""
+    swot_analysis: dict = field(default_factory=dict)
+    growth_outlook: dict = field(default_factory=dict)
+    capital_allocation_analysis: dict = field(default_factory=dict)
 
 
 # ── Helpers ──────────────────────────────────────────────────
