@@ -2573,6 +2573,19 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     acq_cs = acq_cd.currency_symbol
     tgt_cs = tgt_cd.currency_symbol
 
+    # ── Debug diagnostics (remove after confirming fix) ──
+    with st.expander("Debug: Data Pipeline Diagnostics", expanded=False):
+        st.text(f"Acquirer: {acq_cd.name} | Sector: {acq_cd.sector} | MktCap: {acq_cd.market_cap}")
+        st.text(f"Target:   {tgt_cd.name} | Sector: {tgt_cd.sector} | MktCap: {tgt_cd.market_cap}")
+        st.text(f"Purchase Price: {pro_forma.purchase_price:.0f}")
+        st.text(f"Accretion/Dilution: {pro_forma.accretion_dilution_pct:+.1f}%")
+        st.text(f"PF Leverage: {pro_forma.pf_leverage_ratio}")
+        st.text(f"Strategic Rationale: {len(merger_insights.strategic_rationale)} chars")
+        st.text(f"Deal Risks: {len(merger_insights.deal_risks)} chars")
+        st.text(f"Deal Verdict: {len(merger_insights.deal_verdict)} chars")
+        st.text(f"Grade: {merger_insights.deal_grade}")
+        st.text(f"First 200 chars of strategic: {merger_insights.strategic_rationale[:200]}")
+
     # ── Warnings ──────────────────────────────────────────
     for warn in pro_forma.warnings:
         st.warning(warn)
