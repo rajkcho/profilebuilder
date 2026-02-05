@@ -13,6 +13,7 @@ import plotly.express as px
 import pandas as pd
 import numpy as np
 import os
+import random
 
 from data_engine import (
     fetch_company_data, fetch_peer_data,
@@ -29,47 +30,134 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# ── Generate star box-shadow strings (deterministic seed) ──────
+random.seed(42)
+def _gen_stars(count, spread=2000):
+    return ", ".join(f"{random.randint(0,spread)}px {random.randint(0,spread)}px #FFF" for _ in range(count))
+_STARS1 = _gen_stars(300)
+_STARS2 = _gen_stars(200)
+_STARS3 = _gen_stars(100)
+
 # ══════════════════════════════════════════════════════════════
-# COMPREHENSIVE CUSTOM CSS — Sky.money-inspired dark space theme
+# COMPREHENSIVE CUSTOM CSS — Immersive space theme
 # ══════════════════════════════════════════════════════════════
-st.markdown("""
+st.markdown(f"""
 <style>
 /* ── GLOBAL ──────────────────────────────────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
-html, body, [class*="css"] {
+html, body, [class*="css"] {{
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-}
+}}
 
-.block-container {
+.block-container {{
     padding-top: 1rem;
     padding-bottom: 2rem;
     max-width: 1400px;
-}
+}}
 
-/* ── ANIMATIONS ─────────────────────────────────────────── */
-@keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(25px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-@keyframes pulse-glow {
-    0%, 100% { opacity: 0.6; }
-    50% { opacity: 1; }
-}
-@keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
-}
+/* ── ANIMATIONS (15+ keyframes) ────────────────────────── */
+@keyframes fadeInUp {{
+    from {{ opacity: 0; transform: translateY(30px) scale(0.98); }}
+    to {{ opacity: 1; transform: translateY(0) scale(1); }}
+}}
+@keyframes fadeInScale {{
+    from {{ opacity: 0; transform: scale(0.9); }}
+    to {{ opacity: 1; transform: scale(1); }}
+}}
+@keyframes starDrift1 {{
+    from {{ transform: translateY(0); }}
+    to {{ transform: translateY(-2000px); }}
+}}
+@keyframes starDrift2 {{
+    from {{ transform: translateY(0); }}
+    to {{ transform: translateY(-2000px); }}
+}}
+@keyframes starDrift3 {{
+    from {{ transform: translateY(0); }}
+    to {{ transform: translateY(-2000px); }}
+}}
+@keyframes shootingStar {{
+    0% {{ transform: translate(0, 0) rotate(-45deg); opacity: 0; }}
+    5% {{ opacity: 1; }}
+    40% {{ opacity: 1; }}
+    100% {{ transform: translate(-600px, 600px) rotate(-45deg); opacity: 0; }}
+}}
+@keyframes nebulaPulse {{
+    0%, 100% {{ opacity: 0.4; transform: scale(1); }}
+    50% {{ opacity: 0.7; transform: scale(1.05); }}
+}}
+@keyframes float1 {{
+    0%, 100% {{ transform: translate(0, 0); }}
+    25% {{ transform: translate(15px, -20px); }}
+    50% {{ transform: translate(-10px, -35px); }}
+    75% {{ transform: translate(-20px, -10px); }}
+}}
+@keyframes float2 {{
+    0%, 100% {{ transform: translate(0, 0); }}
+    25% {{ transform: translate(-20px, 15px); }}
+    50% {{ transform: translate(10px, 25px); }}
+    75% {{ transform: translate(25px, -15px); }}
+}}
+@keyframes float3 {{
+    0%, 100% {{ transform: translate(0, 0); }}
+    33% {{ transform: translate(20px, -25px); }}
+    66% {{ transform: translate(-15px, 20px); }}
+}}
+@keyframes float4 {{
+    0%, 100% {{ transform: translate(0, 0); }}
+    20% {{ transform: translate(-15px, -10px); }}
+    40% {{ transform: translate(10px, -30px); }}
+    60% {{ transform: translate(25px, -5px); }}
+    80% {{ transform: translate(-5px, 15px); }}
+}}
+@keyframes titleGlow {{
+    0%, 100% {{ opacity: 0.3; transform: scale(1); }}
+    50% {{ opacity: 0.6; transform: scale(1.1); }}
+}}
+@keyframes gradientShift {{
+    0% {{ background-position: 0% 50%; }}
+    50% {{ background-position: 100% 50%; }}
+    100% {{ background-position: 0% 50%; }}
+}}
+@keyframes shimmerLine {{
+    0% {{ background-position: -200% 0; }}
+    100% {{ background-position: 200% 0; }}
+}}
+@keyframes gentlePulse {{
+    0%, 100% {{ opacity: 1; }}
+    50% {{ opacity: 0.8; }}
+}}
+@keyframes glowPulse {{
+    0%, 100% {{ box-shadow: 0 0 5px rgba(107,92,231,0.3); }}
+    50% {{ box-shadow: 0 0 15px rgba(107,92,231,0.6); }}
+}}
+@keyframes twinkle {{
+    0%, 100% {{ opacity: 0.3; }}
+    50% {{ opacity: 1; }}
+}}
+@keyframes pulse-glow {{
+    0%, 100% {{ opacity: 0.6; }}
+    50% {{ opacity: 1; }}
+}}
+@keyframes shimmer {{
+    0% {{ background-position: -200% 0; }}
+    100% {{ background-position: 200% 0; }}
+}}
+@keyframes borderGlow {{
+    0%, 100% {{ border-color: rgba(107,92,231,0.3); }}
+    50% {{ border-color: rgba(155,138,255,0.6); }}
+}}
 
 /* ── SIDEBAR ─────────────────────────────────────────────── */
-section[data-testid="stSidebar"] {
+section[data-testid="stSidebar"] {{
     background: linear-gradient(180deg, #0B0E1A 0%, #151933 100%);
     border-right: 2px solid rgba(107,92,231,0.3);
-}
-section[data-testid="stSidebar"] * {
+}}
+section[data-testid="stSidebar"] * {{
     color: #C8C3E3 !important;
-}
-section[data-testid="stSidebar"] .stTextInput > div > div > input {
+}}
+section[data-testid="stSidebar"] .stTextInput > div > div > input {{
     background: rgba(107,92,231,0.08);
     border: 1px solid rgba(107,92,231,0.3);
     border-radius: 12px;
@@ -79,12 +167,12 @@ section[data-testid="stSidebar"] .stTextInput > div > div > input {
     letter-spacing: 2px;
     text-align: center;
     padding: 0.7rem;
-}
-section[data-testid="stSidebar"] .stTextInput > div > div > input:focus {
+}}
+section[data-testid="stSidebar"] .stTextInput > div > div > input:focus {{
     border-color: #6B5CE7;
     box-shadow: 0 0 15px rgba(107,92,231,0.3);
-}
-section[data-testid="stSidebar"] .stButton > button {
+}}
+section[data-testid="stSidebar"] .stButton > button {{
     background: linear-gradient(135deg, #6B5CE7 0%, #9B8AFF 100%) !important;
     color: #fff !important;
     font-weight: 700 !important;
@@ -95,18 +183,18 @@ section[data-testid="stSidebar"] .stButton > button {
     letter-spacing: 0.5px;
     transition: all 0.3s ease;
     box-shadow: 0 4px 20px rgba(107,92,231,0.3);
-}
-section[data-testid="stSidebar"] .stButton > button:hover {
+}}
+section[data-testid="stSidebar"] .stButton > button:hover {{
     transform: translateY(-2px);
     box-shadow: 0 8px 30px rgba(107,92,231,0.5);
-}
-section[data-testid="stSidebar"] hr {
+}}
+section[data-testid="stSidebar"] hr {{
     border-color: rgba(107,92,231,0.2) !important;
-}
+}}
 
-/* ── HERO / HEADER ──────────────────────────────────────── */
-.hero-header {
-    background: linear-gradient(135deg, #0B0E1A 0%, #151933 50%, #1a1040 100%);
+/* ── HERO / HEADER (profile view) ──────────────────────── */
+.hero-header {{
+    background: linear-gradient(135deg, #050816 0%, #0B0E1A 40%, #151933 100%);
     border-radius: 20px;
     padding: 2rem 2.5rem;
     margin-bottom: 1.5rem;
@@ -114,36 +202,42 @@ section[data-testid="stSidebar"] hr {
     box-shadow: 0 8px 40px rgba(11,14,26,0.4);
     position: relative;
     overflow: hidden;
-}
-.hero-header::before {
+}}
+.hero-header::before {{
     content: '';
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.4) 0%, transparent 100%),
-                radial-gradient(1px 1px at 40% 70%, rgba(255,255,255,0.3) 0%, transparent 100%),
-                radial-gradient(1px 1px at 60% 20%, rgba(255,255,255,0.3) 0%, transparent 100%),
-                radial-gradient(1px 1px at 80% 50%, rgba(255,255,255,0.2) 0%, transparent 100%),
-                radial-gradient(1px 1px at 10% 80%, rgba(255,255,255,0.3) 0%, transparent 100%),
-                radial-gradient(1px 1px at 90% 10%, rgba(255,255,255,0.25) 0%, transparent 100%);
+    background: transparent;
+    box-shadow: {_gen_stars(50, 800)};
+    width: 1px; height: 1px;
+    opacity: 0.5;
     pointer-events: none;
-}
-.hero-title {
+}}
+.hero-header::after {{
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 20% 50%, rgba(107,92,231,0.1) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 30%, rgba(232,99,139,0.06) 0%, transparent 50%);
+    pointer-events: none;
+}}
+.hero-title {{
     font-size: 2.2rem;
     font-weight: 800;
     color: #ffffff;
     margin: 0;
     letter-spacing: -0.5px;
-    position: relative;
-}
-.hero-accent { color: #9B8AFF; }
-.hero-sub {
+    position: relative; z-index: 1;
+}}
+.hero-accent {{ color: #9B8AFF; }}
+.hero-sub {{
     font-size: 1rem;
     color: #A8A3C7;
     margin-top: 0.3rem;
     font-weight: 400;
-    position: relative;
-}
-.hero-tagline {
+    position: relative; z-index: 1;
+}}
+.hero-tagline {{
     display: inline-block;
     background: rgba(107,92,231,0.15);
     color: #9B8AFF;
@@ -154,279 +248,537 @@ section[data-testid="stSidebar"] hr {
     letter-spacing: 1px;
     text-transform: uppercase;
     margin-top: 0.5rem;
-    position: relative;
-}
+    position: relative; z-index: 1;
+}}
 
 /* ── COMPANY HEADER CARD ─────────────────────────────────── */
-.company-card {
-    background: linear-gradient(135deg, #0B0E1A 0%, #151933 100%);
+.company-card {{
+    background: linear-gradient(135deg, #050816 0%, #0B0E1A 50%, #151933 100%);
     border-radius: 20px;
     padding: 1.8rem 2rem;
     margin-bottom: 1.2rem;
-    border-left: 4px solid #6B5CE7;
+    border-left: 4px solid;
+    border-image: linear-gradient(180deg, #6B5CE7, #E8638B) 1;
     box-shadow: 0 4px 30px rgba(11,14,26,0.3);
     position: relative;
     overflow: hidden;
-}
-.company-card::before {
+}}
+.company-card::before {{
     content: '';
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
     background: radial-gradient(ellipse at 80% 20%, rgba(107,92,231,0.08) 0%, transparent 60%);
     pointer-events: none;
-}
-.company-name {
+}}
+.company-card::after {{
+    content: '';
+    position: absolute;
+    width: 80px; height: 80px; border-radius: 50%;
+    background: rgba(107,92,231,0.06);
+    filter: blur(40px);
+    top: -20px; right: 40px;
+    animation: float1 20s ease-in-out infinite;
+    pointer-events: none;
+}}
+.company-name {{
     font-size: 1.8rem;
     font-weight: 800;
     color: #ffffff;
     margin: 0;
     letter-spacing: -0.3px;
-}
-.company-meta {
+}}
+.company-meta {{
     font-size: 0.85rem;
     color: #A8A3C7;
     margin-top: 0.25rem;
-}
-.company-meta span { color: #9B8AFF; font-weight: 600; }
-.price-tag { font-size: 1.5rem; font-weight: 700; margin: 0; }
-.price-up { color: #10B981; }
-.price-down { color: #EF4444; }
-.price-change {
+}}
+.company-meta span {{ color: #9B8AFF; font-weight: 600; }}
+.price-tag {{ font-size: 1.5rem; font-weight: 700; margin: 0; }}
+.price-up {{ color: #10B981; }}
+.price-down {{ color: #EF4444; }}
+.price-change {{
     font-size: 0.85rem; font-weight: 600;
     padding: 0.15rem 0.5rem; border-radius: 6px;
     display: inline-block; margin-left: 0.5rem;
-}
-.change-up { background: rgba(16,185,129,0.15); color: #10B981; }
-.change-down { background: rgba(239,68,68,0.15); color: #EF4444; }
+}}
+.change-up {{ background: rgba(16,185,129,0.15); color: #10B981; }}
+.change-down {{ background: rgba(239,68,68,0.15); color: #EF4444; }}
 
 /* ── SECTION STYLING ─────────────────────────────────────── */
-.section-header {
+.section-header {{
     display: flex; align-items: center; gap: 0.6rem;
     margin: 2rem 0 0.8rem 0; padding-bottom: 0.5rem;
-    border-bottom: 2px solid #E5E7EB;
-}
-.section-header h3 {
+    border-bottom: none;
+    position: relative;
+}}
+.section-header::after {{
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, #6B5CE7, #E8638B, transparent);
+    animation: glowPulse 3s ease-in-out infinite;
+    border-radius: 2px;
+}}
+.section-header h3 {{
     font-size: 1.15rem; font-weight: 700; color: #1A1D2E; margin: 0;
-}
-.section-header .accent-bar {
-    width: 4px; height: 22px; background: #6B5CE7; border-radius: 2px;
-}
+}}
+.section-header .accent-bar {{
+    width: 4px; height: 22px; background: linear-gradient(180deg, #6B5CE7, #E8638B); border-radius: 2px;
+}}
+
+/* ── GRADIENT DIVIDER ────────────────────────────────────── */
+.gradient-divider {{
+    height: 1px; border: none; margin: 1.5rem 0;
+    background: linear-gradient(90deg, transparent, rgba(107,92,231,0.3), rgba(232,99,139,0.2), transparent);
+}}
 
 /* ── METRIC CARDS ────────────────────────────────────────── */
-div[data-testid="stMetric"] {
+div[data-testid="stMetric"] {{
     background: #FFFFFF;
     border: 1px solid #E5E7EB;
     border-radius: 14px;
     padding: 0.8rem 1rem;
     transition: all 0.25s ease;
     box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-}
-div[data-testid="stMetric"]:hover {
+    position: relative;
+    overflow: hidden;
+}}
+div[data-testid="stMetric"]::before {{
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, #6B5CE7, #9B8AFF);
+    opacity: 0; transition: opacity 0.3s ease;
+}}
+div[data-testid="stMetric"]:hover {{
     border-color: #6B5CE7;
-    box-shadow: 0 4px 20px rgba(107,92,231,0.12);
+    box-shadow: 0 4px 25px rgba(107,92,231,0.18);
     transform: translateY(-2px);
-}
-div[data-testid="stMetric"] label {
+}}
+div[data-testid="stMetric"]:hover::before {{
+    opacity: 1;
+}}
+div[data-testid="stMetric"] label {{
     font-size: 0.7rem !important; font-weight: 600 !important;
     text-transform: uppercase; letter-spacing: 0.8px; color: #6B7280 !important;
-}
-div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+}}
+div[data-testid="stMetric"] div[data-testid="stMetricValue"] {{
     font-size: 1.1rem !important; font-weight: 700 !important; color: #1A1D2E !important;
-}
+}}
 
 /* ── TABS ────────────────────────────────────────────────── */
-.stTabs [data-baseweb="tab-list"] {
+.stTabs [data-baseweb="tab-list"] {{
     gap: 0; background: #F3F4F6; border-radius: 12px; padding: 4px;
-}
-.stTabs [data-baseweb="tab"] {
+}}
+.stTabs [data-baseweb="tab"] {{
     border-radius: 10px; font-weight: 600; font-size: 0.82rem;
     padding: 0.5rem 1.2rem; color: #6B7280;
-}
-.stTabs [data-baseweb="tab"][aria-selected="true"] {
-    background: #1A1D2E; color: #ffffff;
-    box-shadow: 0 2px 10px rgba(26,29,46,0.25);
-}
-.stTabs [data-baseweb="tab-highlight"] { display: none; }
-.stTabs [data-baseweb="tab-border"] { display: none; }
+}}
+.stTabs [data-baseweb="tab"][aria-selected="true"] {{
+    background: linear-gradient(135deg, #1A1D2E, #2a2040);
+    color: #ffffff;
+    box-shadow: 0 2px 12px rgba(107,92,231,0.25);
+}}
+.stTabs [data-baseweb="tab-highlight"] {{ display: none; }}
+.stTabs [data-baseweb="tab-border"] {{ display: none; }}
 
 /* ── EXPANDERS ───────────────────────────────────────────── */
-.streamlit-expanderHeader {
+.streamlit-expanderHeader {{
     font-weight: 600 !important; font-size: 0.95rem !important;
     color: #1A1D2E !important; background: #F9FAFB;
     border: 1px solid #E5E7EB; border-radius: 12px;
-}
+}}
 
 /* ── DATAFRAMES ──────────────────────────────────────────── */
-.stDataFrame {
+.stDataFrame {{
     border: 1px solid #E5E7EB; border-radius: 12px; overflow: hidden;
-}
+}}
 
 /* ── DOWNLOAD BUTTON ─────────────────────────────────────── */
-.stDownloadButton > button {
-    background: linear-gradient(135deg, #6B5CE7 0%, #9B8AFF 100%) !important;
+.stDownloadButton > button {{
+    background: linear-gradient(135deg, #6B5CE7, #E8638B, #F5A623) !important;
+    background-size: 200% 200% !important;
+    animation: gradientShift 6s ease infinite !important;
     color: white !important; font-weight: 700 !important;
     border: none !important; border-radius: 14px !important;
     padding: 0.8rem 2rem !important; font-size: 1rem !important;
     width: 100% !important; transition: all 0.3s ease;
-    box-shadow: 0 4px 20px rgba(107,92,231,0.25);
-}
-.stDownloadButton > button:hover {
+    box-shadow: 0 4px 25px rgba(107,92,231,0.3);
+}}
+.stDownloadButton > button:hover {{
     transform: translateY(-2px);
-    box-shadow: 0 8px 30px rgba(107,92,231,0.4);
-}
+    box-shadow: 0 8px 35px rgba(107,92,231,0.5);
+}}
 
 /* ── NEWS CARDS ──────────────────────────────────────────── */
-.news-item {
+.news-item {{
     padding: 0.65rem 0; border-bottom: 1px solid #F3F4F6;
     transition: background 0.15s;
-}
-.news-item:hover { background: #F9FAFB; }
-.news-title {
+}}
+.news-item:hover {{ background: #F9FAFB; }}
+.news-title {{
     font-weight: 600; color: #1A1D2E; font-size: 0.88rem; text-decoration: none;
-}
-.news-title:hover { color: #6B5CE7; }
-.news-pub { font-size: 0.72rem; color: #6B7280; font-weight: 500; }
+}}
+.news-title:hover {{ color: #6B5CE7; }}
+.news-pub {{ font-size: 0.72rem; color: #6B7280; font-weight: 500; }}
 
 /* ── PILLS ──────────────────────────────────────────────── */
-.pill {
+.pill {{
     display: inline-block; padding: 0.2rem 0.7rem; border-radius: 20px;
     font-size: 0.72rem; font-weight: 600; letter-spacing: 0.5px;
-}
-.pill-purple { background: rgba(107,92,231,0.12); color: #6B5CE7; }
-.pill-dark { background: rgba(26,29,46,0.08); color: #1A1D2E; }
-.pill-green { background: rgba(16,185,129,0.12); color: #10B981; }
+}}
+.pill-purple {{ background: rgba(107,92,231,0.12); color: #6B5CE7; }}
+.pill-dark {{ background: rgba(26,29,46,0.08); color: #1A1D2E; }}
+.pill-green {{ background: rgba(16,185,129,0.12); color: #10B981; }}
 
 /* ── PLOTLY CHARTS ──────────────────────────────────────── */
-.stPlotlyChart {
+.stPlotlyChart {{
     border: 1px solid #E5E7EB; border-radius: 14px;
     overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-}
+    transition: all 0.3s ease;
+}}
+.stPlotlyChart:hover {{
+    border-color: rgba(107,92,231,0.4);
+    box-shadow: 0 4px 20px rgba(107,92,231,0.1);
+}}
 
 /* ── RADIO BUTTONS ──────────────────────────────────────── */
-.stRadio > div { gap: 0.3rem; }
-.stRadio > div > label {
+.stRadio > div {{ gap: 0.3rem; }}
+.stRadio > div > label {{
     background: #F3F4F6; border-radius: 8px; padding: 0.3rem 1rem;
     font-weight: 600; font-size: 0.8rem; border: 1px solid transparent;
-}
-.stRadio > div > label[data-checked="true"] {
+}}
+.stRadio > div > label[data-checked="true"] {{
     background: #1A1D2E; color: #ffffff;
-}
+}}
 
 /* ── SCROLLBAR ──────────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #F3F4F6; border-radius: 10px; }
-::-webkit-scrollbar-thumb { background: #C8C3E3; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #9B8AFF; }
+::-webkit-scrollbar {{ width: 6px; height: 6px; }}
+::-webkit-scrollbar-track {{ background: #F3F4F6; border-radius: 10px; }}
+::-webkit-scrollbar-thumb {{ background: #C8C3E3; border-radius: 10px; }}
+::-webkit-scrollbar-thumb:hover {{ background: #9B8AFF; }}
 
 /* ── SPINNER ────────────────────────────────────────────── */
-.stSpinner > div > div { border-top-color: #6B5CE7 !important; }
+.stSpinner > div > div {{ border-top-color: #6B5CE7 !important; }}
 
 /* ── HIDE BRANDING ──────────────────────────────────────── */
-#MainMenu { visibility: hidden; }
-footer { visibility: hidden; }
-header { visibility: hidden; }
+#MainMenu {{ visibility: hidden; }}
+footer {{ visibility: hidden; }}
+header {{ visibility: hidden; }}
 
-/* ── SPLASH PAGE ────────────────────────────────────────── */
-.splash-hero {
-    background: linear-gradient(170deg, #0B0E1A 0%, #151933 40%, #1a1040 70%, #2d1b69 100%);
-    border-radius: 24px; padding: 4rem 3rem; text-align: center;
-    margin-bottom: 2rem; position: relative; overflow: hidden;
-    box-shadow: 0 12px 60px rgba(11,14,26,0.5);
-}
-.splash-hero::before {
-    content: '';
+/* ── SPLASH HERO ────────────────────────────────────────── */
+.splash-hero {{
+    background: linear-gradient(170deg, #020515 0%, #0B0E1A 30%, #151933 60%, #1a1040 80%, #2d1b69 100%);
+    border-radius: 24px; padding: 5rem 3rem 4rem; text-align: center;
+    margin-bottom: 0; position: relative; overflow: hidden;
+    box-shadow: 0 12px 60px rgba(11,14,26,0.7);
+    min-height: 500px;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}}
+
+/* Star Layer 1 — small distant stars */
+.star-layer-1 {{
+    position: absolute; top: 0; left: 0; width: 1px; height: 1px;
+    box-shadow: {_STARS1};
+    opacity: 0.5;
+    animation: starDrift1 150s linear infinite;
+}}
+.star-layer-1::after {{
+    content: ''; position: absolute; top: 2000px; left: 0;
+    width: 1px; height: 1px;
+    box-shadow: {_STARS1};
+}}
+
+/* Star Layer 2 — medium stars */
+.star-layer-2 {{
+    position: absolute; top: 0; left: 0; width: 1.5px; height: 1.5px;
+    box-shadow: {_STARS2};
+    opacity: 0.7;
+    animation: starDrift2 100s linear infinite;
+}}
+.star-layer-2::after {{
+    content: ''; position: absolute; top: 2000px; left: 0;
+    width: 1.5px; height: 1.5px;
+    box-shadow: {_STARS2};
+}}
+
+/* Star Layer 3 — large close stars */
+.star-layer-3 {{
+    position: absolute; top: 0; left: 0; width: 2px; height: 2px;
+    box-shadow: {_STARS3};
+    opacity: 0.9;
+    animation: starDrift3 75s linear infinite;
+}}
+.star-layer-3::after {{
+    content: ''; position: absolute; top: 2000px; left: 0;
+    width: 2px; height: 2px;
+    box-shadow: {_STARS3};
+}}
+
+/* Nebula overlay */
+.nebula-overlay {{
     position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-    background: radial-gradient(1.5px 1.5px at 15% 25%, rgba(255,255,255,0.5) 0%, transparent 100%),
-                radial-gradient(1px 1px at 30% 60%, rgba(255,255,255,0.3) 0%, transparent 100%),
-                radial-gradient(1.5px 1.5px at 50% 15%, rgba(255,255,255,0.4) 0%, transparent 100%),
-                radial-gradient(1px 1px at 70% 45%, rgba(255,255,255,0.3) 0%, transparent 100%),
-                radial-gradient(1px 1px at 85% 70%, rgba(255,255,255,0.25) 0%, transparent 100%),
-                radial-gradient(1.5px 1.5px at 25% 85%, rgba(255,255,255,0.3) 0%, transparent 100%),
-                radial-gradient(1px 1px at 60% 80%, rgba(255,255,255,0.2) 0%, transparent 100%),
-                radial-gradient(1px 1px at 95% 20%, rgba(255,255,255,0.3) 0%, transparent 100%);
+    background:
+        radial-gradient(ellipse at 20% 50%, rgba(107,92,231,0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 75% 20%, rgba(232,99,139,0.1) 0%, transparent 45%),
+        radial-gradient(ellipse at 50% 80%, rgba(59,130,246,0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 90% 70%, rgba(45,195,195,0.06) 0%, transparent 40%);
+    animation: nebulaPulse 30s ease-in-out infinite;
     pointer-events: none;
-}
-.splash-hero::after {
-    content: '';
-    position: absolute; bottom: 0; left: 0; right: 0; height: 40%;
-    background: linear-gradient(180deg, transparent 0%, rgba(107,92,231,0.08) 100%);
+}}
+
+/* Floating luminous orbs */
+.orb {{
+    position: absolute;
+    border-radius: 50%;
     pointer-events: none;
-}
-.splash-title {
-    font-size: 3.5rem; font-weight: 900; color: #ffffff; margin: 0;
-    letter-spacing: -1.5px; animation: fadeInUp 0.6s ease-out; position: relative;
-}
-.splash-accent {
-    background: linear-gradient(135deg, #9B8AFF, #E8638B);
+}}
+.orb-1 {{
+    width: 200px; height: 200px;
+    background: rgba(107,92,231,0.12);
+    filter: blur(80px);
+    top: 10%; left: 5%;
+    animation: float1 20s ease-in-out infinite;
+}}
+.orb-2 {{
+    width: 160px; height: 160px;
+    background: rgba(232,99,139,0.1);
+    filter: blur(70px);
+    top: 60%; right: 10%;
+    animation: float2 22s ease-in-out infinite;
+}}
+.orb-3 {{
+    width: 120px; height: 120px;
+    background: rgba(59,130,246,0.08);
+    filter: blur(60px);
+    top: 30%; right: 25%;
+    animation: float3 18s ease-in-out infinite;
+}}
+.orb-4 {{
+    width: 180px; height: 180px;
+    background: rgba(155,138,255,0.08);
+    filter: blur(90px);
+    bottom: 10%; left: 30%;
+    animation: float4 25s ease-in-out infinite;
+}}
+.orb-5 {{
+    width: 100px; height: 100px;
+    background: rgba(45,195,195,0.06);
+    filter: blur(60px);
+    top: 15%; right: 5%;
+    animation: float2 19s ease-in-out infinite reverse;
+}}
+
+/* Shooting stars */
+.shooting-star {{
+    position: absolute;
+    width: 120px; height: 1.5px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.8), transparent);
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: 0;
+}}
+.shooting-star-1 {{
+    top: 15%; right: -120px;
+    animation: shootingStar 8s ease-in-out 2s infinite;
+}}
+.shooting-star-2 {{
+    top: 40%; right: -120px;
+    animation: shootingStar 10s ease-in-out 5s infinite;
+}}
+.shooting-star-3 {{
+    top: 25%; right: -120px;
+    animation: shootingStar 12s ease-in-out 8s infinite;
+}}
+
+/* Noise/grain overlay */
+.noise-overlay {{
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    opacity: 0.04;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    pointer-events: none;
+}}
+
+/* Title glow halo */
+.title-glow {{
+    position: absolute;
+    width: 400px; height: 200px;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -70%);
+    background: radial-gradient(ellipse, rgba(107,92,231,0.2) 0%, transparent 70%);
+    animation: titleGlow 4s ease-in-out infinite;
+    pointer-events: none;
+}}
+
+/* Content layer */
+.splash-content {{
+    position: relative; z-index: 10;
+}}
+
+.splash-title {{
+    font-size: 4.5rem; font-weight: 900; color: #ffffff; margin: 0;
+    letter-spacing: -2px; animation: fadeInUp 0.6s ease-out;
+    text-shadow: 0 0 60px rgba(107,92,231,0.3);
+}}
+.splash-accent {{
+    background: linear-gradient(135deg, #9B8AFF, #E8638B, #F5A623);
+    background-size: 200% 200%;
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     background-clip: text;
-}
-.splash-subtitle {
-    font-size: 1.15rem; color: #A8A3C7; margin-top: 0.5rem;
-    font-weight: 300; animation: fadeInUp 0.8s ease-out; position: relative;
-}
-.splash-stats {
-    display: flex; justify-content: center; gap: 3rem; margin-top: 2rem;
-    animation: fadeInUp 1s ease-out; position: relative;
-}
-.splash-stat-value {
-    font-size: 1.6rem; font-weight: 800; color: #fff;
-}
-.splash-stat-label {
+    animation: gradientShift 6s ease infinite;
+}}
+.splash-subtitle {{
+    font-size: 1.2rem; color: #B8B3D7; margin-top: 0.8rem;
+    font-weight: 300; animation: fadeInUp 0.8s ease-out;
+    letter-spacing: 0.5px;
+}}
+.splash-stats {{
+    display: flex; justify-content: center; gap: 3rem; margin-top: 2.5rem;
+    animation: fadeInUp 1s ease-out;
+}}
+.splash-stat-value {{
+    font-size: 1.8rem; font-weight: 800; color: #fff;
+    animation: gentlePulse 3s ease-in-out infinite;
+}}
+.splash-stat-label {{
     font-size: 0.7rem; color: #A8A3C7; text-transform: uppercase;
     letter-spacing: 1px; font-weight: 500;
-}
-.step-grid {
-    display: flex; gap: 1rem; margin: 1.5rem 0;
-}
-.step-card {
-    flex: 1; background: #FFFFFF; border: 1px solid #E5E7EB;
-    border-radius: 16px; padding: 1.3rem; text-align: center;
+}}
+.pill-row {{
+    display: flex; justify-content: center; gap: 0.7rem; margin-top: 1.8rem;
+    flex-wrap: wrap;
+    animation: fadeInUp 1.2s ease-out;
+}}
+.feature-pill {{
+    border: 1px solid rgba(107,92,231,0.3); border-radius: 24px;
+    padding: 0.4rem 1.1rem; font-size: 0.75rem; font-weight: 600;
+    color: #B8B3D7; background: rgba(107,92,231,0.06);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     transition: all 0.3s ease;
-}
-.step-card:hover {
-    border-color: #6B5CE7; transform: translateY(-3px);
-    box-shadow: 0 8px 30px rgba(107,92,231,0.12);
-}
-.step-num {
+}}
+.feature-pill:hover {{
+    border-color: rgba(155,138,255,0.6);
+    box-shadow: 0 0 15px rgba(107,92,231,0.2);
+    color: #fff;
+}}
+
+/* ── SPACE SECTION (dark container for glass cards) ──── */
+.space-section {{
+    background: linear-gradient(180deg, #0B0E1A 0%, #0f1225 50%, #151933 100%);
+    border-radius: 0 0 24px 24px;
+    padding: 2.5rem 3rem;
+    margin-top: 0;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+}}
+.space-section-title {{
+    font-size: 0.75rem; font-weight: 600; color: #A8A3C7;
+    text-transform: uppercase; letter-spacing: 2px;
+    text-align: center; margin-bottom: 1.5rem;
+}}
+
+/* ── GLASS STEP CARDS ──────────────────────────────────── */
+.step-grid {{
+    display: flex; gap: 1.2rem; margin: 0 0 2rem 0;
+    position: relative;
+}}
+.step-card {{
+    flex: 1;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 18px; padding: 1.5rem; text-align: center;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    position: relative; overflow: hidden;
+    animation: fadeInUp 0.6s ease-out both;
+}}
+.step-card:nth-child(1) {{ animation-delay: 0.1s; }}
+.step-card:nth-child(2) {{ animation-delay: 0.2s; }}
+.step-card:nth-child(3) {{ animation-delay: 0.3s; }}
+.step-card:nth-child(4) {{ animation-delay: 0.4s; }}
+.step-card::before {{
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: 18px;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(107,92,231,0.3), rgba(232,99,139,0.1), transparent);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0; transition: opacity 0.3s;
+    pointer-events: none;
+}}
+.step-card:hover {{
+    border-color: rgba(107,92,231,0.3); transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(107,92,231,0.15);
+}}
+.step-card:hover::before {{ opacity: 1; }}
+.step-num {{
     background: linear-gradient(135deg, #6B5CE7, #9B8AFF);
-    color: #fff; width: 36px; height: 36px; border-radius: 50%;
+    color: #fff; width: 38px; height: 38px; border-radius: 50%;
     display: inline-flex; align-items: center; justify-content: center;
-    font-weight: 800; font-size: 1rem; margin-bottom: 0.5rem;
-}
-.step-label { font-size: 0.85rem; font-weight: 700; color: #1A1D2E; }
-.step-detail { font-size: 0.72rem; color: #6B7280; margin-top: 0.2rem; }
-.feature-grid {
+    font-weight: 800; font-size: 1rem; margin-bottom: 0.6rem;
+    box-shadow: 0 4px 15px rgba(107,92,231,0.3);
+}}
+.step-label {{ font-size: 0.88rem; font-weight: 700; color: #E0DCF5; }}
+.step-detail {{ font-size: 0.72rem; color: #8A85AD; margin-top: 0.3rem; }}
+
+/* Connector lines between steps */
+.step-connector {{
+    position: absolute; top: 50%; height: 2px; z-index: 0;
+    background: linear-gradient(90deg, rgba(107,92,231,0.2), rgba(232,99,139,0.2), rgba(107,92,231,0.2));
+    background-size: 200% 100%;
+    animation: shimmerLine 3s linear infinite;
+}}
+
+/* ── GLASS FEATURE CARDS ───────────────────────────────── */
+.feature-grid {{
     display: grid; grid-template-columns: repeat(4, 1fr);
-    gap: 1rem; margin-top: 1rem;
-}
-.feature-card {
-    background: #FFFFFF; border: 1px solid #E5E7EB;
-    border-radius: 16px; padding: 1.3rem 1rem; text-align: center;
-    transition: all 0.3s ease; animation: fadeInUp 0.6s ease-out;
-}
-.feature-card:hover {
-    border-color: #6B5CE7; transform: translateY(-3px);
-    box-shadow: 0 8px 24px rgba(107,92,231,0.1);
-}
-.feature-icon { font-size: 2rem; margin-bottom: 0.4rem; }
-.feature-title { font-size: 0.85rem; font-weight: 700; color: #1A1D2E; margin-bottom: 0.25rem; }
-.feature-desc { font-size: 0.72rem; color: #6B7280; line-height: 1.5; }
-.pill-row {
-    display: flex; justify-content: center; gap: 0.6rem; margin-top: 1.5rem;
-    animation: fadeInUp 1.2s ease-out; position: relative;
-}
-.feature-pill {
-    border: 1px solid rgba(107,92,231,0.3); border-radius: 20px;
-    padding: 0.35rem 0.9rem; font-size: 0.72rem; font-weight: 600;
-    color: #9B8AFF; background: rgba(107,92,231,0.06);
-}
+    gap: 1rem; margin-top: 0.5rem;
+}}
+.feature-card {{
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 18px; padding: 1.5rem 1.2rem; text-align: center;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    animation: fadeInScale 0.6s ease-out both;
+    position: relative; overflow: hidden;
+}}
+.feature-card:nth-child(1) {{ animation-delay: 0.05s; }}
+.feature-card:nth-child(2) {{ animation-delay: 0.1s; }}
+.feature-card:nth-child(3) {{ animation-delay: 0.15s; }}
+.feature-card:nth-child(4) {{ animation-delay: 0.2s; }}
+.feature-card:nth-child(5) {{ animation-delay: 0.25s; }}
+.feature-card:nth-child(6) {{ animation-delay: 0.3s; }}
+.feature-card:nth-child(7) {{ animation-delay: 0.35s; }}
+.feature-card:nth-child(8) {{ animation-delay: 0.4s; }}
+.feature-card::before {{
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: 18px;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(107,92,231,0.3), rgba(232,99,139,0.1), transparent);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0; transition: opacity 0.3s;
+    pointer-events: none;
+}}
+.feature-card:hover {{
+    border-color: rgba(107,92,231,0.3); transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(107,92,231,0.15);
+}}
+.feature-card:hover::before {{ opacity: 1; }}
+.feature-icon {{ font-size: 2.2rem; margin-bottom: 0.5rem; }}
+.feature-title {{ font-size: 0.88rem; font-weight: 700; color: #E0DCF5; margin-bottom: 0.3rem; }}
+.feature-desc {{ font-size: 0.72rem; color: #8A85AD; line-height: 1.6; }}
 
 /* ── PRICE DISPLAY BAR ──────────────────────────────────── */
-.price-bar {
+.price-bar {{
     border-radius: 14px; padding: 1rem 1.5rem; margin-bottom: 1rem;
     display: flex; gap: 1.5rem; align-items: center;
-}
+}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -440,6 +792,11 @@ def _section(title, icon=""):
         f'</div>',
         unsafe_allow_html=True,
     )
+
+
+# ── HELPER: Gradient divider between sections ────────────────
+def _divider():
+    st.markdown('<div class="gradient-divider"></div>', unsafe_allow_html=True)
 
 
 # ── HELPER: Peer radar chart ────────────────────────────────
@@ -660,6 +1017,8 @@ if generate_btn and ticker_input:
             web_display = cd.website.replace("https://", "").replace("http://", "").rstrip("/") if cd.website else "N/A"
             st.markdown(f'<div style="background:#F9FAFB; border:1px solid #E5E7EB; border-radius:10px; padding:0.6rem 0.8rem; text-align:center;"><div style="font-size:0.65rem; font-weight:600; text-transform:uppercase; letter-spacing:0.7px; color:#6B7280; margin-bottom:0.2rem;">Website</div><div style="font-size:1rem; font-weight:700; color:#1A1D2E;">{web_display}</div></div>', unsafe_allow_html=True)
 
+    _divider()
+
     # ══════════════════════════════════════════════════════
     # 4. PRICE CHART
     # ══════════════════════════════════════════════════════
@@ -711,6 +1070,8 @@ if generate_btn and ticker_input:
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("Price history not available.")
+
+    _divider()
 
     # ══════════════════════════════════════════════════════
     # 5. VALUATION DASHBOARD
@@ -843,6 +1204,8 @@ if generate_btn and ticker_input:
     f4.metric("D/E Ratio", f"{cd.debt_to_equity / 100:.2f}x" if cd.debt_to_equity else "N/A")
     f5.metric("Beta", f"{cd.beta:.2f}" if cd.beta else "N/A")
 
+    _divider()
+
     # ══════════════════════════════════════════════════════
     # 8. FINANCIAL STATEMENTS (formatted)
     # ══════════════════════════════════════════════════════
@@ -971,6 +1334,8 @@ if generate_btn and ticker_input:
         st.dataframe(cd.earnings_dates.head(8), use_container_width=True)
     else:
         st.info("Earnings data not available.")
+
+    _divider()
 
     # ══════════════════════════════════════════════════════
     # 11. M&A HISTORY
@@ -1104,6 +1469,8 @@ if generate_btn and ticker_input:
         else:
             st.info("Risk factors not available.")
 
+    _divider()
+
     # ══════════════════════════════════════════════════════
     # 15. DOWNLOAD PPTX
     # ══════════════════════════════════════════════════════
@@ -1139,110 +1506,139 @@ elif generate_btn and not ticker_input:
     st.warning("Please enter a ticker symbol in the sidebar.")
 else:
     # ══════════════════════════════════════════════════════
-    # SPLASH / LANDING PAGE — Sky.money inspired
+    # SPLASH / LANDING PAGE — Immersive space experience
     # ══════════════════════════════════════════════════════
     st.markdown("""
     <div class="splash-hero">
-        <p class="splash-title">M&A Profile <span class="splash-accent">Builder</span></p>
-        <p class="splash-subtitle">Institutional-grade company research & tear sheet generation</p>
-        <div class="pill-row">
-            <span class="feature-pill">Live Market Data</span>
-            <span class="feature-pill">Wikipedia M&A</span>
-            <span class="feature-pill">Peer Analysis</span>
-            <span class="feature-pill">AI Powered</span>
-            <span class="feature-pill">Global Exchanges</span>
-        </div>
-        <div class="splash-stats">
-            <div>
-                <div class="splash-stat-value">60+</div>
-                <div class="splash-stat-label">Data Points</div>
+        <!-- Star layers -->
+        <div class="star-layer-1"></div>
+        <div class="star-layer-2"></div>
+        <div class="star-layer-3"></div>
+
+        <!-- Nebula overlay -->
+        <div class="nebula-overlay"></div>
+
+        <!-- Floating luminous orbs -->
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+        <div class="orb orb-4"></div>
+        <div class="orb orb-5"></div>
+
+        <!-- Shooting stars -->
+        <div class="shooting-star shooting-star-1"></div>
+        <div class="shooting-star shooting-star-2"></div>
+        <div class="shooting-star shooting-star-3"></div>
+
+        <!-- Noise grain texture -->
+        <div class="noise-overlay"></div>
+
+        <!-- Title glow halo -->
+        <div class="title-glow"></div>
+
+        <!-- Content layer -->
+        <div class="splash-content">
+            <p class="splash-title">M&A Profile <span class="splash-accent">Builder</span></p>
+            <p class="splash-subtitle">Institutional-grade company research & tear sheet generation</p>
+            <div class="pill-row">
+                <span class="feature-pill">Live Market Data</span>
+                <span class="feature-pill">Wikipedia M&A</span>
+                <span class="feature-pill">Peer Analysis</span>
+                <span class="feature-pill">AI Powered</span>
+                <span class="feature-pill">Global Exchanges</span>
             </div>
-            <div>
-                <div class="splash-stat-value">8</div>
-                <div class="splash-stat-label">PPTX Slides</div>
-            </div>
-            <div>
-                <div class="splash-stat-value">20+</div>
-                <div class="splash-stat-label">Exchanges</div>
+            <div class="splash-stats">
+                <div>
+                    <div class="splash-stat-value">60+</div>
+                    <div class="splash-stat-label">Data Points</div>
+                </div>
+                <div>
+                    <div class="splash-stat-value">8</div>
+                    <div class="splash-stat-label">PPTX Slides</div>
+                </div>
+                <div>
+                    <div class="splash-stat-value">20+</div>
+                    <div class="splash-stat-label">Exchanges</div>
+                </div>
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
+    # Step cards and feature grid in dark space-section
     st.markdown("""
-    <div class="step-grid">
-        <div class="step-card">
-            <div class="step-num">1</div>
-            <div class="step-label">Enter Ticker</div>
-            <div class="step-detail">Any global exchange &mdash; AAPL, RY.TO, NVDA.L</div>
+    <div class="space-section">
+        <div class="space-section-title">How It Works</div>
+        <div class="step-grid">
+            <div class="step-card">
+                <div class="step-num">1</div>
+                <div class="step-label">Enter Ticker</div>
+                <div class="step-detail">Any global exchange &mdash; AAPL, RY.TO, NVDA.L</div>
+            </div>
+            <div class="step-card">
+                <div class="step-num">2</div>
+                <div class="step-label">Generate Profile</div>
+                <div class="step-detail">60+ data points pulled in real-time</div>
+            </div>
+            <div class="step-card">
+                <div class="step-num">3</div>
+                <div class="step-label">Explore Dashboard</div>
+                <div class="step-detail">Charts, peer comparison & insights</div>
+            </div>
+            <div class="step-card">
+                <div class="step-num">4</div>
+                <div class="step-label">Download PPTX</div>
+                <div class="step-detail">8-slide IB-grade PowerPoint</div>
+            </div>
         </div>
-        <div class="step-card">
-            <div class="step-num">2</div>
-            <div class="step-label">Generate Profile</div>
-            <div class="step-detail">60+ data points pulled in real-time</div>
+
+        <div class="space-section-title">Platform Features</div>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">&#128200;</div>
+                <div class="feature-title">Price & Valuation</div>
+                <div class="feature-desc">Live prices, multiples, and historical charts</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#128101;</div>
+                <div class="feature-title">Peer Comparison</div>
+                <div class="feature-desc">Side-by-side valuation vs industry peers</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#128202;</div>
+                <div class="feature-title">Financial Statements</div>
+                <div class="feature-desc">Income, balance sheet, cash flow analysis</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#129309;</div>
+                <div class="feature-title">M&A History</div>
+                <div class="feature-desc">Deal history scraped from Wikipedia</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#127919;</div>
+                <div class="feature-title">Analyst Consensus</div>
+                <div class="feature-desc">Recommendations & price targets</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#128161;</div>
+                <div class="feature-title">AI Insights</div>
+                <div class="feature-desc">Powered by GPT (optional API key)</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#127760;</div>
+                <div class="feature-title">Global Exchanges</div>
+                <div class="feature-desc">TSX, LSE, JPX and more with local currencies</div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#128196;</div>
+                <div class="feature-title">PowerPoint Export</div>
+                <div class="feature-desc">8-slide professional presentation</div>
+            </div>
         </div>
-        <div class="step-card">
-            <div class="step-num">3</div>
-            <div class="step-label">Explore Dashboard</div>
-            <div class="step-detail">Charts, peer comparison & insights</div>
-        </div>
-        <div class="step-card">
-            <div class="step-num">4</div>
-            <div class="step-label">Download PPTX</div>
-            <div class="step-detail">8-slide IB-grade PowerPoint</div>
-        </div>
+
+        <p style="font-size:0.72rem; color:#6B7280; margin-top:2rem; text-align:center;">
+            M&A history scraped from Wikipedia &mdash; no API key needed<br>
+            Set <code style="color:#9B8AFF;">OPENAI_API_KEY</code> for enhanced insights
+        </p>
     </div>
     """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div class="feature-grid">
-        <div class="feature-card">
-            <div class="feature-icon">&#128200;</div>
-            <div class="feature-title">Price & Valuation</div>
-            <div class="feature-desc">Live prices, multiples, and historical charts</div>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon">&#128101;</div>
-            <div class="feature-title">Peer Comparison</div>
-            <div class="feature-desc">Side-by-side valuation vs industry peers</div>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon">&#128202;</div>
-            <div class="feature-title">Financial Statements</div>
-            <div class="feature-desc">Income, balance sheet, cash flow analysis</div>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon">&#129309;</div>
-            <div class="feature-title">M&A History</div>
-            <div class="feature-desc">Deal history scraped from Wikipedia</div>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon">&#127919;</div>
-            <div class="feature-title">Analyst Consensus</div>
-            <div class="feature-desc">Recommendations & price targets</div>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon">&#128161;</div>
-            <div class="feature-title">AI Insights</div>
-            <div class="feature-desc">Powered by GPT (optional API key)</div>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon">&#127760;</div>
-            <div class="feature-title">Global Exchanges</div>
-            <div class="feature-desc">TSX, LSE, JPX and more with local currencies</div>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon">&#128196;</div>
-            <div class="feature-title">PowerPoint Export</div>
-            <div class="feature-desc">8-slide professional presentation</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown(
-        '<p style="font-size:0.72rem; color:#6B7280; margin-top:1.5rem; text-align:center;">'
-        'M&A history scraped from Wikipedia &mdash; no API key needed<br>'
-        'Set <code>OPENAI_API_KEY</code> for enhanced insights'
-        '</p>',
-        unsafe_allow_html=True,
-    )
