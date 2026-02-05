@@ -1510,33 +1510,20 @@ else:
     # ══════════════════════════════════════════════════════
     st.markdown("""
     <div class="splash-hero">
-        <!-- Star layers -->
         <div class="star-layer-1"></div>
         <div class="star-layer-2"></div>
         <div class="star-layer-3"></div>
-
-        <!-- Nebula overlay -->
         <div class="nebula-overlay"></div>
-
-        <!-- Floating luminous orbs -->
         <div class="orb orb-1"></div>
         <div class="orb orb-2"></div>
         <div class="orb orb-3"></div>
         <div class="orb orb-4"></div>
         <div class="orb orb-5"></div>
-
-        <!-- Shooting stars -->
         <div class="shooting-star shooting-star-1"></div>
         <div class="shooting-star shooting-star-2"></div>
         <div class="shooting-star shooting-star-3"></div>
-
-        <!-- Noise grain texture -->
         <div class="noise-overlay"></div>
-
-        <!-- Title glow halo -->
         <div class="title-glow"></div>
-
-        <!-- Content layer -->
         <div class="splash-content">
             <p class="splash-title">M&A Profile <span class="splash-accent">Builder</span></p>
             <p class="splash-subtitle">Institutional-grade company research & tear sheet generation</p>
