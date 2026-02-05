@@ -42,6 +42,7 @@ class CompanyData:
 
     # ── Logo ───────────────────────────────────────────────
     logo_url: str = ""
+    logo_domain: str = ""
 
     # ── Price & Market ────────────────────────────────────
     current_price: float = 0.0
@@ -541,7 +542,7 @@ def fetch_company_data(ticker_str: str) -> CompanyData:
     cd.long_business_summary = _safe_get(info, "longBusinessSummary", "")
     cd.full_time_employees = _safe_get(info, "fullTimeEmployees")
 
-    # ── Logo (Clearbit) ──────────────────────────────────
+    # ── Logo (Google Favicon API primary, Clearbit fallback) ──
     if cd.website:
         try:
             from urllib.parse import urlparse
@@ -549,7 +550,8 @@ def fetch_company_data(ticker_str: str) -> CompanyData:
             if domain.startswith("www."):
                 domain = domain[4:]
             if domain:
-                cd.logo_url = f"https://logo.clearbit.com/{domain}"
+                cd.logo_url = f"https://www.google.com/s2/favicons?domain={domain}&sz=128"
+                cd.logo_domain = domain  # stored for onerror fallback
         except Exception:
             pass
 

@@ -219,6 +219,38 @@ html, body, [class*="css"] {{
     0%, 100% {{ border-color: rgba(107,92,231,0.3); }}
     50% {{ border-color: rgba(155,138,255,0.6); }}
 }}
+@keyframes rocketLaunch {{
+    0% {{ transform: translateY(0) scale(1); opacity: 1; }}
+    60% {{ transform: translateY(-120px) scale(0.9); opacity: 0.8; }}
+    100% {{ transform: translateY(-300px) scale(0.6); opacity: 0; }}
+}}
+@keyframes flameFlicker {{
+    0%, 100% {{ transform: scaleY(1) scaleX(1); opacity: 0.9; }}
+    25% {{ transform: scaleY(1.3) scaleX(0.85); opacity: 1; }}
+    50% {{ transform: scaleY(0.8) scaleX(1.15); opacity: 0.85; }}
+    75% {{ transform: scaleY(1.15) scaleX(0.9); opacity: 1; }}
+}}
+@keyframes exhaustTrail {{
+    0% {{ opacity: 0.6; transform: translateY(0); }}
+    100% {{ opacity: 0; transform: translateY(40px); }}
+}}
+@keyframes missionPulse {{
+    0%, 100% {{ box-shadow: 0 0 8px rgba(107,92,231,0.2); }}
+    50% {{ box-shadow: 0 0 20px rgba(107,92,231,0.5), 0 0 40px rgba(107,92,231,0.15); }}
+}}
+@keyframes checkPop {{
+    0% {{ transform: scale(0); }}
+    60% {{ transform: scale(1.25); }}
+    100% {{ transform: scale(1); }}
+}}
+@keyframes progressGlow {{
+    0% {{ background-position: -200% 0; }}
+    100% {{ background-position: 200% 0; }}
+}}
+@keyframes spin {{
+    from {{ transform: rotate(0deg); }}
+    to {{ transform: rotate(360deg); }}
+}}
 
 /* ── SIDEBAR ─────────────────────────────────────────────── */
 section[data-testid="stSidebar"] {{
@@ -856,8 +888,286 @@ st.markdown(f"""
 .feature-icon {{ font-size: 2.2rem; margin-bottom: 0.5rem; }}
 .feature-title {{ font-size: 0.88rem; font-weight: 700; color: #E0DCF5; margin-bottom: 0.3rem; }}
 .feature-desc {{ font-size: 0.72rem; color: #8A85AD; line-height: 1.6; }}
+
+/* ── MISSION CONTROL (Merger Loading) ──────────────────── */
+.mission-control {{
+    background: linear-gradient(170deg, #020515 0%, #0B0E1A 40%, #151933 100%);
+    border-radius: 24px;
+    padding: 2.5rem;
+    min-height: 420px;
+    position: relative;
+    overflow: hidden;
+    animation: fadeInScale 0.5s ease-out both;
+    border: 1px solid rgba(107,92,231,0.2);
+}}
+.mission-control::before {{
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background:
+        radial-gradient(ellipse at 25% 30%, rgba(107,92,231,0.08) 0%, transparent 55%),
+        radial-gradient(ellipse at 75% 70%, rgba(232,99,139,0.05) 0%, transparent 55%);
+    pointer-events: none;
+}}
+.mission-control::after {{
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: transparent;
+    box-shadow: {_gen_stars(40, 600)};
+    width: 1px; height: 1px;
+    opacity: 0.4;
+    pointer-events: none;
+}}
+.mission-header {{
+    text-align: center;
+    margin-bottom: 1.5rem;
+    position: relative;
+    z-index: 1;
+}}
+.mission-title {{
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #E0DCF5;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    margin: 0;
+    text-shadow: 0 0 20px rgba(107,92,231,0.4);
+}}
+.mission-subtitle {{
+    font-size: 0.72rem;
+    color: #8A85AD;
+    margin-top: 0.3rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}}
+.rocket-container {{
+    text-align: center;
+    height: 120px;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}}
+.rocket {{
+    font-size: 3.5rem;
+    filter: drop-shadow(0 0 12px rgba(107,92,231,0.5));
+    position: relative;
+    z-index: 2;
+}}
+.rocket-idle {{
+    animation: float1 6s ease-in-out infinite;
+}}
+.rocket-launching {{
+    animation: rocketLaunch 2s ease-in forwards;
+}}
+.rocket-flame {{
+    font-size: 1.5rem;
+    filter: drop-shadow(0 0 8px rgba(255,165,0,0.7));
+    animation: flameFlicker 0.3s ease-in-out infinite;
+    margin-top: -8px;
+}}
+.exhaust-trail {{
+    width: 4px;
+    height: 30px;
+    background: linear-gradient(to bottom, rgba(255,165,0,0.4), rgba(107,92,231,0.2), transparent);
+    filter: blur(2px);
+    margin: 0 auto;
+    animation: exhaustTrail 0.8s ease-out infinite;
+}}
+.mission-progress-track {{
+    height: 6px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 3px;
+    margin: 1.2rem 0;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+}}
+.mission-progress-fill {{
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #6B5CE7, #9B8AFF, #E8638B, #6B5CE7);
+    background-size: 200% 100%;
+    animation: progressGlow 2s linear infinite;
+    transition: width 0.6s ease;
+    position: relative;
+}}
+.mission-progress-fill::after {{
+    content: '';
+    position: absolute;
+    right: 0; top: 50%;
+    transform: translateY(-50%);
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 10px rgba(155,138,255,0.8), 0 0 20px rgba(107,92,231,0.4);
+}}
+.mission-phases {{
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    position: relative;
+    z-index: 1;
+}}
+.mission-phase {{
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.6rem 1rem;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}}
+.mission-phase-active {{
+    background: rgba(107,92,231,0.1);
+    border: 1px solid rgba(107,92,231,0.25);
+    animation: missionPulse 2s ease-in-out infinite;
+}}
+.mission-phase-complete {{
+    background: rgba(16,185,129,0.06);
+    border: 1px solid rgba(16,185,129,0.15);
+}}
+.mission-phase-pending {{
+    opacity: 0.4;
+    border: 1px solid transparent;
+}}
+.phase-indicator {{
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}}
+.phase-indicator-active {{
+    border: 2px solid rgba(107,92,231,0.5);
+    color: #9B8AFF;
+    position: relative;
+}}
+.phase-indicator-active::after {{
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    border-top-color: #9B8AFF;
+    animation: spin 1s linear infinite;
+}}
+.phase-indicator-complete {{
+    background: rgba(16,185,129,0.2);
+    color: #10B981;
+    animation: checkPop 0.4s ease-out both;
+}}
+.phase-indicator-pending {{
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #555;
+}}
+.phase-label {{
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #E0DCF5;
+}}
+.phase-sublabel {{
+    font-size: 0.68rem;
+    color: #8A85AD;
+    margin-top: 0.1rem;
+}}
+.mission-stats {{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.8rem;
+    margin-top: 1.2rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    position: relative;
+    z-index: 1;
+}}
+.mission-stats span {{
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #9B8AFF;
+    letter-spacing: 1px;
+}}
+.mission-stats .mission-x {{
+    font-size: 1.2rem;
+    color: #E8638B;
+    font-weight: 300;
+}}
 </style>
 """, unsafe_allow_html=True)
+
+
+# ── HELPER: Mission Control loading screen ───────────────────
+def _render_mission_control(acquirer: str, target: str, current_phase: int, total_phases: int = 5) -> str:
+    """Return HTML for the animated mission control loading UI."""
+    phases = [
+        (f"Acquiring Target Intel: {acquirer}", "Scanning financial databases..."),
+        (f"Locking Signal: {target}", "Establishing secure data link..."),
+        ("Mapping Sector Constellation", "Triangulating peer coordinates..."),
+        ("Computing Orbital Mechanics", "Pro forma trajectory analysis..."),
+        ("Synthesizing Mission Report", "AI engines generating insights..."),
+    ]
+    completed = min(current_phase, total_phases)
+    pct = int((completed / total_phases) * 100)
+
+    # Rocket state
+    if current_phase >= total_phases:
+        rocket_cls = "rocket rocket-launching"
+        flame_html = ""
+        exhaust_html = ""
+    else:
+        rocket_cls = "rocket rocket-idle"
+        flame_html = '<div class="rocket-flame">🔥</div>'
+        exhaust_html = '<div class="exhaust-trail"></div>'
+
+    # Build phase rows
+    phase_rows = ""
+    for i, (label, sublabel) in enumerate(phases):
+        if i < current_phase:
+            row_cls = "mission-phase mission-phase-complete"
+            ind_cls = "phase-indicator phase-indicator-complete"
+            ind_content = "✓"
+        elif i == current_phase:
+            row_cls = "mission-phase mission-phase-active"
+            ind_cls = "phase-indicator phase-indicator-active"
+            ind_content = str(i + 1)
+        else:
+            row_cls = "mission-phase mission-phase-pending"
+            ind_cls = "phase-indicator phase-indicator-pending"
+            ind_content = str(i + 1)
+        phase_rows += (
+            f'<div class="{row_cls}">'
+            f'<div class="{ind_cls}">{ind_content}</div>'
+            f'<div><div class="phase-label">{label}</div>'
+            f'<div class="phase-sublabel">{sublabel}</div></div>'
+            f'</div>'
+        )
+
+    return (
+        f'<div class="mission-control">'
+        f'<div class="mission-header">'
+        f'<div class="mission-title">Merger Analysis Mission Control</div>'
+        f'<div class="mission-subtitle">Phase {completed} of {total_phases}</div>'
+        f'</div>'
+        f'<div class="rocket-container">'
+        f'<div class="{rocket_cls}">🚀</div>'
+        f'{flame_html}'
+        f'{exhaust_html}'
+        f'</div>'
+        f'<div class="mission-progress-track">'
+        f'<div class="mission-progress-fill" style="width:{pct}%;"></div>'
+        f'</div>'
+        f'<div class="mission-phases">{phase_rows}</div>'
+        f'<div class="mission-stats">'
+        f'<span>{acquirer}</span>'
+        f'<span class="mission-x">×</span>'
+        f'<span>{target}</span>'
+        f'</div>'
+        f'</div>'
+    )
 
 
 # ── HELPER: Section header with accent bar ──────────────────
@@ -1566,11 +1876,12 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
 
     logo_html = ""
     if cd.logo_url:
+        logo_fallback = f"this.onerror=null; this.src='https://logo.clearbit.com/{cd.logo_domain}';" if cd.logo_domain else "this.style.display='none';"
         logo_html = (
             f'<img src="{cd.logo_url}" '
             f'style="width:52px; height:52px; border-radius:10px; object-fit:contain; '
             f'background:white; padding:4px; margin-right:1.2rem; flex-shrink:0;" '
-            f'onerror="this.style.display=\'none\'">'
+            f'onerror="{logo_fallback}">'
         )
 
     st.markdown(
@@ -2213,36 +2524,50 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     # MERGER ANALYSIS DASHBOARD
     # ══════════════════════════════════════════════════════
 
-    # ── Fetch data for both companies ─────────────────────
-    with st.spinner(f"Fetching data for {acquirer_input}..."):
-        try:
-            acq_cd = fetch_company_data(acquirer_input)
-        except Exception as e:
-            st.error(f"Failed to fetch data for **{acquirer_input}**: {e}")
-            st.stop()
+    # ── Mission Control animated loading ─────────────────
+    mission = st.empty()
+    acq_label = acquirer_input.upper()
+    tgt_label = target_input.upper()
 
-    time.sleep(1)  # Avoid rate limits
+    # Phase 0 → fetch acquirer
+    mission.markdown(_render_mission_control(acq_label, tgt_label, 0), unsafe_allow_html=True)
+    try:
+        acq_cd = fetch_company_data(acquirer_input)
+    except Exception as e:
+        mission.empty()
+        st.error(f"Failed to fetch data for **{acquirer_input}**: {e}")
+        st.stop()
 
-    with st.spinner(f"Fetching data for {target_input}..."):
-        try:
-            tgt_cd = fetch_company_data(target_input)
-        except Exception as e:
-            st.error(f"Failed to fetch data for **{target_input}**: {e}")
-            st.stop()
+    # Phase 1 → fetch target (with rate limit delay)
+    mission.markdown(_render_mission_control(acq_label, tgt_label, 1), unsafe_allow_html=True)
+    time.sleep(1)
+    try:
+        tgt_cd = fetch_company_data(target_input)
+    except Exception as e:
+        mission.empty()
+        st.error(f"Failed to fetch data for **{target_input}**: {e}")
+        st.stop()
 
-    with st.spinner("Fetching peer data..."):
-        try:
-            tgt_cd = fetch_peer_data(tgt_cd)
-        except Exception:
-            pass
+    # Phase 2 → fetch peers
+    mission.markdown(_render_mission_control(acq_label, tgt_label, 2), unsafe_allow_html=True)
+    try:
+        tgt_cd = fetch_peer_data(tgt_cd)
+    except Exception:
+        pass
 
-    # ── Compute pro forma ─────────────────────────────────
-    with st.spinner("Computing pro forma financials..."):
-        pro_forma = calculate_pro_forma(acq_cd, tgt_cd, merger_assumptions)
-        pro_forma.football_field = build_football_field(acq_cd, tgt_cd, pro_forma)
+    # Phase 3 → compute pro forma
+    mission.markdown(_render_mission_control(acq_label, tgt_label, 3), unsafe_allow_html=True)
+    pro_forma = calculate_pro_forma(acq_cd, tgt_cd, merger_assumptions)
+    pro_forma.football_field = build_football_field(acq_cd, tgt_cd, pro_forma)
 
-    with st.spinner("Generating merger insights..."):
-        merger_insights = generate_merger_insights(acq_cd, tgt_cd, pro_forma, merger_assumptions)
+    # Phase 4 → generate insights
+    mission.markdown(_render_mission_control(acq_label, tgt_label, 4), unsafe_allow_html=True)
+    merger_insights = generate_merger_insights(acq_cd, tgt_cd, pro_forma, merger_assumptions)
+
+    # Phase 5 → mission complete, rocket launches
+    mission.markdown(_render_mission_control(acq_label, tgt_label, 5), unsafe_allow_html=True)
+    time.sleep(1.5)
+    mission.empty()
 
     acq_cs = acq_cd.currency_symbol
     tgt_cs = tgt_cd.currency_symbol
@@ -2256,17 +2581,19 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     # ══════════════════════════════════════════════════════
     acq_logo = ""
     if acq_cd.logo_url:
+        acq_fallback = f"this.onerror=null; this.src='https://logo.clearbit.com/{acq_cd.logo_domain}';" if acq_cd.logo_domain else "this.style.display='none';"
         acq_logo = (
             f'<img src="{acq_cd.logo_url}" '
             f'style="width:48px; height:48px; border-radius:10px; object-fit:contain; '
-            f'background:white; padding:4px;" onerror="this.style.display=\'none\'">'
+            f'background:white; padding:4px;" onerror="{acq_fallback}">'
         )
     tgt_logo = ""
     if tgt_cd.logo_url:
+        tgt_fallback = f"this.onerror=null; this.src='https://logo.clearbit.com/{tgt_cd.logo_domain}';" if tgt_cd.logo_domain else "this.style.display='none';"
         tgt_logo = (
             f'<img src="{tgt_cd.logo_url}" '
             f'style="width:48px; height:48px; border-radius:10px; object-fit:contain; '
-            f'background:white; padding:4px;" onerror="this.style.display=\'none\'">'
+            f'background:white; padding:4px;" onerror="{tgt_fallback}">'
         )
 
     st.markdown(
