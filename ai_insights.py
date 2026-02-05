@@ -872,57 +872,100 @@ class MergerInsights:
 def _build_strategic_rationale_prompt(acq: CompanyData, tgt: CompanyData, pro_forma) -> str:
     cs_a = acq.currency_symbol
     cs_t = tgt.currency_symbol
-    return f"""You are a senior M&A advisor evaluating the strategic rationale for {acq.name} acquiring {tgt.name}.
 
-Acquirer: {acq.name} ({acq.ticker})
+    # Target standalone trading multiples
+    tgt_trailing_pe = f"{tgt.trailing_pe:.1f}x" if tgt.trailing_pe else "N/A"
+    tgt_forward_pe = f"{tgt.forward_pe:.1f}x" if tgt.forward_pe else "N/A"
+    tgt_ev_ebitda = f"{tgt.ev_to_ebitda:.1f}x" if tgt.ev_to_ebitda else "N/A"
+
+    # Implied deal multiples
+    impl_ev_ebitda = f"{pro_forma.implied_ev_ebitda:.1f}x" if pro_forma.implied_ev_ebitda else "N/A"
+    impl_pe = f"{pro_forma.implied_pe:.1f}x" if pro_forma.implied_pe else "N/A"
+
+    # Target FCF
+    tgt_fcf = "N/A"
+    if tgt.free_cashflow_series is not None and len(tgt.free_cashflow_series) > 0:
+        tgt_fcf = format_number(float(tgt.free_cashflow_series.iloc[0]), currency_symbol=cs_t)
+
+    # Premium
+    premium_pct = ((pro_forma.purchase_price / tgt.market_cap) - 1) * 100 if tgt.market_cap else 0
+
+    return f"""You are a senior M&A advisor writing a strategic rationale memo for {acq.name} acquiring {tgt.name}.
+
+ACQUIRER: {acq.name} ({acq.ticker})
 - Sector: {acq.sector} | Industry: {acq.industry}
 - Market Cap: {format_number(acq.market_cap, currency_symbol=cs_a)}
-- Revenue: {format_number(pro_forma.acq_revenue, currency_symbol=cs_a)}
+- Revenue: {format_number(pro_forma.acq_revenue, currency_symbol=cs_a)} | Revenue Growth: {f'{acq.revenue_growth:.1f}%' if acq.revenue_growth else 'N/A'}
 - EBITDA: {format_number(pro_forma.acq_ebitda, currency_symbol=cs_a)}
 - Margins: Gross {format_pct(acq.gross_margins)}, Operating {format_pct(acq.operating_margins)}
-- Revenue Growth: {f'{acq.revenue_growth:.1f}%' if acq.revenue_growth else 'N/A'}
 
-Target: {tgt.name} ({tgt.ticker})
+TARGET: {tgt.name} ({tgt.ticker})
 - Sector: {tgt.sector} | Industry: {tgt.industry}
 - Market Cap: {format_number(tgt.market_cap, currency_symbol=cs_t)}
-- Revenue: {format_number(pro_forma.tgt_revenue, currency_symbol=cs_t)}
+- Revenue: {format_number(pro_forma.tgt_revenue, currency_symbol=cs_t)} | Revenue Growth: {f'{tgt.revenue_growth:.1f}%' if tgt.revenue_growth else 'N/A'}
 - EBITDA: {format_number(pro_forma.tgt_ebitda, currency_symbol=cs_t)}
 - Margins: Gross {format_pct(tgt.gross_margins)}, Operating {format_pct(tgt.operating_margins)}
-- Revenue Growth: {f'{tgt.revenue_growth:.1f}%' if tgt.revenue_growth else 'N/A'}
+- Free Cash Flow: {tgt_fcf}
+- Standalone Trading Multiples: P/E {tgt_trailing_pe} (trailing), {tgt_forward_pe} (forward) | EV/EBITDA {tgt_ev_ebitda}
 
-Deal: Purchase price {format_number(pro_forma.purchase_price, currency_symbol=cs_a)} at {pro_forma.offer_price_per_share:.2f}/share
+DEAL TERMS:
+- Purchase Price: {format_number(pro_forma.purchase_price, currency_symbol=cs_a)} at {cs_a}{pro_forma.offer_price_per_share:.2f}/share
+- Offer Premium: {premium_pct:.0f}%
+- Implied EV/EBITDA: {impl_ev_ebitda} (vs target trading at {tgt_ev_ebitda})
+- Implied P/E: {impl_pe} (vs target trading at {tgt_trailing_pe})
+- Pro Forma Combined Revenue: {format_number(pro_forma.pf_revenue, currency_symbol=cs_a)}
+- Pro Forma Combined EBITDA: {format_number(pro_forma.pf_ebitda, currency_symbol=cs_a)} (incl. synergies)
 
-Provide in EXACT format:
+Provide EXACTLY in this format (use the tag labels in brackets at the start of each bullet):
 
 STRATEGIC_RATIONALE:
-- [2-3 sentences: primary strategic logic for this deal — market expansion, vertical integration, technology acquisition, etc.]
-- [key synergy drivers — where do cost and revenue synergies come from?]
-- [strategic fit assessment — complementary or overlapping?]
-- [competitive implications — how does this change the competitive landscape?]
+- [DEAL LOGIC] 2-3 sentences: What is the acquirer actually buying — revenue base, IP/technology, customer relationships, geographic access, or cost takeout? Name the specific strategic thesis (horizontal consolidation, vertical integration, capability acquisition, geographic expansion, or diversification). State whether this is offensive (growth-driven) or defensive (market-share protection).
+- [FINANCIAL MERIT] Evaluate the price paid: compare implied EV/EBITDA and P/E to the target's standalone trading multiples. Is the acquirer overpaying, paying fair value, or getting a bargain after synergies? What does the premium imply about the acquirer's confidence in synergy capture?
+- [STRATEGIC FIT] How complementary are the two businesses? Assess overlap vs. adjacency. Where specifically do cost and revenue synergies come from — headcount, facilities, procurement, cross-selling, or bundling?
+- [COMPETITIVE POSITIONING] How does the combined entity rank in its market? Does this deal create a category leader, close a gap to a larger rival, or merely add scale without strategic differentiation?
 """
 
 
-def _build_deal_risks_prompt(acq: CompanyData, tgt: CompanyData, pro_forma) -> str:
+def _build_deal_risks_prompt(acq: CompanyData, tgt: CompanyData, pro_forma, assumptions=None) -> str:
     cs_a = acq.currency_symbol
-    return f"""You are an M&A risk analyst evaluating the acquisition of {tgt.name} by {acq.name}.
 
-Deal Metrics:
-- Purchase Price: {format_number(pro_forma.purchase_price, currency_symbol=cs_a)}
+    # Goodwill metrics
+    goodwill_pct = (pro_forma.goodwill / pro_forma.purchase_price * 100) if pro_forma.purchase_price else 0
+
+    # Deal size relative to acquirer
+    deal_size_pct = (pro_forma.purchase_price / acq.market_cap * 100) if acq.market_cap else 0
+
+    # Cash/stock mix
+    pct_cash = assumptions.pct_cash if assumptions else 50
+    pct_stock = assumptions.pct_stock if assumptions else 50
+    premium = assumptions.offer_premium_pct if assumptions else 0
+
+    return f"""You are an M&A risk analyst writing a risk assessment memo for {acq.name} acquiring {tgt.name}.
+
+DEAL METRICS:
+- Purchase Price: {format_number(pro_forma.purchase_price, currency_symbol=cs_a)} ({deal_size_pct:.0f}% of acquirer market cap)
+- Offer Premium: {premium:.0f}%
+- Consideration Mix: {pct_cash:.0f}% cash / {pct_stock:.0f}% stock
+- Goodwill Created: {format_number(pro_forma.goodwill, currency_symbol=cs_a)} ({goodwill_pct:.0f}% of purchase price)
+- Pro Forma Net Debt: {format_number(pro_forma.pf_net_debt, currency_symbol=cs_a)}
 - Pro Forma Leverage: {f'{pro_forma.pf_leverage_ratio:.1f}x' if pro_forma.pf_leverage_ratio else 'N/A'} Debt/EBITDA
+- Pro Forma Interest: {format_number(pro_forma.pf_total_interest, currency_symbol=cs_a)} annual
 - Interest Coverage: {f'{pro_forma.pf_interest_coverage:.1f}x' if pro_forma.pf_interest_coverage else 'N/A'}
-- Accretion/Dilution: {pro_forma.accretion_dilution_pct:+.1f}%
+- EPS Impact: {pro_forma.accretion_dilution_pct:+.1f}% ({'accretive' if pro_forma.is_accretive else 'dilutive'})
+
+COMPANY CONTEXT:
+- Acquirer: {acq.sector} / {acq.industry} | Revenue Growth: {f'{acq.revenue_growth:.1f}%' if acq.revenue_growth else 'N/A'}
+- Target: {tgt.sector} / {tgt.industry} | Revenue Growth: {f'{tgt.revenue_growth:.1f}%' if tgt.revenue_growth else 'N/A'}
 - Same industry: {acq.industry == tgt.industry}
 
-Acquirer: {acq.sector} / {acq.industry} | Target: {tgt.sector} / {tgt.industry}
-
-Provide in EXACT format:
+Provide EXACTLY in this format (use the tag labels in brackets at the start of each bullet). Anchor every risk in specific numbers from above:
 
 DEAL_RISKS:
-- [ANTITRUST] [1-2 sentences on regulatory/antitrust risk — overlap, market share concentration]
-- [INTEGRATION] [1-2 sentences on integration complexity — culture, systems, geography]
-- [FINANCIAL] [1-2 sentences on financial risk — leverage, cash flow adequacy, rating impact]
-- [EXECUTION] [1-2 sentences on execution risk — management bandwidth, timeline]
-- [MARKET] [1-2 sentences on market/macro risk — timing, valuation, investor reception]
+- [VALUATION] Is the acquirer overpaying? Evaluate the {premium:.0f}% premium. Goodwill of {goodwill_pct:.0f}% of purchase price — what happens if synergies fall 50% short? Would impairment risk be material?
+- [FINANCIAL] Pro forma leverage of {f'{pro_forma.pf_leverage_ratio:.1f}x' if pro_forma.pf_leverage_ratio else 'N/A'} — evaluate balance sheet stress. Can the combined entity service {format_number(pro_forma.pf_total_interest, currency_symbol=cs_a)} in annual interest from {format_number(pro_forma.pf_ebitda, currency_symbol=cs_a)} EBITDA? Deleveraging timeline? Rating migration risk?
+- [INTEGRATION] Given the {'same' if acq.industry == tgt.industry else 'different'} industry overlap, assess operational integration complexity — systems, culture, talent retention, customer churn risk.
+- [EXECUTION] This deal is {deal_size_pct:.0f}% of the acquirer's market cap — evaluate management bandwidth. Timeline risk if regulatory review extends to 12-18 months?
+- [MARKET] Deal is {pro_forma.accretion_dilution_pct:+.1f}% {'accretive' if pro_forma.is_accretive else 'dilutive'} to EPS. How will the market react given the {pct_cash:.0f}/{pct_stock:.0f} cash/stock mix? Macro sensitivity?
 """
 
 
@@ -950,27 +993,46 @@ SYNERGY_ASSESSMENT:
 
 def _build_deal_verdict_prompt(acq: CompanyData, tgt: CompanyData, pro_forma, assumptions) -> str:
     cs_a = acq.currency_symbol
-    return f"""You are an M&A committee advisor providing a final verdict on {acq.name} acquiring {tgt.name}.
 
-Key Deal Facts:
+    # Goodwill and synergy coverage
+    goodwill_pct = (pro_forma.goodwill / pro_forma.purchase_price * 100) if pro_forma.purchase_price else 0
+    synergy_covers_goodwill = "yes" if pro_forma.synergy_npv >= pro_forma.goodwill else "no"
+
+    # Interest coverage
+    int_cov = f"{pro_forma.pf_interest_coverage:.1f}x" if pro_forma.pf_interest_coverage else "N/A"
+
+    # Target standalone growth
+    tgt_growth = f"{tgt.revenue_growth:.1f}%" if tgt.revenue_growth else "N/A"
+
+    return f"""You are an M&A committee advisor rendering a final verdict on {acq.name} acquiring {tgt.name}. Write like a real M&A committee memo — be direct, quantitative, and take a clear position.
+
+KEY DEAL FACTS:
 - Purchase Price: {format_number(pro_forma.purchase_price, currency_symbol=cs_a)}
 - Premium: {assumptions.offer_premium_pct:.0f}%
 - Mix: {assumptions.pct_cash:.0f}% cash / {assumptions.pct_stock:.0f}% stock
 - EPS Impact: {pro_forma.accretion_dilution_pct:+.1f}% ({'accretive' if pro_forma.is_accretive else 'dilutive'})
 - Pro Forma Leverage: {f'{pro_forma.pf_leverage_ratio:.1f}x' if pro_forma.pf_leverage_ratio else 'N/A'}
+- Interest Coverage: {int_cov}
 - Implied EV/EBITDA: {f'{pro_forma.implied_ev_ebitda:.1f}x' if pro_forma.implied_ev_ebitda else 'N/A'}
 - Total Synergies: {format_number(pro_forma.total_synergies, currency_symbol=cs_a)}
-- Goodwill: {format_number(pro_forma.goodwill, currency_symbol=cs_a)}
+- Synergy NPV: {format_number(pro_forma.synergy_npv, currency_symbol=cs_a)}
+- Goodwill: {format_number(pro_forma.goodwill, currency_symbol=cs_a)} ({goodwill_pct:.0f}% of purchase price)
+- Synergy NPV covers goodwill: {synergy_covers_goodwill}
+- Combined Revenue: {format_number(pro_forma.pf_revenue, currency_symbol=cs_a)}
+- Combined EBITDA: {format_number(pro_forma.pf_ebitda, currency_symbol=cs_a)}
+- Target Standalone Growth: {tgt_growth}
+- Same industry: {acq.industry == tgt.industry}
 
-Provide in EXACT format:
+Provide EXACTLY in this format (use the tag labels in brackets at the start of each bullet). Be specific and quantitative in every section:
 
 DEAL_VERDICT:
-- [2-3 sentence overall assessment — is this a good deal for the acquirer's shareholders?]
-- [bull case — 1-2 sentences on best-case scenario]
-- [bear case — 1-2 sentences on worst-case scenario]
+- [OVERALL] 2-3 sentences: Render a clear judgment — is this deal value-creative or value-destructive for the acquirer's shareholders? Anchor in the numbers: the {pro_forma.accretion_dilution_pct:+.1f}% EPS impact, the {assumptions.offer_premium_pct:.0f}% premium, and whether synergy NPV ({format_number(pro_forma.synergy_npv, currency_symbol=cs_a)}) justifies the goodwill ({format_number(pro_forma.goodwill, currency_symbol=cs_a)}). State a clear recommendation: proceed, proceed with reservations, or walk away.
+- [BULL CASE] 1-2 sentences: What has to go right — be specific and quantified. Reference actual synergy and EPS numbers.
+- [BEAR CASE] 1-2 sentences: What could go wrong — be specific and quantified. Reference what happens if synergies miss by 50% and leverage implications.
+- [KEY CONDITION] 1 sentence: The single most critical factor that determines whether this deal succeeds or fails.
 
 DEAL_GRADE:
-[single letter: A / B / C / D / F — where A is excellent strategic and financial fit, F is value-destructive]
+[A/B/C/D/F with 1-line justification. A = value-creative with manageable risk, B = strategically sound but some concerns, C = marginal, D = significant value concerns, F = value-destructive]
 """
 
 
@@ -1013,50 +1075,207 @@ def _parse_merger_sections(text: str) -> dict:
 # ── Merger Deterministic Fallbacks ──────────────────────────
 
 def _fallback_merger_insights(acq, tgt, pro_forma, assumptions) -> MergerInsights:
-    """Build deterministic merger insights from raw numbers."""
+    """Build deterministic merger insights with finance-grade analysis."""
     cs = acq.currency_symbol
     same_sector = acq.sector == tgt.sector
     same_industry = acq.industry == tgt.industry
 
-    # Strategic rationale
+    # ── Derived metrics used across sections ──────────────
+    leverage = pro_forma.pf_leverage_ratio or 0
+    int_cov = pro_forma.pf_interest_coverage or 0
+    goodwill_pct = (pro_forma.goodwill / pro_forma.purchase_price * 100) if pro_forma.purchase_price else 0
+    deal_size_pct = (pro_forma.purchase_price / acq.market_cap * 100) if acq.market_cap else 0
+    premium = assumptions.offer_premium_pct
+
+    # Target standalone trading multiples
+    tgt_ev_ebitda = tgt.ev_to_ebitda
+    impl_ev_ebitda = pro_forma.implied_ev_ebitda
+
+    # Combined operating margin vs standalone
+    pf_op_margin = (pro_forma.pf_ebitda / pro_forma.pf_revenue * 100) if pro_forma.pf_revenue else 0
+    acq_op_margin = (acq.operating_margins or 0) * 100
+    tgt_op_margin = (tgt.operating_margins or 0) * 100
+
+    # Synergy NPV coverage of goodwill
+    synergy_coverage = (pro_forma.synergy_npv / pro_forma.goodwill) if pro_forma.goodwill else 0
+
+    # FCF for deleveraging estimate
+    acq_fcf = 0
+    if acq.free_cashflow_series is not None and len(acq.free_cashflow_series) > 0:
+        acq_fcf = float(acq.free_cashflow_series.iloc[0])
+    tgt_fcf = 0
+    if tgt.free_cashflow_series is not None and len(tgt.free_cashflow_series) > 0:
+        tgt_fcf = float(tgt.free_cashflow_series.iloc[0])
+    combined_fcf = acq_fcf + tgt_fcf
+
+    # Half synergies scenario for bear case
+    half_synergies = pro_forma.total_synergies * 0.5
+
+    # ── Strategic Rationale ───────────────────────────────
     if same_industry:
-        fit = "horizontal consolidation within the same industry"
-        synergy_type = "significant cost synergies from overlapping operations"
+        deal_type = "horizontal consolidation"
+        thesis = "offensive scale play" if (acq.market_cap or 0) > (tgt.market_cap or 0) * 3 else "transformative horizontal merger"
+        synergy_source = "headcount rationalization, overlapping facilities, and procurement leverage"
     elif same_sector:
-        fit = "adjacent expansion within the same sector"
-        synergy_type = "moderate synergies from shared infrastructure and cross-selling"
+        deal_type = "adjacent capability acquisition"
+        thesis = "capability-driven expansion within the sector"
+        synergy_source = "shared infrastructure, cross-selling to combined customer base, and bundled offerings"
     else:
-        fit = "diversification into a new sector"
-        synergy_type = "limited near-term synergies; primarily strategic diversification"
+        deal_type = "diversification play"
+        thesis = "defensive diversification away from core market"
+        synergy_source = "corporate overhead reduction and limited operational overlap"
+
+    # Valuation comparison
+    val_comparison = ""
+    if impl_ev_ebitda and tgt_ev_ebitda:
+        val_premium = ((impl_ev_ebitda / tgt_ev_ebitda) - 1) * 100
+        val_comparison = (
+            f"The acquirer is paying {impl_ev_ebitda:.1f}x EV/EBITDA vs the target's standalone trading multiple "
+            f"of {tgt_ev_ebitda:.1f}x, a {val_premium:.0f}% premium to market multiples."
+        )
+    elif impl_ev_ebitda:
+        val_comparison = f"Implied EV/EBITDA of {impl_ev_ebitda:.1f}x on the deal."
+
+    # Goodwill characterization
+    gw_label = "modest" if goodwill_pct < 40 else "significant" if goodwill_pct < 70 else "substantial"
 
     strategic = (
-        f"- This deal represents {fit}. {acq.name} ({format_number(acq.market_cap, currency_symbol=cs)} market cap) "
-        f"would acquire {tgt.name} at a {assumptions.offer_premium_pct:.0f}% premium for "
-        f"{format_number(pro_forma.purchase_price, currency_symbol=cs)}.\n"
-        f"- Primary synergy drivers: {synergy_type}. Cost synergies of "
-        f"{format_number(pro_forma.cost_synergies, currency_symbol=cs)} represent "
-        f"{assumptions.cost_synergies_pct:.0f}% of target SG&A.\n"
-        f"- Strategic fit: {'Strong' if same_industry else 'Moderate' if same_sector else 'Weak'} — "
-        f"acquirer operates in {acq.industry}, target in {tgt.industry}.\n"
-        f"- The combined entity would have {format_number(pro_forma.pf_revenue, currency_symbol=cs)} in revenue "
-        f"and {format_number(pro_forma.pf_ebitda, currency_symbol=cs)} in EBITDA."
+        f"- [DEAL LOGIC] This deal represents {deal_type} — a {thesis}. {acq.name} "
+        f"({format_number(acq.market_cap, currency_symbol=cs)} market cap) is acquiring {tgt.name}'s "
+        f"{format_number(pro_forma.tgt_revenue, currency_symbol=cs)} revenue base at a {premium:.0f}% premium "
+        f"for {format_number(pro_forma.purchase_price, currency_symbol=cs)}. "
+        f"The strategic thesis is {'growth-driven' if (tgt.revenue_growth or 0) > (acq.revenue_growth or 0) else 'cost-driven consolidation'}.\n"
+        f"- [FINANCIAL MERIT] {val_comparison} "
+        f"Goodwill of {format_number(pro_forma.goodwill, currency_symbol=cs)} represents {goodwill_pct:.0f}% "
+        f"of the purchase price, indicating {gw_label} premium to book value. "
+        f"Synergy NPV of {format_number(pro_forma.synergy_npv, currency_symbol=cs)} covers "
+        f"{synergy_coverage:.1f}x the goodwill created — "
+        f"{'suggesting the premium is well-supported by synergy economics' if synergy_coverage >= 1.0 else 'raising questions about whether the premium paid can be recovered through synergies alone'}.\n"
+        f"- [STRATEGIC FIT] Combined operating margin of {pf_op_margin:.1f}% vs acquirer's "
+        f"{acq_op_margin:.1f}% and target's {tgt_op_margin:.1f}%. "
+        f"Primary synergy sources: {synergy_source}. "
+        f"Cost synergies of {format_number(pro_forma.cost_synergies, currency_symbol=cs)} "
+        f"({assumptions.cost_synergies_pct:.0f}% of target SG&A) are the primary value driver.\n"
+        f"- [COMPETITIVE POSITIONING] The combined entity would have "
+        f"{format_number(pro_forma.pf_revenue, currency_symbol=cs)} in revenue and "
+        f"{format_number(pro_forma.pf_ebitda, currency_symbol=cs)} in EBITDA. "
+        f"{'This creates meaningful scale in a common market' if same_industry else 'This broadens the revenue mix' if same_sector else 'This diversifies into an unrelated market, without clear competitive synergy'}."
     )
 
-    # Deal risks
-    leverage_risk = "elevated" if (pro_forma.pf_leverage_ratio or 0) > 3 else "manageable"
+    # ── Deal Risks (graduated severity) ───────────────────
+
+    # VALUATION risk
+    if premium > 50:
+        val_severity = "Aggressive"
+        val_detail = f"The {premium:.0f}% premium is well above the 25-35% typical range for strategic transactions"
+    elif premium > 40:
+        val_severity = "Elevated"
+        val_detail = f"The {premium:.0f}% premium is above the 25-35% norm"
+    elif premium > 25:
+        val_severity = "Moderate"
+        val_detail = f"The {premium:.0f}% premium is within the typical range"
+    else:
+        val_severity = "Low"
+        val_detail = f"The {premium:.0f}% premium is below the sector average"
+
+    gw_risk = f"Goodwill of {goodwill_pct:.0f}% of purchase price represents {'material impairment risk' if goodwill_pct > 60 else 'manageable impairment exposure' if goodwill_pct > 40 else 'limited goodwill risk'}"
+    if synergy_coverage < 0.5:
+        gw_risk += "; synergy NPV covers less than half the goodwill — significant risk if synergies disappoint"
+    elif synergy_coverage < 1.0:
+        gw_risk += f"; synergy NPV covers only {synergy_coverage:.1f}x the goodwill"
+
+    # FINANCIAL risk
+    if leverage >= 5:
+        lev_label = "Distressed-level"
+        lev_detail = "severely constrained strategic flexibility and high credit risk"
+    elif leverage >= 4:
+        lev_label = "Concerning"
+        lev_detail = "meaningful credit risk with limited financial flexibility"
+    elif leverage >= 3:
+        lev_label = "Elevated"
+        lev_detail = "above-average leverage that will require disciplined deleveraging"
+    elif leverage >= 2:
+        lev_label = "Manageable"
+        lev_detail = "investment-grade-consistent leverage"
+    else:
+        lev_label = "Comfortable"
+        lev_detail = "conservative leverage leaving ample capacity"
+
+    if int_cov > 5:
+        cov_label = "strong coverage cushion"
+    elif int_cov > 3:
+        cov_label = "adequate coverage"
+    elif int_cov > 2:
+        cov_label = "tight coverage — limited margin of safety"
+    else:
+        cov_label = "unsustainable coverage — cash flow stress likely"
+
+    # Deleveraging timeline estimate
+    delev_str = ""
+    if combined_fcf > 0 and pro_forma.pf_net_debt > 0 and pro_forma.pf_ebitda > 0:
+        target_debt = 2.5 * pro_forma.pf_ebitda
+        excess_debt = pro_forma.pf_net_debt - target_debt
+        if excess_debt > 0:
+            years_to_delever = excess_debt / (combined_fcf * 0.5)
+            delev_str = f" Estimated ~{years_to_delever:.1f} years to delever to 2.5x at 50% FCF allocation."
+        else:
+            delev_str = " Already below 2.5x target — no deleveraging needed."
+
+    # INTEGRATION risk
+    if same_industry:
+        integ_detail = (
+            f"Same-industry deal reduces business model risk but increases integration complexity "
+            f"from overlapping functions — expect headcount redundancies, systems consolidation, "
+            f"and potential customer churn during transition."
+        )
+    elif same_sector:
+        integ_detail = (
+            f"Adjacent-sector combination has moderate integration complexity — shared support functions "
+            f"but different operating models and customer bases require careful coordination."
+        )
+    else:
+        integ_detail = (
+            f"Cross-sector diversification minimizes operational overlap but maximizes cultural integration risk "
+            f"— fundamentally different business processes, metrics, and talent requirements."
+        )
+
+    # EXECUTION risk
+    if deal_size_pct > 50:
+        exec_label = "transformative acquisition with significant execution risk"
+        exec_detail = f"At {deal_size_pct:.0f}% of acquirer market cap, this is a bet-the-company deal requiring flawless execution"
+    elif deal_size_pct > 10:
+        exec_label = "material bolt-on with meaningful execution demands"
+        exec_detail = f"At {deal_size_pct:.0f}% of acquirer market cap, management bandwidth will be substantially consumed"
+    else:
+        exec_label = "tuck-in with manageable complexity"
+        exec_detail = f"At {deal_size_pct:.0f}% of acquirer market cap, execution risk is contained"
+
+    # MARKET risk
+    if assumptions.pct_stock > 60:
+        mix_risk = f"The {assumptions.pct_stock:.0f}% stock consideration exposes the deal to acquirer share price volatility and creates dilution risk"
+    elif assumptions.pct_stock > 30:
+        mix_risk = f"The {assumptions.pct_cash:.0f}/{assumptions.pct_stock:.0f} cash/stock mix balances dilution against leverage"
+    else:
+        mix_risk = f"The heavily cash-funded structure ({assumptions.pct_cash:.0f}%) limits dilution but adds balance sheet risk"
+
+    # Check if accretion relies on synergies
+    accretion_ex_syn = pro_forma.accretion_dilution_pct  # approximate — full strip would need recalc
+    market_detail = (
+        f"Deal is {pro_forma.accretion_dilution_pct:+.1f}% "
+        f"{'accretive' if pro_forma.is_accretive else 'dilutive'} to EPS. "
+        f"{mix_risk}."
+    )
+
     risks = (
-        f"- [ANTITRUST] {'High overlap risk — same industry may attract regulatory scrutiny' if same_industry else 'Low antitrust risk — different industries minimize overlap concerns'}\n"
-        f"- [INTEGRATION] Integration complexity is {'high' if not same_sector else 'moderate'} given "
-        f"{'different' if not same_sector else 'similar'} business models and operations.\n"
-        f"- [FINANCIAL] Pro forma leverage of {(pro_forma.pf_leverage_ratio or 0):.1f}x is {leverage_risk}. "
-        f"Interest coverage at {(pro_forma.pf_interest_coverage or 0):.1f}x {'provides adequate cushion' if (pro_forma.pf_interest_coverage or 0) > 3 else 'is tight'}.\n"
-        f"- [EXECUTION] Management must integrate operations while maintaining business momentum.\n"
-        f"- [MARKET] Deal is {pro_forma.accretion_dilution_pct:+.1f}% "
-        f"{'accretive' if pro_forma.is_accretive else 'dilutive'} to EPS — "
-        f"{'positive' if pro_forma.is_accretive else 'negative'} initial market reception expected."
+        f"- [VALUATION] {val_severity} valuation risk. {val_detail}. {gw_risk}.\n"
+        f"- [FINANCIAL] {lev_label} — pro forma leverage of {leverage:.1f}x implies {lev_detail}. "
+        f"Interest coverage at {int_cov:.1f}x represents {cov_label}.{delev_str}\n"
+        f"- [INTEGRATION] {integ_detail}\n"
+        f"- [EXECUTION] This is a {exec_label}. {exec_detail}.\n"
+        f"- [MARKET] {market_detail}"
     )
 
-    # Synergy assessment
+    # ── Synergy Assessment (unchanged) ────────────────────
     synergy = (
         f"- Cost synergies of {format_number(pro_forma.cost_synergies, currency_symbol=cs)} "
         f"({assumptions.cost_synergies_pct:.0f}% of target SG&A) are "
@@ -1070,29 +1289,134 @@ def _fallback_merger_insights(acq, tgt, pro_forma, assumptions) -> MergerInsight
         f"goodwill of {format_number(pro_forma.goodwill, currency_symbol=cs)}."
     )
 
-    # Deal verdict & grade
-    score = 0
-    if pro_forma.is_accretive:
-        score += 2
-    if (pro_forma.pf_leverage_ratio or 99) < 3.5:
-        score += 1
-    if same_sector:
-        score += 1
-    if assumptions.offer_premium_pct <= 35:
-        score += 1
+    # ── Deal Verdict & Grade (weighted multi-factor) ──────
 
-    grade_map = {5: "A", 4: "A", 3: "B", 2: "C", 1: "D", 0: "F"}
-    grade = grade_map.get(score, "C")
+    # Accretion/Dilution (25 pts)
+    ad = pro_forma.accretion_dilution_pct
+    if ad > 5:
+        pts_ad = 25
+    elif ad > 2:
+        pts_ad = 20
+    elif ad > 0:
+        pts_ad = 15
+    elif ad > -2:
+        pts_ad = 8
+    else:
+        pts_ad = 0
+
+    # Leverage (20 pts)
+    if leverage < 2.5:
+        pts_lev = 20
+    elif leverage < 3.5:
+        pts_lev = 15
+    elif leverage < 4.5:
+        pts_lev = 8
+    else:
+        pts_lev = 0
+
+    # Premium vs Synergy Coverage (20 pts)
+    if synergy_coverage > 1.5:
+        pts_syn = 20
+    elif synergy_coverage > 1.0:
+        pts_syn = 15
+    elif synergy_coverage > 0.5:
+        pts_syn = 8
+    else:
+        pts_syn = 0
+
+    # Strategic Fit (15 pts)
+    if same_industry:
+        pts_fit = 15
+    elif same_sector:
+        pts_fit = 10
+    else:
+        pts_fit = 3
+
+    # Premium Reasonableness (10 pts)
+    if premium < 25:
+        pts_prem = 10
+    elif premium <= 35:
+        pts_prem = 8
+    elif premium <= 50:
+        pts_prem = 4
+    else:
+        pts_prem = 0
+
+    # Interest Coverage (10 pts)
+    if int_cov > 5:
+        pts_cov = 10
+    elif int_cov > 3:
+        pts_cov = 7
+    elif int_cov > 2:
+        pts_cov = 3
+    else:
+        pts_cov = 0
+
+    total_score = pts_ad + pts_lev + pts_syn + pts_fit + pts_prem + pts_cov
+
+    if total_score >= 80:
+        grade = "A"
+    elif total_score >= 60:
+        grade = "B"
+    elif total_score >= 40:
+        grade = "C"
+    elif total_score >= 20:
+        grade = "D"
+    else:
+        grade = "F"
+
+    # Recommendation
+    if grade in ("A", "B"):
+        recommendation = "proceed" if grade == "A" else "proceed with reservations"
+    elif grade == "C":
+        recommendation = "marginal — renegotiate terms or walk away"
+    else:
+        recommendation = "walk away"
+
+    # Value creative/destructive
+    value_judgment = "value-creative" if pro_forma.is_accretive and synergy_coverage >= 0.8 else \
+                     "marginally accretive but premium-heavy" if pro_forma.is_accretive else \
+                     "value-destructive"
+
+    # Quantified bull case
+    upside_synergies = pro_forma.total_synergies * 1.25
+    upside_eps_est = pro_forma.pf_eps * 1.02 if pro_forma.pf_eps else 0  # rough approximation
+
+    # Quantified bear case
+    bear_syn = pro_forma.total_synergies * 0.5
+    bear_leverage = leverage * 1.15  # integration costs add ~15% to debt load
+
+    # Key condition
+    if pts_lev <= 8:
+        key_condition = "Successful deleveraging to below 3.5x within 24 months is the make-or-break condition."
+    elif pts_syn <= 8:
+        key_condition = "Realizing at least 75% of announced synergies within the first 2 years is the critical success factor."
+    elif pts_ad == 0:
+        key_condition = "Achieving EPS accretion by Year 2 is essential to justify the premium paid."
+    elif not same_sector:
+        key_condition = "Management's ability to operate a diversified business without losing focus on the core is the key risk."
+    else:
+        key_condition = "Speed of integration execution — the faster synergies are captured, the more value is created for shareholders."
+
+    # Score breakdown for transparency
+    score_detail = f"Score: {total_score}/100 (Accretion {pts_ad}/25, Leverage {pts_lev}/20, Synergy Coverage {pts_syn}/20, Strategic Fit {pts_fit}/15, Premium {pts_prem}/10, Coverage {pts_cov}/10)"
 
     verdict = (
-        f"- Overall: This deal is {grade}-rated. The combination "
-        f"{'creates' if pro_forma.is_accretive else 'initially destroys'} shareholder value "
-        f"with {pro_forma.accretion_dilution_pct:+.1f}% EPS impact. "
-        f"Pro forma leverage of {(pro_forma.pf_leverage_ratio or 0):.1f}x is {leverage_risk}.\n"
-        f"- Bull case: synergies exceed expectations, cross-selling drives revenue growth, "
-        f"and rapid deleveraging improves credit profile.\n"
-        f"- Bear case: integration challenges delay synergy capture, market conditions deteriorate, "
-        f"and leverage constrains strategic flexibility."
+        f"- [OVERALL] This deal is {value_judgment} for {acq.name} shareholders. "
+        f"The {pro_forma.accretion_dilution_pct:+.1f}% EPS impact and {premium:.0f}% premium are "
+        f"{'supported' if synergy_coverage >= 1.0 else 'not fully justified'} by synergy NPV of "
+        f"{format_number(pro_forma.synergy_npv, currency_symbol=cs)} against goodwill of "
+        f"{format_number(pro_forma.goodwill, currency_symbol=cs)} ({synergy_coverage:.1f}x coverage). "
+        f"Recommendation: {recommendation}. {score_detail}.\n"
+        f"- [BULL CASE] If cost synergies reach {format_number(upside_synergies, currency_symbol=cs)} "
+        f"(25% above base case) and revenue synergies fully materialize, "
+        f"the combined entity generates {format_number(pro_forma.pf_ebitda, currency_symbol=cs)} EBITDA "
+        f"with improving margins — accelerating deleveraging and driving re-rating potential.\n"
+        f"- [BEAR CASE] If only 50% of synergies ({format_number(bear_syn, currency_symbol=cs)}) materialize "
+        f"and integration costs exceed plan, pro forma leverage could reach ~{bear_leverage:.1f}x "
+        f"with {'meaningful dilution to EPS' if not pro_forma.is_accretive else 'accretion narrowing to breakeven'} "
+        f"— risking credit downgrade and shareholder value erosion.\n"
+        f"- [KEY CONDITION] {key_condition}"
     )
 
     return MergerInsights(
@@ -1123,7 +1447,7 @@ def generate_merger_insights(acq, tgt, pro_forma, assumptions) -> MergerInsights
 
     # Deal Risks
     try:
-        text = _call_llm(_build_deal_risks_prompt(acq, tgt, pro_forma), max_tokens=1500)
+        text = _call_llm(_build_deal_risks_prompt(acq, tgt, pro_forma, assumptions), max_tokens=1500)
         sections = _parse_merger_sections(text)
         insights.deal_risks = sections.get("deal_risks", "")
     except Exception as e:

@@ -2825,11 +2825,36 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     # M9. AI STRATEGIC RATIONALE
     # ══════════════════════════════════════════════════════
     _section("Strategic Rationale")
+
+    _sr_tag_config = [
+        ("[DEAL LOGIC]", "Deal Logic", "#6B5CE7", "rgba(107,92,231,0.06)", "rgba(107,92,231,0.3)"),
+        ("[FINANCIAL MERIT]", "Financial Merit", "#E8638B", "rgba(232,99,139,0.06)", "rgba(232,99,139,0.3)"),
+        ("[STRATEGIC FIT]", "Strategic Fit", "#10B981", "rgba(16,185,129,0.06)", "rgba(16,185,129,0.3)"),
+        ("[COMPETITIVE POSITIONING]", "Competitive Positioning", "#F5A623", "rgba(245,166,35,0.06)", "rgba(245,166,35,0.3)"),
+    ]
+
     for line in merger_insights.strategic_rationale.split("\n"):
         line = line.strip()
         if line.startswith("- "):
             line = line[2:]
-        if line:
+        if not line:
+            continue
+        matched_tag = False
+        for tag, label, color, bg, border in _sr_tag_config:
+            if line.startswith(tag):
+                line = line[len(tag):].strip()
+                st.markdown(
+                    f'<div style="border-left:3px solid {border}; background:{bg}; '
+                    f'padding:0.5rem 0.8rem; margin-bottom:0.5rem; border-radius:0 8px 8px 0;">'
+                    f'<div style="font-size:0.7rem; font-weight:700; color:{color}; text-transform:uppercase; '
+                    f'letter-spacing:0.5px; margin-bottom:0.2rem;">{label}</div>'
+                    f'<div style="font-size:0.86rem; color:#B8B3D7; line-height:1.7;">{line}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+                matched_tag = True
+                break
+        if not matched_tag and line:
             st.markdown(f"<div style='font-size:0.88rem; color:#B8B3D7; line-height:1.7; padding:0.2rem 0;'>&bull; {line}</div>", unsafe_allow_html=True)
 
     _divider()
@@ -2838,31 +2863,65 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     # M10. AI DEAL RISKS
     # ══════════════════════════════════════════════════════
     _section("Deal Risk Assessment")
+
+    _risk_tag_config = [
+        ("[VALUATION]", "Valuation", "#EF4444", "rgba(239,68,68,0.06)", "rgba(239,68,68,0.3)"),
+        ("[FINANCIAL]", "Financial", "#E8638B", "rgba(232,99,139,0.06)", "rgba(232,99,139,0.3)"),
+        ("[INTEGRATION]", "Integration", "#F5A623", "rgba(245,166,35,0.06)", "rgba(245,166,35,0.3)"),
+        ("[EXECUTION]", "Execution", "#6B5CE7", "rgba(107,92,231,0.06)", "rgba(107,92,231,0.3)"),
+        ("[MARKET]", "Market", "#10B981", "rgba(16,185,129,0.06)", "rgba(16,185,129,0.3)"),
+        # Legacy tag support
+        ("[ANTITRUST]", "Antitrust", "#EF4444", "rgba(239,68,68,0.06)", "rgba(239,68,68,0.3)"),
+    ]
+
+    # Severity keyword tinting — override base colors for high-severity language
+    _high_severity_words = {"distressed", "unsustainable", "aggressive", "concerning", "substantial", "significant", "elevated", "transformative"}
+    _low_severity_words = {"manageable", "adequate", "comfortable", "low", "conservative", "modest", "contained"}
+
     for line in merger_insights.deal_risks.split("\n"):
         line = line.strip()
         if line.startswith("- "):
             line = line[2:]
         if not line:
             continue
-        severity_color = "#8A85AD"
-        severity_bg = "rgba(138,133,173,0.05)"
-        severity_border = "rgba(138,133,173,0.2)"
-        for tag, color, bg, border in [
-            ("[ANTITRUST]", "#EF4444", "rgba(239,68,68,0.06)", "rgba(239,68,68,0.3)"),
-            ("[INTEGRATION]", "#F5A623", "rgba(245,166,35,0.06)", "rgba(245,166,35,0.3)"),
-            ("[FINANCIAL]", "#E8638B", "rgba(232,99,139,0.06)", "rgba(232,99,139,0.3)"),
-            ("[EXECUTION]", "#6B5CE7", "rgba(107,92,231,0.06)", "rgba(107,92,231,0.3)"),
-            ("[MARKET]", "#10B981", "rgba(16,185,129,0.06)", "rgba(16,185,129,0.3)"),
-        ]:
+
+        tag_label = ""
+        tag_color = "#8A85AD"
+        tag_bg = "rgba(138,133,173,0.05)"
+        tag_border = "rgba(138,133,173,0.2)"
+
+        for tag, label, color, bg, border in _risk_tag_config:
             if line.startswith(tag):
                 line = line[len(tag):].strip()
-                severity_color = color
-                severity_bg = bg
-                severity_border = border
+                tag_label = label
+                tag_color = color
+                tag_bg = bg
+                tag_border = border
                 break
+
+        # Severity-based tint adjustment
+        line_lower = line.lower()
+        has_high = any(w in line_lower for w in _high_severity_words)
+        has_low = any(w in line_lower for w in _low_severity_words)
+
+        if has_high and not has_low:
+            severity_indicator = '<span style="color:#EF4444; font-size:0.7rem; margin-left:0.4rem;">&#9650; ELEVATED</span>'
+        elif has_low and not has_high:
+            severity_indicator = '<span style="color:#10B981; font-size:0.7rem; margin-left:0.4rem;">&#9660; LOW</span>'
+        else:
+            severity_indicator = ""
+
+        header_html = ""
+        if tag_label:
+            header_html = (
+                f'<div style="font-size:0.7rem; font-weight:700; color:{tag_color}; text-transform:uppercase; '
+                f'letter-spacing:0.5px; margin-bottom:0.2rem;">{tag_label}{severity_indicator}</div>'
+            )
+
         st.markdown(
-            f'<div style="border-left:3px solid {severity_border}; background:{severity_bg}; '
-            f'padding:0.5rem 0.8rem; margin-bottom:0.4rem; border-radius:0 8px 8px 0;">'
+            f'<div style="border-left:3px solid {tag_border}; background:{tag_bg}; '
+            f'padding:0.5rem 0.8rem; margin-bottom:0.5rem; border-radius:0 8px 8px 0;">'
+            f'{header_html}'
             f'<div style="font-size:0.86rem; color:#B8B3D7; line-height:1.7;">{line}</div>'
             f'</div>',
             unsafe_allow_html=True,
@@ -2887,11 +2946,38 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         unsafe_allow_html=True,
     )
 
+    _verdict_tag_config = {
+        "[OVERALL]": ("Overall Assessment", None, "rgba(255,255,255,0.04)", "rgba(138,133,173,0.3)"),
+        "[BULL CASE]": ("Bull Case", "#10B981", "rgba(16,185,129,0.06)", "rgba(16,185,129,0.35)"),
+        "[BEAR CASE]": ("Bear Case", "#EF4444", "rgba(239,68,68,0.06)", "rgba(239,68,68,0.35)"),
+        "[KEY CONDITION]": ("Key Condition", "#F5A623", "rgba(245,166,35,0.08)", "rgba(245,166,35,0.35)"),
+    }
+
     for line in merger_insights.deal_verdict.split("\n"):
         line = line.strip()
         if line.startswith("- "):
             line = line[2:]
-        if line:
+        if not line:
+            continue
+
+        matched_tag = False
+        for tag, (label, color, bg, border) in _verdict_tag_config.items():
+            if line.startswith(tag):
+                line = line[len(tag):].strip()
+                header_color = color or "#B8B3D7"
+                st.markdown(
+                    f'<div style="border-left:3px solid {border}; background:{bg}; '
+                    f'padding:0.6rem 0.8rem; margin-bottom:0.5rem; border-radius:0 8px 8px 0;">'
+                    f'<div style="font-size:0.7rem; font-weight:700; color:{header_color}; text-transform:uppercase; '
+                    f'letter-spacing:0.5px; margin-bottom:0.2rem;">{label}</div>'
+                    f'<div style="font-size:0.86rem; color:#B8B3D7; line-height:1.7;">{line}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+                matched_tag = True
+                break
+
+        if not matched_tag and line:
             st.markdown(f"<div style='font-size:0.88rem; color:#B8B3D7; line-height:1.7; padding:0.2rem 0;'>&bull; {line}</div>", unsafe_allow_html=True)
 
     _divider()
