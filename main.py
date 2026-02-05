@@ -251,6 +251,50 @@ html, body, [class*="css"] {{
     from {{ transform: rotate(0deg); }}
     to {{ transform: rotate(360deg); }}
 }}
+@keyframes slideInLeft {{
+    from {{ opacity: 0; transform: translateX(-20px); }}
+    to {{ opacity: 1; transform: translateX(0); }}
+}}
+@keyframes slideInRight {{
+    from {{ opacity: 0; transform: translateX(20px); }}
+    to {{ opacity: 1; transform: translateX(0); }}
+}}
+@keyframes countUp {{
+    from {{ opacity: 0; transform: translateY(8px); }}
+    to {{ opacity: 1; transform: translateY(0); }}
+}}
+@keyframes borderShimmer {{
+    0% {{ background-position: 0% 0%; }}
+    100% {{ background-position: 100% 100%; }}
+}}
+@keyframes cardReveal {{
+    from {{ opacity: 0; transform: translateY(15px) scale(0.98); }}
+    to {{ opacity: 1; transform: none; }}
+}}
+@keyframes pulseRing {{
+    0% {{ transform: scale(1); opacity: 0.6; }}
+    100% {{ transform: scale(1.5); opacity: 0; }}
+}}
+@keyframes sb-border-glow {{
+    0%, 100% {{ border-color: rgba(107,92,231,0.15); }}
+    50% {{ border-color: rgba(107,92,231,0.4); }}
+}}
+@keyframes sb-fill {{
+    from {{ max-width: 0; }}
+    to {{ max-width: 100%; }}
+}}
+@keyframes sb-btn-pulse {{
+    0%, 100% {{ box-shadow: 0 4px 20px rgba(107,92,231,0.3); }}
+    50% {{ box-shadow: 0 4px 30px rgba(107,92,231,0.55); }}
+}}
+@keyframes orbBreath1 {{
+    0%, 100% {{ filter: blur(80px) hue-rotate(0deg); }}
+    50% {{ filter: blur(80px) hue-rotate(30deg); }}
+}}
+@keyframes orbBreath4 {{
+    0%, 100% {{ filter: blur(90px) hue-rotate(0deg); }}
+    50% {{ filter: blur(90px) hue-rotate(30deg); }}
+}}
 
 /* ── SIDEBAR ─────────────────────────────────────────────── */
 section[data-testid="stSidebar"] {{
@@ -293,6 +337,71 @@ section[data-testid="stSidebar"] .stButton > button:hover {{
 }}
 section[data-testid="stSidebar"] hr {{
     border-color: rgba(107,92,231,0.2) !important;
+}}
+
+/* ── SIDEBAR CARDS (merger mode) ────────────────────────── */
+.sb-card {{
+    background: rgba(107,92,231,0.06);
+    border: 1px solid rgba(107,92,231,0.15);
+    border-radius: 14px;
+    padding: 0.8rem 0.9rem 0.6rem;
+    margin-bottom: 0.7rem;
+    animation: sb-border-glow 3s ease-in-out infinite;
+    transition: all 0.25s ease;
+}}
+.sb-card:hover {{
+    transform: translateY(-1px);
+    border-color: rgba(107,92,231,0.35);
+    box-shadow: 0 4px 18px rgba(107,92,231,0.15);
+    animation-play-state: paused;
+}}
+.sb-card-header {{
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #8A85AD !important;
+    margin-bottom: 0.5rem;
+}}
+.sb-split-bar {{
+    display: flex;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 0.5rem 0 0.3rem 0;
+    background: rgba(255,255,255,0.05);
+}}
+.sb-split-cash {{
+    background: linear-gradient(90deg, #6B5CE7, #9B8AFF);
+    border-radius: 4px 0 0 4px;
+    transition: width 0.4s ease;
+    overflow: hidden;
+    animation: sb-fill 0.6s ease-out;
+}}
+.sb-split-stock {{
+    background: linear-gradient(90deg, #E8638B, #F5A4BD);
+    border-radius: 0 4px 4px 0;
+    transition: width 0.4s ease;
+    overflow: hidden;
+    animation: sb-fill 0.6s ease-out;
+}}
+.sb-split-labels {{
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.65rem;
+    font-weight: 600;
+    margin-top: 0.15rem;
+}}
+.sb-split-labels .cash-label {{ color: #9B8AFF !important; }}
+.sb-split-labels .stock-label {{ color: #E8638B !important; }}
+.sb-divider {{
+    height: 1px;
+    border: none;
+    margin: 0.6rem 0;
+    background: linear-gradient(90deg, transparent, rgba(107,92,231,0.3), transparent);
+}}
+section[data-testid="stSidebar"] .stButton > button.sb-analyze {{
+    animation: sb-btn-pulse 2s ease-in-out infinite;
 }}
 
 /* ── HERO / HEADER (profile view) ──────────────────────── */
@@ -365,6 +474,7 @@ section[data-testid="stSidebar"] hr {{
     box-shadow: 0 4px 30px rgba(11,14,26,0.3);
     position: relative;
     overflow: hidden;
+    animation: cardReveal 0.6s ease-out both;
 }}
 .company-card::before {{
     content: '';
@@ -413,6 +523,7 @@ section[data-testid="stSidebar"] hr {{
     margin: 2rem 0 0.8rem 0; padding-bottom: 0.5rem;
     border-bottom: none;
     position: relative;
+    animation: slideInLeft 0.5s ease-out both;
 }}
 .section-header::after {{
     content: '';
@@ -445,6 +556,7 @@ div[data-testid="stMetric"] {{
     box-shadow: 0 1px 4px rgba(0,0,0,0.1);
     position: relative;
     overflow: hidden;
+    animation: countUp 0.4s ease-out both;
 }}
 div[data-testid="stMetric"]::before {{
     content: '';
@@ -453,9 +565,9 @@ div[data-testid="stMetric"]::before {{
     opacity: 0; transition: opacity 0.3s ease;
 }}
 div[data-testid="stMetric"]:hover {{
-    border-color: rgba(107,92,231,0.5);
-    box-shadow: 0 4px 25px rgba(107,92,231,0.18);
-    transform: translateY(-2px);
+    border-color: rgba(107,92,231,0.3);
+    box-shadow: 0 8px 25px rgba(107,92,231,0.2);
+    transform: translateY(-3px);
 }}
 div[data-testid="stMetric"]:hover::before {{
     opacity: 1;
@@ -539,10 +651,12 @@ div[data-testid="stMetric"] div[data-testid="stMetricValue"] {{
     overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1);
     backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
     transition: all 0.3s ease;
+    animation: fadeInScale 0.5s ease-out both;
 }}
 .stPlotlyChart:hover {{
     border-color: rgba(107,92,231,0.4);
     box-shadow: 0 4px 20px rgba(107,92,231,0.2);
+    transform: scale(1.005);
 }}
 
 /* ── RADIO BUTTONS ──────────────────────────────────────── */
@@ -652,7 +766,7 @@ st.markdown(f"""
     background: rgba(107,92,231,0.12);
     filter: blur(80px);
     top: 10%; left: 5%;
-    animation: float1 20s ease-in-out infinite;
+    animation: float1 20s ease-in-out infinite, orbBreath1 10s ease-in-out infinite;
 }}
 .orb-2 {{
     width: 160px; height: 160px;
@@ -673,7 +787,7 @@ st.markdown(f"""
     background: rgba(155,138,255,0.08);
     filter: blur(90px);
     bottom: 10%; left: 30%;
-    animation: float4 25s ease-in-out infinite;
+    animation: float4 25s ease-in-out infinite, orbBreath4 12s ease-in-out 3s infinite;
 }}
 .orb-5 {{
     width: 100px; height: 100px;
@@ -703,6 +817,16 @@ st.markdown(f"""
 .shooting-star-3 {{
     top: 25%; right: -120px;
     animation: shootingStar 12s ease-in-out 8s infinite;
+}}
+.shooting-star-4 {{
+    top: 55%; right: -120px;
+    animation: shootingStar 15s ease-in-out 11s infinite;
+    transform: rotate(-8deg);
+}}
+.shooting-star-5 {{
+    top: 8%; right: -120px;
+    animation: shootingStar 20s ease-in-out 16s infinite;
+    transform: rotate(5deg);
 }}
 
 /* Noise/grain overlay */
@@ -735,11 +859,11 @@ st.markdown(f"""
     text-shadow: 0 0 60px rgba(107,92,231,0.3);
 }}
 .splash-accent {{
-    background: linear-gradient(135deg, #9B8AFF, #E8638B, #F5A623);
-    background-size: 200% 200%;
+    background: linear-gradient(135deg, #9B8AFF, #E8638B, #F5A623, #9B8AFF);
+    background-size: 200% auto;
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     background-clip: text;
-    animation: gradientShift 6s ease infinite;
+    animation: shimmer 3s linear infinite;
 }}
 .splash-subtitle {{
     font-size: 1.2rem; color: #B8B3D7; margin-top: 0.8rem;
@@ -753,6 +877,26 @@ st.markdown(f"""
 .splash-stat-value {{
     font-size: 1.8rem; font-weight: 800; color: #fff;
     animation: gentlePulse 3s ease-in-out infinite;
+    position: relative;
+}}
+.splash-stat {{
+    position: relative;
+}}
+.splash-stat:nth-child(1) .splash-stat-value {{ animation-delay: 0s; }}
+.splash-stat:nth-child(2) .splash-stat-value {{ animation-delay: 0.5s; }}
+.splash-stat:nth-child(3) .splash-stat-value {{ animation-delay: 1.0s; }}
+.splash-stat-icon {{
+    position: relative;
+    display: inline-block;
+}}
+.splash-stat-icon::before {{
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 2px solid rgba(107,92,231,0.4);
+    animation: pulseRing 2s ease-out infinite;
+    pointer-events: none;
 }}
 .splash-stat-label {{
     font-size: 0.7rem; color: #A8A3C7; text-transform: uppercase;
@@ -1780,28 +1924,48 @@ with st.sidebar:
         ticker_input = ""
         generate_btn = False
 
+        # ── Card 1: Tickers ──
+        st.markdown('<div class="sb-card"><div class="sb-card-header">&#9670; Tickers</div>', unsafe_allow_html=True)
         acquirer_input = st.text_input(
             "Acquirer Ticker", value="MSFT", max_chars=10,
-            help="Acquiring company ticker"
+            label_visibility="collapsed", placeholder="Acquirer (e.g. MSFT)",
         ).strip().upper()
         target_input = st.text_input(
             "Target Ticker", value="ATVI", max_chars=10,
-            help="Target company ticker"
+            label_visibility="collapsed", placeholder="Target (e.g. ATVI)",
         ).strip().upper()
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown('<div style="font-size:0.75rem; font-weight:600; color:#8A85AD; text-transform:uppercase; letter-spacing:1px; margin:0.8rem 0 0.3rem 0;">Deal Assumptions</div>', unsafe_allow_html=True)
-
+        # ── Card 2: Deal Structure ──
+        st.markdown('<div class="sb-card"><div class="sb-card-header">&#9670; Deal Structure</div>', unsafe_allow_html=True)
         offer_premium = st.slider("Offer Premium (%)", 0, 100, 30, 5)
         pct_cash = st.slider("Cash Consideration (%)", 0, 100, 50, 5)
         pct_stock = 100 - pct_cash
-        st.caption(f"Stock: {pct_stock}%")
+        st.markdown(
+            f'<div class="sb-split-bar">'
+            f'<div class="sb-split-cash" style="width:{pct_cash}%"></div>'
+            f'<div class="sb-split-stock" style="width:{pct_stock}%"></div>'
+            f'</div>'
+            f'<div class="sb-split-labels">'
+            f'<span class="cash-label">Cash {pct_cash}%</span>'
+            f'<span class="stock-label">Stock {pct_stock}%</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
 
+        # ── Card 3: Synergies ──
+        st.markdown('<div class="sb-card"><div class="sb-card-header">&#9670; Synergies</div>', unsafe_allow_html=True)
         cost_syn = st.slider("Cost Synergies (% of Target SG&A)", 0, 30, 10, 1)
         rev_syn = st.slider("Revenue Synergies (% of Target Rev)", 0, 10, 2, 1)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        with st.expander("Advanced"):
-            adv_tax_rate = st.slider("Tax Rate (%)", 10, 40, 25, 1)
-            adv_cost_of_debt = st.slider("Cost of Debt (%)", 2.0, 10.0, 5.0, 0.5)
+        # ── Card 4: Financing & Fees ──
+        st.markdown('<div class="sb-card"><div class="sb-card-header">&#9670; Financing &amp; Fees</div>', unsafe_allow_html=True)
+        txn_fees = st.slider("Transaction Fees (%)", 0.5, 5.0, 2.0, 0.5)
+        adv_cost_of_debt = st.slider("Cost of Debt (%)", 2.0, 10.0, 5.0, 0.5)
+        adv_tax_rate = st.slider("Tax Rate (%)", 10, 40, 25, 1)
+        st.markdown('</div>', unsafe_allow_html=True)
 
         merger_assumptions = MergerAssumptions(
             offer_premium_pct=offer_premium,
@@ -1809,10 +1973,12 @@ with st.sidebar:
             pct_stock=pct_stock,
             cost_synergies_pct=cost_syn,
             revenue_synergies_pct=rev_syn,
+            transaction_fees_pct=txn_fees,
             tax_rate=adv_tax_rate,
             cost_of_debt=adv_cost_of_debt,
         )
 
+        st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
         merger_btn = st.button("Analyze Deal", type="primary", use_container_width=True)
 
     st.markdown("---")
@@ -3050,6 +3216,8 @@ else:
             '<div class="shooting-star shooting-star-1">&#8203;</div>'
             '<div class="shooting-star shooting-star-2">&#8203;</div>'
             '<div class="shooting-star shooting-star-3">&#8203;</div>'
+            '<div class="shooting-star shooting-star-4">&#8203;</div>'
+            '<div class="shooting-star shooting-star-5">&#8203;</div>'
             '<div class="noise-overlay">&#8203;</div>'
             '<div class="title-glow">&#8203;</div>'
             '<div class="splash-content">'
@@ -3063,9 +3231,9 @@ else:
             '<span class="feature-pill">Deal Book PPTX</span>'
             '</div>'
             '<div class="splash-stats">'
-            '<div><div class="splash-stat-value">12</div><div class="splash-stat-label">Dashboard Sections</div></div>'
-            '<div><div class="splash-stat-value">10</div><div class="splash-stat-label">Deal Book Slides</div></div>'
-            '<div><div class="splash-stat-value">4</div><div class="splash-stat-label">AI Analyses</div></div>'
+            '<div class="splash-stat"><div class="splash-stat-value">12</div><div class="splash-stat-label">Dashboard Sections</div></div>'
+            '<div class="splash-stat"><div class="splash-stat-value">10</div><div class="splash-stat-label">Deal Book Slides</div></div>'
+            '<div class="splash-stat"><div class="splash-stat-value">4</div><div class="splash-stat-label">AI Analyses</div></div>'
             '</div>'
             '</div>'
             '</div>',
@@ -3114,6 +3282,8 @@ else:
             '<div class="shooting-star shooting-star-1">&#8203;</div>'
             '<div class="shooting-star shooting-star-2">&#8203;</div>'
             '<div class="shooting-star shooting-star-3">&#8203;</div>'
+            '<div class="shooting-star shooting-star-4">&#8203;</div>'
+            '<div class="shooting-star shooting-star-5">&#8203;</div>'
             '<div class="noise-overlay">&#8203;</div>'
             '<div class="title-glow">&#8203;</div>'
             '<div class="splash-content">'
@@ -3127,9 +3297,9 @@ else:
             '<span class="feature-pill">Global Exchanges</span>'
             '</div>'
             '<div class="splash-stats">'
-            '<div><div class="splash-stat-value">60+</div><div class="splash-stat-label">Data Points</div></div>'
-            '<div><div class="splash-stat-value">8</div><div class="splash-stat-label">PPTX Slides</div></div>'
-            '<div><div class="splash-stat-value">20+</div><div class="splash-stat-label">Exchanges</div></div>'
+            '<div class="splash-stat"><div class="splash-stat-value">60+</div><div class="splash-stat-label">Data Points</div></div>'
+            '<div class="splash-stat"><div class="splash-stat-value">8</div><div class="splash-stat-label">PPTX Slides</div></div>'
+            '<div class="splash-stat"><div class="splash-stat-value">20+</div><div class="splash-stat-label">Exchanges</div></div>'
             '</div>'
             '</div>'
             '</div>',
