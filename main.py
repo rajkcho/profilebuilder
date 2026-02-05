@@ -43,6 +43,48 @@ _STARS1 = _gen_stars(80)
 _STARS2 = _gen_stars(50)
 _STARS3 = _gen_stars(30)
 
+# ── Chart visual helpers ──────────────────────────────────
+_CHART_LAYOUT_BASE = dict(
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(family="Inter"),
+    hoverlabel=dict(
+        bgcolor="rgba(11,14,26,0.95)",
+        bordercolor="rgba(107,92,231,0.4)",
+        font=dict(size=11, color="#fff", family="Inter"),
+    ),
+    hovermode="x unified",
+)
+
+def _apply_space_grid(fig, show_x_grid=False, show_y_grid=True):
+    """Apply purple-tinted dot grid for space-coordinate look."""
+    if show_y_grid:
+        fig.update_yaxes(gridcolor="rgba(107,92,231,0.08)", griddash="dot")
+    if show_x_grid:
+        fig.update_xaxes(gridcolor="rgba(107,92,231,0.08)", griddash="dot")
+
+def _glow_line_traces(fig, x, y, color, name, width=2.5, glow_width=8, yaxis=None):
+    """Add a neon glow effect: wide transparent underlay + sharp main line."""
+    # Parse hex color to rgba for glow
+    glow_color = color
+    if color.startswith("#") and len(color) == 7:
+        r, g, b = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
+        glow_color = f"rgba({r},{g},{b},0.15)"
+    # Glow underlay
+    fig.add_trace(go.Scatter(
+        x=x, y=y, mode="lines", name=name,
+        line=dict(color=glow_color, width=glow_width),
+        showlegend=False, hoverinfo="skip",
+        yaxis=yaxis,
+    ))
+    # Main line
+    fig.add_trace(go.Scatter(
+        x=x, y=y, mode="lines+markers", name=name,
+        line=dict(color=color, width=width),
+        marker=dict(size=7, line=dict(color="#fff", width=1.5)),
+        yaxis=yaxis,
+    ))
+
 # ── Global animated starfield (visible on ALL pages) ──────────
 st.markdown(
     '<div class="global-starfield">'
@@ -309,6 +351,42 @@ html, body, [class*="css"] {{
 @keyframes chartGlow {{
     0%, 100% {{ box-shadow: 0 2px 15px rgba(107,92,231,0.15); }}
     50%      {{ box-shadow: 0 8px 35px rgba(107,92,231,0.3); }}
+}}
+/* Elastic bounce for chart containers — chartscss.org inspired */
+@keyframes chartBounceIn {{
+    0%   {{ transform: scale(0.92) translateY(20px); opacity: 0; }}
+    40%  {{ transform: scale(1.03) translateY(-4px); opacity: 1; }}
+    60%  {{ transform: scaleY(0.97) scaleX(1.02); }}
+    80%  {{ transform: scaleY(1.01) scaleX(0.99); }}
+    100% {{ transform: scale(1); }}
+}}
+/* Glow pulse on chart data */
+@keyframes dataGlowPulse {{
+    0%, 100% {{ box-shadow: none; }}
+    50%      {{ box-shadow: 0 0 4px 0 rgba(107,92,231,0.4), 0 0 20px 5px rgba(107,92,231,0.15); }}
+}}
+/* Scanner keyframes (profile loading) */
+@keyframes scannerSweep {{
+    0%, 100% {{ transform: rotate(-15deg); }}
+    50%      {{ transform: rotate(15deg); }}
+}}
+@keyframes scannerLock {{
+    0%   {{ transform: scale(1); filter: drop-shadow(0 0 12px rgba(6,182,212,0.5)); }}
+    50%  {{ transform: scale(1.15); filter: drop-shadow(0 0 25px rgba(16,185,129,0.7)); }}
+    100% {{ transform: scale(1); filter: drop-shadow(0 0 15px rgba(16,185,129,0.5)); }}
+}}
+@keyframes scannerBeamSweep {{
+    0%   {{ transform: scaleX(0.3) rotate(-20deg); opacity: 0.3; }}
+    50%  {{ transform: scaleX(1) rotate(0deg); opacity: 0.8; }}
+    100% {{ transform: scaleX(0.3) rotate(20deg); opacity: 0.3; }}
+}}
+@keyframes scannerRingPulse {{
+    0%   {{ transform: translate(-50%, -50%) scale(1); opacity: 0.4; }}
+    100% {{ transform: translate(-50%, -50%) scale(2); opacity: 0; }}
+}}
+@keyframes scannerPhasePulse {{
+    0%, 100% {{ box-shadow: 0 0 8px rgba(6,182,212,0.2); }}
+    50%      {{ box-shadow: 0 0 20px rgba(6,182,212,0.5), 0 0 40px rgba(6,182,212,0.15); }}
 }}
 
 /* ── SIDEBAR ─────────────────────────────────────────────── */
@@ -669,13 +747,15 @@ div[data-testid="stMetric"] div[data-testid="stMetricValue"] {{
     box-shadow: 0 4px 20px rgba(107,92,231,0.15);
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     background: rgba(107,92,231,0.03);
-    animation: bounceIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-    transition: all 0.3s ease;
+    animation: chartBounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    filter: saturate(0.85);
 }}
 .stPlotlyChart:hover {{
-    border-color: rgba(107,92,231,0.45);
-    box-shadow: 0 12px 40px rgba(107,92,231,0.25);
-    transform: translateY(-4px) scale(1.008);
+    border-color: rgba(107,92,231,0.5);
+    box-shadow: 0 12px 40px rgba(107,92,231,0.3), 0 0 60px rgba(107,92,231,0.08);
+    transform: translateY(-6px) scale(1.012);
+    filter: saturate(1.1);
 }}
 
 /* ── RADIO BUTTONS ──────────────────────────────────────── */
@@ -758,6 +838,146 @@ header {{ visibility: hidden; }}
 /* ── EARNINGS SURPRISE CHART CARD ─────────────────────── */
 .earnings-beat {{ color: #10B981; font-weight: 700; }}
 .earnings-miss {{ color: #EF4444; font-weight: 700; }}
+
+/* ── PROFILE CHART WRAPPER ───────────────────────────── */
+.profile-chart-wrapper {{
+    background: linear-gradient(135deg, rgba(107,92,231,0.04), rgba(6,182,212,0.02));
+    border: 1px solid rgba(107,92,231,0.12);
+    border-radius: 20px; padding: 1.5rem; margin: 0.5rem 0 1rem 0;
+    position: relative; overflow: hidden;
+    animation: chartBounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+               chartGlow 4s ease-in-out 1s infinite;
+}}
+.profile-chart-wrapper::before {{
+    content: '';
+    position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+    background: radial-gradient(circle at 30% 40%, rgba(107,92,231,0.03) 0%, transparent 50%),
+                radial-gradient(circle at 70% 60%, rgba(6,182,212,0.02) 0%, transparent 50%);
+    pointer-events: none;
+    animation: nebulaPulse 20s ease-in-out infinite;
+}}
+
+/* ── SCANNER LOADING (profile mode) ──────────────────── */
+.scanner-control {{
+    background: linear-gradient(170deg, #020515 0%, #0B0E1A 40%, #151933 100%);
+    border-radius: 24px;
+    padding: 2.5rem;
+    min-height: 360px;
+    position: relative;
+    overflow: hidden;
+    animation: fadeInScale 0.5s ease-out both;
+    border: 1px solid rgba(6,182,212,0.2);
+}}
+.scanner-control::before {{
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background:
+        radial-gradient(ellipse at 25% 30%, rgba(6,182,212,0.08) 0%, transparent 55%),
+        radial-gradient(ellipse at 75% 70%, rgba(59,130,246,0.05) 0%, transparent 55%);
+    pointer-events: none;
+}}
+.scanner-control::after {{
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: transparent;
+    box-shadow: {_gen_stars(40, 600)};
+    width: 1px; height: 1px;
+    opacity: 0.4;
+    pointer-events: none;
+}}
+.scanner-dish-container {{
+    text-align: center;
+    height: 100px;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}}
+.scanner-dish {{
+    font-size: 3.5rem;
+    filter: drop-shadow(0 0 12px rgba(6,182,212,0.5));
+    position: relative;
+    z-index: 2;
+}}
+.scanner-dish-scanning {{
+    animation: scannerSweep 2s ease-in-out infinite;
+}}
+.scanner-dish-locked {{
+    animation: scannerLock 1.5s ease-in-out infinite;
+}}
+.scanner-beam {{
+    width: 60px; height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(6,182,212,0.6), transparent);
+    border-radius: 2px;
+    margin: -6px auto 0 auto;
+    animation: scannerBeamSweep 1.5s ease-in-out infinite;
+}}
+.scanner-ring {{
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 1px solid rgba(6,182,212,0.3);
+    transform: translate(-50%, -50%);
+    animation: scannerRingPulse 2s ease-out infinite;
+}}
+.scanner-ring-2 {{
+    animation-delay: 0.7s;
+}}
+.scanner-ring-3 {{
+    animation-delay: 1.4s;
+}}
+/* Cyan accent overrides for scanner */
+.scanner-control .phase-indicator-active {{
+    border-color: rgba(6,182,212,0.5);
+    color: #06B6D4;
+}}
+.scanner-control .phase-indicator-active::after {{
+    border-top-color: #06B6D4;
+}}
+.scanner-control .mission-phase-active {{
+    background: rgba(6,182,212,0.1);
+    border-color: rgba(6,182,212,0.25);
+    animation: scannerPhasePulse 2s ease-in-out infinite;
+}}
+.scanner-control .mission-progress-fill {{
+    background: linear-gradient(90deg, #06B6D4, #3B82F6, #6B5CE7, #06B6D4);
+    background-size: 200% 100%;
+}}
+.scanner-control .mission-progress-fill::after {{
+    box-shadow: 0 0 10px rgba(6,182,212,0.8), 0 0 20px rgba(6,182,212,0.4);
+}}
+.scanner-ticker {{
+    text-align: center;
+    margin-top: 1.2rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    position: relative;
+    z-index: 1;
+}}
+.scanner-ticker span {{
+    font-size: 1rem;
+    font-weight: 800;
+    color: #06B6D4;
+    letter-spacing: 3px;
+    text-shadow: 0 0 15px rgba(6,182,212,0.4);
+}}
+.scanner-dots {{
+    display: inline-block;
+    margin-left: 4px;
+}}
+.scanner-dots span {{
+    display: inline-block;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: #06B6D4;
+    margin: 0 2px;
+    animation: gentlePulse 1.5s ease-in-out infinite;
+}}
+.scanner-dots span:nth-child(2) {{ animation-delay: 0.3s; }}
+.scanner-dots span:nth-child(3) {{ animation-delay: 0.6s; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1383,6 +1603,78 @@ def _render_mission_control(acquirer: str, target: str, current_phase: int, tota
     )
 
 
+# ── HELPER: Profile scanner loading screen ────────────────────
+def _render_profile_scanner(ticker: str, current_phase: int, total_phases: int = 3) -> str:
+    """Return HTML for the animated scanner loading UI for company profiles."""
+    phases = [
+        ("Scanning Financial Databases", "Fetching market data & fundamentals..."),
+        ("Analyzing Financials & Peers", "Comparing against sector peers..."),
+        ("Generating AI Insights", "Building investment thesis..."),
+    ]
+    completed = min(current_phase, total_phases)
+    pct = int((completed / total_phases) * 100)
+
+    # Dish state
+    if current_phase >= total_phases:
+        dish_cls = "scanner-dish scanner-dish-locked"
+        beam_html = ""
+        ring_html = ""
+    else:
+        dish_cls = "scanner-dish scanner-dish-scanning"
+        beam_html = '<div class="scanner-beam"></div>'
+        ring_html = (
+            '<div class="scanner-ring"></div>'
+            '<div class="scanner-ring scanner-ring-2"></div>'
+            '<div class="scanner-ring scanner-ring-3"></div>'
+        )
+
+    # Build phase rows (reuse mission-phase classes)
+    phase_rows = ""
+    for i, (label, sublabel) in enumerate(phases):
+        if i < current_phase:
+            row_cls = "mission-phase mission-phase-complete"
+            ind_cls = "phase-indicator phase-indicator-complete"
+            ind_content = "\u2713"
+        elif i == current_phase:
+            row_cls = "mission-phase mission-phase-active"
+            ind_cls = "phase-indicator phase-indicator-active"
+            ind_content = str(i + 1)
+        else:
+            row_cls = "mission-phase mission-phase-pending"
+            ind_cls = "phase-indicator phase-indicator-pending"
+            ind_content = str(i + 1)
+        phase_rows += (
+            f'<div class="{row_cls}">'
+            f'<div class="{ind_cls}">{ind_content}</div>'
+            f'<div><div class="phase-label">{label}</div>'
+            f'<div class="phase-sublabel">{sublabel}</div></div>'
+            f'</div>'
+        )
+
+    dots = '<span class="scanner-dots"><span></span><span></span><span></span></span>'
+
+    return (
+        f'<div class="scanner-control">'
+        f'<div class="mission-header">'
+        f'<div class="mission-title">Company Scanner</div>'
+        f'<div class="mission-subtitle">Phase {completed} of {total_phases}</div>'
+        f'</div>'
+        f'<div class="scanner-dish-container">'
+        f'<div class="{dish_cls}">\U0001F4E1</div>'
+        f'{beam_html}'
+        f'{ring_html}'
+        f'</div>'
+        f'<div class="mission-progress-track">'
+        f'<div class="mission-progress-fill" style="width:{pct}%;"></div>'
+        f'</div>'
+        f'<div class="mission-phases">{phase_rows}</div>'
+        f'<div class="scanner-ticker">'
+        f'<span>{ticker}</span>{dots}'
+        f'</div>'
+        f'</div>'
+    )
+
+
 # ── HELPER: Section header with accent bar ──────────────────
 def _section(title, icon=""):
     st.markdown(
@@ -1438,26 +1730,28 @@ def _build_peer_radar_chart(cd):
         theta=metrics + [metrics[0]],
         fill='toself', name=cd.ticker,
         fillcolor='rgba(107,92,231,0.15)',
-        line=dict(color='#6B5CE7', width=2.5),
+        line=dict(color='#6B5CE7', width=3),
+        marker=dict(size=8, line=dict(color="#fff", width=1.5)),
     ))
     fig.add_trace(go.Scatterpolar(
         r=norm_peer + [norm_peer[0]],
         theta=metrics + [metrics[0]],
         fill='toself', name='Peer Median',
         fillcolor='rgba(232,99,139,0.08)',
-        line=dict(color='#E8638B', width=2),
+        line=dict(color='#E8638B', width=3),
+        marker=dict(size=7, line=dict(color="#fff", width=1.5)),
     ))
     fig.update_layout(
+        **_CHART_LAYOUT_BASE,
         polar=dict(
             radialaxis=dict(visible=True, range=[0, 120], tickfont=dict(size=8, color="#8A85AD"),
-                            gridcolor="rgba(255,255,255,0.08)"),
+                            gridcolor="rgba(107,92,231,0.1)"),
             angularaxis=dict(tickfont=dict(size=10, color="#8A85AD"),
-                             gridcolor="rgba(255,255,255,0.08)"),
+                             gridcolor="rgba(107,92,231,0.08)"),
             bgcolor="rgba(0,0,0,0)",
         ),
         showlegend=True, height=400,
         margin=dict(t=40, b=40, l=60, r=60),
-        paper_bgcolor="rgba(0,0,0,0)",
         legend=dict(font=dict(size=11, color="#B8B3D7")),
     )
     st.plotly_chart(fig, use_container_width=True)
@@ -1471,10 +1765,14 @@ def _build_revenue_margin_chart(cd, key="rev_margin"):
         return
     rev = cd.revenue.dropna().sort_index()
     years = [idx.strftime("%Y") if hasattr(idx, "strftime") else str(idx) for idx in rev.index]
+    n = len(years)
+    # Progressive alpha — older bars dimmer, newest brightest
+    bar_alphas = [0.35 + 0.45 * (i / max(n - 1, 1)) for i in range(n)]
+    bar_colors = [f"rgba(107,92,231,{a:.2f})" for a in bar_alphas]
     fig = go.Figure()
     fig.add_trace(go.Bar(
         x=years, y=rev.values, name="Revenue",
-        marker_color="rgba(107,92,231,0.6)",
+        marker=dict(color=bar_colors, line=dict(color="rgba(255,255,255,0.15)", width=1)),
         text=[format_number(v, currency_symbol=cd.currency_symbol) for v in rev.values],
         textposition="outside", textfont=dict(size=9, color="#B8B3D7"),
     ))
@@ -1486,24 +1784,20 @@ def _build_revenue_margin_chart(cd, key="rev_margin"):
         if series is not None and len(series) > 0:
             s = series.dropna().sort_index()
             yrs = [idx.strftime("%Y") if hasattr(idx, "strftime") else str(idx) for idx in s.index]
-            fig.add_trace(go.Scatter(
-                x=yrs, y=s.values, name=name, yaxis="y2",
-                line=dict(color=color, width=2.5), mode="lines+markers",
-                marker=dict(size=6),
-            ))
+            _glow_line_traces(fig, yrs, s.values, color, name, yaxis="y2")
     fig.update_layout(
+        **_CHART_LAYOUT_BASE,
         height=380, margin=dict(t=30, b=30, l=50, r=50),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         xaxis=dict(tickfont=dict(size=9, color="#8A85AD"), showgrid=False),
         yaxis=dict(title=dict(text="Revenue", font=dict(size=10, color="#8A85AD")),
-                   gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD")),
+                   tickfont=dict(size=9, color="#8A85AD")),
         yaxis2=dict(title=dict(text="Margin %", font=dict(size=10, color="#8A85AD")),
                     overlaying="y", side="right", showgrid=False,
                     tickfont=dict(size=9, color="#8A85AD"), ticksuffix="%"),
         legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
-        barmode="group", hovermode="x unified",
-        hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
+        barmode="group",
     )
+    _apply_space_grid(fig)
     st.plotly_chart(fig, use_container_width=True, key=key)
 
 
@@ -1525,20 +1819,26 @@ def _build_cashflow_chart(cd, key="cashflow"):
         if series is not None and len(series) > 0:
             s = series.dropna().sort_index()
             years = [idx.strftime("%Y") if hasattr(idx, "strftime") else str(idx) for idx in s.index]
+            nc = len(years)
+            bar_alphas = [0.4 + 0.5 * (i / max(nc - 1, 1)) for i in range(nc)]
+            # Parse hex to build progressive rgba
+            r, g, b = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
+            bar_cols = [f"rgba({r},{g},{b},{a:.2f})" for a in bar_alphas]
             fig.add_trace(go.Bar(
                 x=years, y=s.values, name=name,
-                marker_color=color, opacity=0.85,
+                marker=dict(color=bar_cols, line=dict(color="rgba(255,255,255,0.15)", width=1)),
             ))
+    fig.add_hline(y=0, line_dash="dot", line_color="rgba(255,255,255,0.15)", line_width=1)
     fig.update_layout(
+        **_CHART_LAYOUT_BASE,
         height=380, margin=dict(t=30, b=30, l=50, r=50),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         xaxis=dict(tickfont=dict(size=9, color="#8A85AD"), showgrid=False),
         yaxis=dict(title=dict(text="Amount", font=dict(size=10, color="#8A85AD")),
-                   gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD")),
+                   tickfont=dict(size=9, color="#8A85AD")),
         legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
-        barmode="group", hovermode="x unified",
-        hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
+        barmode="group",
     )
+    _apply_space_grid(fig)
     st.plotly_chart(fig, use_container_width=True, key=key)
 
 
@@ -1553,16 +1853,22 @@ def _build_balance_sheet_chart(cd, key="balance_sheet"):
         st.info("Balance sheet data not available for chart.")
         return
     fig = go.Figure()
-    # Stacked bars: equity + debt
-    for series, name, color in [
-        (cd.total_equity, "Equity", "rgba(107,92,231,0.6)"),
-        (cd.total_debt, "Debt", "rgba(239,68,68,0.5)"),
+    # Stacked bars: equity + debt with progressive alpha
+    for series, name, base_rgba in [
+        (cd.total_equity, "Equity", (107, 92, 231)),
+        (cd.total_debt, "Debt", (239, 68, 68)),
     ]:
         if series is not None and len(series) > 0:
             s = series.dropna().sort_index()
             years = [idx.strftime("%Y") if hasattr(idx, "strftime") else str(idx) for idx in s.index]
-            fig.add_trace(go.Bar(x=years, y=s.values, name=name, marker_color=color))
-    # Overlay lines: cash and total assets
+            nc = len(years)
+            bar_alphas = [0.3 + 0.45 * (i / max(nc - 1, 1)) for i in range(nc)]
+            bar_colors = [f"rgba({base_rgba[0]},{base_rgba[1]},{base_rgba[2]},{a:.2f})" for a in bar_alphas]
+            fig.add_trace(go.Bar(
+                x=years, y=s.values, name=name,
+                marker=dict(color=bar_colors, line=dict(color="rgba(255,255,255,0.15)", width=1)),
+            ))
+    # Overlay lines with glow
     for series, name, color in [
         (cd.cash_and_equivalents, "Cash", "#10B981"),
         (cd.total_assets, "Total Assets", "#F5A623"),
@@ -1570,20 +1876,16 @@ def _build_balance_sheet_chart(cd, key="balance_sheet"):
         if series is not None and len(series) > 0:
             s = series.dropna().sort_index()
             years = [idx.strftime("%Y") if hasattr(idx, "strftime") else str(idx) for idx in s.index]
-            fig.add_trace(go.Scatter(
-                x=years, y=s.values, name=name,
-                line=dict(color=color, width=2.5), mode="lines+markers",
-                marker=dict(size=6),
-            ))
+            _glow_line_traces(fig, years, s.values, color, name)
     fig.update_layout(
+        **_CHART_LAYOUT_BASE,
         height=380, margin=dict(t=30, b=30, l=50, r=50),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         xaxis=dict(tickfont=dict(size=9, color="#8A85AD"), showgrid=False),
-        yaxis=dict(gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD")),
+        yaxis=dict(tickfont=dict(size=9, color="#8A85AD")),
         legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
-        barmode="stack", hovermode="x unified",
-        hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
+        barmode="stack",
     )
+    _apply_space_grid(fig)
     st.plotly_chart(fig, use_container_width=True, key=key)
 
 
@@ -1615,23 +1917,36 @@ def _build_peer_valuation_chart(cd, key="peer_val"):
     fig = go.Figure()
     fig.add_trace(go.Bar(
         y=labels, x=company_vals, orientation="h", name=cd.ticker,
-        marker_color="#6B5CE7", text=[f"{v:.1f}x" for v in company_vals],
+        marker=dict(color="#6B5CE7", line=dict(color="rgba(255,255,255,0.15)", width=1)),
+        text=[f"{v:.1f}x" for v in company_vals],
         textposition="outside", textfont=dict(size=10, color="#B8B3D7"),
     ))
     fig.add_trace(go.Bar(
         y=labels, x=peer_vals, orientation="h", name="Peer Median",
-        marker_color="#E8638B", text=[f"{v:.1f}x" for v in peer_vals],
+        marker=dict(color="#E8638B", line=dict(color="rgba(255,255,255,0.15)", width=1)),
+        text=[f"{v:.1f}x" for v in peer_vals],
         textposition="outside", textfont=dict(size=10, color="#B8B3D7"),
     ))
+    # Premium/discount annotations
+    for i, (cv, pv) in enumerate(zip(company_vals, peer_vals)):
+        if pv != 0:
+            pct = (cv - pv) / abs(pv) * 100
+            color = "#10B981" if pct < 0 else "#EF4444"
+            sign = "+" if pct >= 0 else ""
+            fig.add_annotation(
+                y=labels[i], x=max(cv, pv) * 1.15,
+                text=f"{sign}{pct:.0f}%", showarrow=False,
+                font=dict(size=9, color=color, family="Inter"),
+            )
     fig.update_layout(
-        height=280, margin=dict(t=30, b=20, l=80, r=60),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        xaxis=dict(gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD")),
+        **_CHART_LAYOUT_BASE,
+        height=280, margin=dict(t=30, b=20, l=80, r=80),
+        xaxis=dict(tickfont=dict(size=9, color="#8A85AD")),
         yaxis=dict(tickfont=dict(size=10, color="#8A85AD"), autorange="reversed"),
         legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
         barmode="group",
-        hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
     )
+    _apply_space_grid(fig, show_x_grid=True)
     st.plotly_chart(fig, use_container_width=True, key=key)
 
 
@@ -1660,23 +1975,33 @@ def _build_earnings_surprise_chart(cd, key="earnings_surprise"):
         return
     df = df.head(8).sort_index()
     surprises = df[act_col].astype(float) - df[est_col].astype(float)
-    colors = ["#10B981" if s >= 0 else "#EF4444" for s in surprises]
     labels = [f"{s:+.2f}" for s in surprises]
     dates = [idx.strftime("%b %Y") if hasattr(idx, "strftime") else str(idx) for idx in df.index]
+    # Intensity-proportional alpha: bigger surprise = brighter
+    max_abs = max(abs(s) for s in surprises) if len(surprises) > 0 else 1
+    bar_colors = []
+    for s in surprises:
+        intensity = 0.4 + 0.6 * (abs(s) / max(max_abs, 0.01))
+        if s >= 0:
+            bar_colors.append(f"rgba(16,185,129,{intensity:.2f})")
+        else:
+            bar_colors.append(f"rgba(239,68,68,{intensity:.2f})")
 
     fig = go.Figure(go.Bar(
-        x=dates, y=surprises.values, marker_color=colors,
+        x=dates, y=surprises.values,
+        marker=dict(color=bar_colors, line=dict(color="rgba(255,255,255,0.15)", width=1)),
         text=labels, textposition="outside",
         textfont=dict(size=10, color="#B8B3D7"),
     ))
+    fig.add_hline(y=0, line_dash="dot", line_color="rgba(255,255,255,0.15)", line_width=1)
     fig.update_layout(
+        **_CHART_LAYOUT_BASE,
         height=280, margin=dict(t=30, b=30, l=50, r=30),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         xaxis=dict(tickfont=dict(size=9, color="#8A85AD"), showgrid=False),
         yaxis=dict(title=dict(text="EPS Surprise", font=dict(size=10, color="#8A85AD")),
-                   gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD")),
-        hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
+                   tickfont=dict(size=9, color="#8A85AD")),
     )
+    _apply_space_grid(fig)
     st.plotly_chart(fig, use_container_width=True, key=key)
 
 
@@ -1711,28 +2036,28 @@ def _build_accretion_waterfall(pro_forma, key="accretion_waterfall"):
         else:
             colors.append("#10B981" if v >= 0 else "#EF4444")
 
+    # Determine totals marker outline
+    totals_color = "#9B8AFF" if values[-1] >= values[0] else "#EF4444"
     fig = go.Figure(go.Waterfall(
         x=labels, y=values, measure=measures,
         text=[f"${v:.2f}" for v in values],
         textposition="outside",
         textfont=dict(size=10, color="#B8B3D7"),
-        connector=dict(line=dict(color="rgba(255,255,255,0.1)", width=1)),
-        increasing=dict(marker_color="#10B981"),
-        decreasing=dict(marker_color="#EF4444"),
-        totals=dict(marker_color="#9B8AFF" if values[-1] >= values[0] else "#EF4444"),
+        connector=dict(line=dict(color="rgba(107,92,231,0.2)", width=1, dash="dot")),
+        increasing=dict(marker=dict(color="#10B981", line=dict(color="rgba(255,255,255,0.15)", width=1))),
+        decreasing=dict(marker=dict(color="#EF4444", line=dict(color="rgba(255,255,255,0.15)", width=1))),
+        totals=dict(marker=dict(color=totals_color, line=dict(color="#fff", width=1.5))),
     ))
-    # Override colors for absolute bar
-    fig.data[0].connector.line.color = "rgba(255,255,255,0.1)"
 
     fig.update_layout(
+        **_CHART_LAYOUT_BASE,
         height=480, margin=dict(t=30, b=30, l=50, r=50),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         xaxis=dict(tickfont=dict(size=10, color="#8A85AD"), showgrid=False),
         yaxis=dict(title=dict(text="EPS ($)", font=dict(size=10, color="#8A85AD")),
-                   gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD"),
+                   tickfont=dict(size=9, color="#8A85AD"),
                    tickprefix="$"),
-        hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
     )
+    _apply_space_grid(fig)
     st.plotly_chart(fig, use_container_width=True, key=key)
 
 
@@ -1757,9 +2082,12 @@ def _build_football_field_chart(football_field, currency_symbol="$", key="footba
         fig.add_trace(go.Bar(
             y=[label], x=[highs[i] - lows[i]],
             base=[lows[i]], orientation="h",
-            marker_color=colors[i % len(colors)],
-            opacity=0.7, name=label,
-            text=[f"{format_number(lows[i], currency_symbol=currency_symbol)} — {format_number(highs[i], currency_symbol=currency_symbol)}"],
+            marker=dict(
+                color=colors[i % len(colors)], opacity=0.85,
+                line=dict(color="rgba(255,255,255,0.15)", width=1),
+            ),
+            name=label,
+            text=[f"{format_number(lows[i], currency_symbol=currency_symbol)} \u2014 {format_number(highs[i], currency_symbol=currency_symbol)}"],
             textposition="inside",
             textfont=dict(size=9, color="#fff"),
             hoverinfo="text",
@@ -1767,6 +2095,13 @@ def _build_football_field_chart(football_field, currency_symbol="$", key="footba
         ))
 
     if offer_price > 0:
+        # Shaded band around offer price (+-5%)
+        band_lo = offer_price * 0.95
+        band_hi = offer_price * 1.05
+        fig.add_vrect(
+            x0=band_lo, x1=band_hi,
+            fillcolor="rgba(239,68,68,0.06)", line_width=0,
+        )
         fig.add_vline(
             x=offer_price, line_dash="dash", line_color="#EF4444", line_width=2,
             annotation_text=f"Offer: {format_number(offer_price, currency_symbol=currency_symbol)}",
@@ -1775,31 +2110,37 @@ def _build_football_field_chart(football_field, currency_symbol="$", key="footba
         )
 
     fig.update_layout(
+        **_CHART_LAYOUT_BASE,
         height=420, margin=dict(t=40, b=30, l=120, r=60),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        xaxis=dict(gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD")),
+        xaxis=dict(tickfont=dict(size=9, color="#8A85AD")),
         yaxis=dict(tickfont=dict(size=10, color="#8A85AD"), autorange="reversed"),
-        hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
         barmode="stack",
     )
+    _apply_space_grid(fig, show_x_grid=True)
     st.plotly_chart(fig, use_container_width=True, key=key)
 
 
 # ── CHART: Deal Structure Donut ──────────────────────────────
 def _build_deal_structure_donut(assumptions, key="deal_donut"):
     """Pie chart with hole showing cash/stock split."""
+    # Pull the larger slice
+    pull_vals = [0.05, 0] if assumptions.pct_cash >= assumptions.pct_stock else [0, 0.05]
     fig = go.Figure(go.Pie(
         labels=["Cash", "Stock"],
         values=[assumptions.pct_cash, assumptions.pct_stock],
         hole=0.55,
-        marker_colors=["#6B5CE7", "#E8638B"],
+        pull=pull_vals,
+        marker=dict(
+            colors=["#6B5CE7", "#E8638B"],
+            line=dict(color="#fff", width=1.5),
+        ),
         textinfo="label+percent",
         textfont=dict(size=12, color="#fff"),
         hoverinfo="label+percent+value",
     ))
     fig.update_layout(
+        **_CHART_LAYOUT_BASE,
         height=340, margin=dict(t=30, b=30, l=30, r=30),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         showlegend=False,
         annotations=[dict(text="Deal<br>Mix", x=0.5, y=0.5, font_size=14,
                          font_color="#E0DCF5", showarrow=False)],
@@ -1827,26 +2168,33 @@ def _build_company_comparison_bars(acq_cd, tgt_cd, key="company_compare"):
     fig = go.Figure()
     fig.add_trace(go.Bar(
         y=metrics, x=acq_vals, orientation="h", name=acq_cd.ticker,
-        marker_color="#6B5CE7",
+        marker=dict(color="#6B5CE7", line=dict(color="rgba(255,255,255,0.15)", width=1)),
         text=[f"{v:.1f}%" for v in acq_vals],
         textposition="outside", textfont=dict(size=10, color="#B8B3D7"),
     ))
     fig.add_trace(go.Bar(
         y=metrics, x=tgt_vals, orientation="h", name=tgt_cd.ticker,
-        marker_color="#E8638B",
+        marker=dict(color="#E8638B", line=dict(color="rgba(255,255,255,0.15)", width=1)),
         text=[f"{v:.1f}%" for v in tgt_vals],
         textposition="outside", textfont=dict(size=10, color="#B8B3D7"),
     ))
+    # Star annotation on winning metric
+    for i, (av, tv) in enumerate(zip(acq_vals, tgt_vals)):
+        winner_x = max(av, tv) * 1.12
+        fig.add_annotation(
+            y=metrics[i], x=winner_x,
+            text="\u2605", showarrow=False,
+            font=dict(size=10, color="#F5A623"),
+        )
     fig.update_layout(
-        height=380, margin=dict(t=30, b=20, l=100, r=60),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        xaxis=dict(gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD"),
-                   ticksuffix="%"),
+        **_CHART_LAYOUT_BASE,
+        height=380, margin=dict(t=30, b=20, l=100, r=70),
+        xaxis=dict(tickfont=dict(size=9, color="#8A85AD"), ticksuffix="%"),
         yaxis=dict(tickfont=dict(size=10, color="#8A85AD"), autorange="reversed"),
         legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
         barmode="group",
-        hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
     )
+    _apply_space_grid(fig, show_x_grid=True)
     st.plotly_chart(fig, use_container_width=True, key=key)
 
 
@@ -2091,22 +2439,29 @@ else:
     )
 
 if analysis_mode == "Company Profile" and generate_btn and ticker_input:
-    # ── Data Fetching ────────────────────────────────────
-    with st.spinner(f"Fetching comprehensive data for {ticker_input}..."):
-        try:
-            cd = fetch_company_data(ticker_input)
-        except Exception as e:
-            st.error(f"Failed to fetch data for **{ticker_input}**: {e}")
-            st.stop()
+    # ── Data Fetching (with scanner loading animation) ───
+    _scanner_slot = st.empty()
 
-    with st.spinner("Fetching peer comparison data..."):
-        try:
-            cd = fetch_peer_data(cd)
-        except Exception:
-            pass  # Peer data is non-critical
+    _scanner_slot.markdown(_render_profile_scanner(ticker_input.upper(), 0), unsafe_allow_html=True)
+    try:
+        cd = fetch_company_data(ticker_input)
+    except Exception as e:
+        _scanner_slot.empty()
+        st.error(f"Failed to fetch data for **{ticker_input}**: {e}")
+        st.stop()
 
-    with st.spinner("Generating insights..."):
-        cd = generate_insights(cd)
+    _scanner_slot.markdown(_render_profile_scanner(ticker_input.upper(), 1), unsafe_allow_html=True)
+    try:
+        cd = fetch_peer_data(cd)
+    except Exception:
+        pass  # Peer data is non-critical
+
+    _scanner_slot.markdown(_render_profile_scanner(ticker_input.upper(), 2), unsafe_allow_html=True)
+    cd = generate_insights(cd)
+
+    _scanner_slot.markdown(_render_profile_scanner(ticker_input.upper(), 3), unsafe_allow_html=True)
+    time.sleep(1.2)
+    _scanner_slot.empty()
 
     cs = cd.currency_symbol  # shorthand
 
@@ -2224,38 +2579,63 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             plot_hist = hist
 
         fig = go.Figure()
+        # Glow underlay + main price line
+        _glow_line_traces(fig, plot_hist.index, plot_hist["Close"], "#6B5CE7", "Close")
+        # Area fill
         fig.add_trace(go.Scatter(
             x=plot_hist.index, y=plot_hist["Close"],
-            mode="lines", name="Close",
-            line=dict(color="#6B5CE7", width=2.5),
-            fill="tozeroy",
+            mode="lines", line=dict(width=0), fill="tozeroy",
             fillcolor="rgba(107,92,231,0.06)",
+            showlegend=False, hoverinfo="skip",
         ))
+        # Color-coded volume bars
         if "Volume" in plot_hist.columns:
+            close_vals = plot_hist["Close"].values
+            vol_colors = []
+            for i in range(len(close_vals)):
+                if i == 0:
+                    vol_colors.append("rgba(107,92,231,0.15)")
+                elif close_vals[i] >= close_vals[i - 1]:
+                    vol_colors.append("rgba(107,92,231,0.15)")
+                else:
+                    vol_colors.append("rgba(232,99,139,0.12)")
             fig.add_trace(go.Bar(
                 x=plot_hist.index, y=plot_hist["Volume"],
                 name="Volume", yaxis="y2",
-                marker_color="rgba(155,138,255,0.12)",
+                marker_color=vol_colors,
             ))
             fig.update_layout(
                 yaxis2=dict(overlaying="y", side="right", showgrid=False,
                             title=dict(text="Volume", font=dict(size=10, color="#8A85AD")),
                             tickformat=".2s", tickfont=dict(size=8, color="#8A85AD")),
             )
+        # 52-week high/low reference lines
+        if cd.fifty_two_week_high:
+            fig.add_hline(y=cd.fifty_two_week_high, line_dash="dash",
+                         line_color="rgba(16,185,129,0.3)", line_width=1,
+                         annotation_text="52w High", annotation_position="bottom right",
+                         annotation_font=dict(size=8, color="#10B981"))
+        if cd.fifty_two_week_low:
+            fig.add_hline(y=cd.fifty_two_week_low, line_dash="dash",
+                         line_color="rgba(239,68,68,0.3)", line_width=1,
+                         annotation_text="52w Low", annotation_position="top right",
+                         annotation_font=dict(size=8, color="#EF4444"))
         fig.update_layout(
+            **_CHART_LAYOUT_BASE,
             height=420,
             margin=dict(t=10, b=30, l=50, r=50),
             xaxis=dict(showgrid=False, tickfont=dict(size=9, color="#8A85AD"), rangeslider=dict(visible=False)),
             yaxis=dict(
                 title=dict(text=f"Price ({cs})", font=dict(size=10, color="#8A85AD")),
-                gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD"),
+                tickfont=dict(size=9, color="#8A85AD"),
                 tickprefix=cs,
             ),
-            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-            showlegend=False, hovermode="x unified",
-            hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
+            showlegend=False,
         )
+        _apply_space_grid(fig)
+        st.markdown('<div class="profile-chart-wrapper">', unsafe_allow_html=True)
         st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.info("Price history not available.")
 
@@ -2350,7 +2730,9 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         # Radar chart
         rc1, rc2 = st.columns([3, 2])
         with rc1:
+            st.markdown('<div class="profile-chart-wrapper">', unsafe_allow_html=True)
             _build_peer_radar_chart(cd)
+            st.markdown('</div>', unsafe_allow_html=True)
         with rc2:
             st.markdown("")
             st.markdown("<p style='font-size:0.85rem; font-weight:700; color:#E0DCF5; margin-bottom:0.5rem;'>Peer Group</p>", unsafe_allow_html=True)
@@ -2467,23 +2849,31 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 colors = ["#10B981", "#34D399", "#F59E0B", "#EF4444", "#991B1B"]
                 total = sum(vals)
 
+                # Wider bar for the majority category
+                max_idx = vals.index(max(vals)) if vals else -1
+                widths = [0.7 if i == max_idx else 0.5 for i in range(len(vals))]
                 fig_rec = go.Figure(go.Bar(
                     x=vals, y=cats, orientation="h",
-                    marker_color=colors,
+                    marker=dict(color=colors, line=dict(color="rgba(255,255,255,0.15)", width=1)),
+                    width=widths,
                     text=[f"  {v} ({v/total*100:.0f}%)" if total > 0 else f"  {v}" for v in vals],
                     textposition="outside",
                     textfont=dict(size=11, color="#B8B3D7", family="Inter"),
                 ))
                 fig_rec.update_layout(
+                    **_CHART_LAYOUT_BASE,
                     height=280, margin=dict(t=40, b=20, l=110, r=60),
                     title=dict(text="Analyst Recommendation Distribution",
                                font=dict(size=13, color="#E0DCF5", family="Inter")),
                     xaxis=dict(title=dict(text="# Analysts", font=dict(size=10, color="#8A85AD")),
-                               showgrid=True, gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD")),
+                               tickfont=dict(size=9, color="#8A85AD")),
                     yaxis=dict(autorange="reversed", tickfont=dict(size=11, color="#8A85AD")),
-                    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", bargap=0.35,
+                    bargap=0.35,
                 )
+                _apply_space_grid(fig_rec, show_x_grid=True)
+                st.markdown('<div class="profile-chart-wrapper">', unsafe_allow_html=True)
                 st.plotly_chart(fig_rec, use_container_width=True)
+                st.markdown('</div>', unsafe_allow_html=True)
             except Exception:
                 st.info("Recommendation data not available.")
         else:
@@ -2633,31 +3023,41 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 bar_colors.append("#8A85AD")
 
         fig_earn = go.Figure()
+        # Ghost bar for estimates (transparent fill + outline)
         fig_earn.add_trace(go.Bar(
             x=eq_dates, y=eq_estimate, name="Estimate",
-            marker_color="rgba(138,133,173,0.4)",
+            marker=dict(
+                color="rgba(138,133,173,0.08)",
+                line=dict(color="rgba(138,133,173,0.5)", width=1.5),
+            ),
             text=[f"{v:.2f}" if v is not None else "" for v in eq_estimate],
             textposition="outside", textfont=dict(size=9, color="#8A85AD"),
         ))
+        # Solid actuals with white outline
         fig_earn.add_trace(go.Bar(
             x=eq_dates, y=eq_actual, name="Actual",
-            marker_color=bar_colors,
+            marker=dict(
+                color=bar_colors,
+                line=dict(color="rgba(255,255,255,0.2)", width=1),
+            ),
             text=[f"{v:.2f}" if v is not None else "" for v in eq_actual],
             textposition="outside", textfont=dict(size=9, color="#B8B3D7"),
         ))
         fig_earn.update_layout(
+            **_CHART_LAYOUT_BASE,
             height=380, barmode="group",
             margin=dict(t=30, b=30, l=50, r=30),
-            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
             xaxis=dict(tickfont=dict(size=10, color="#8A85AD"), showgrid=False),
             yaxis=dict(title=dict(text="EPS", font=dict(size=10, color="#8A85AD")),
-                       gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD"),
+                       tickfont=dict(size=9, color="#8A85AD"),
                        tickprefix=cd.currency_symbol),
             legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h",
                         yanchor="bottom", y=1.02),
-            hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
         )
+        _apply_space_grid(fig_earn)
+        st.markdown('<div class="profile-chart-wrapper">', unsafe_allow_html=True)
         st.plotly_chart(fig_earn, use_container_width=True, key="earnings_surprise_chart")
+        st.markdown('</div>', unsafe_allow_html=True)
 
     # ══════════════════════════════════════════════════════
     # 14b. NEWS SENTIMENT (Alpha Vantage)
@@ -2763,20 +3163,28 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     if line:
                         st.markdown(f"<div style='font-size:0.84rem; color:#B8B3D7; line-height:1.7; padding:0.15rem 0;'>&bull; {line}</div>", unsafe_allow_html=True)
         with es_right:
+            st.markdown('<div class="profile-chart-wrapper">', unsafe_allow_html=True)
             _build_peer_valuation_chart(cd)
             _build_earnings_surprise_chart(cd)
+            st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Tab 2: Financial Trends ───────────────────────
     with ai_tab2:
         ft_c1, ft_c2 = st.columns(2)
         with ft_c1:
             st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Revenue & Margins</div>', unsafe_allow_html=True)
+            st.markdown('<div class="profile-chart-wrapper">', unsafe_allow_html=True)
             _build_revenue_margin_chart(cd)
+            st.markdown('</div>', unsafe_allow_html=True)
         with ft_c2:
             st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Cash Flow</div>', unsafe_allow_html=True)
+            st.markdown('<div class="profile-chart-wrapper">', unsafe_allow_html=True)
             _build_cashflow_chart(cd)
+            st.markdown('</div>', unsafe_allow_html=True)
         st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem; margin-top:0.5rem;">Balance Sheet</div>', unsafe_allow_html=True)
+        st.markdown('<div class="profile-chart-wrapper">', unsafe_allow_html=True)
         _build_balance_sheet_chart(cd)
+        st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Tab 3: SWOT Analysis ─────────────────────────
     with ai_tab3:
@@ -2789,7 +3197,9 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             _render_growth_outlook(cd.growth_outlook, cd)
         with go_right:
             st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Revenue & Margin Trends</div>', unsafe_allow_html=True)
+            st.markdown('<div class="profile-chart-wrapper">', unsafe_allow_html=True)
             _build_revenue_margin_chart(cd, key="rev_margin_growth")
+            st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Tab 5: Capital Allocation ────────────────────
     with ai_tab5:
@@ -2798,7 +3208,9 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             _render_capital_allocation(cd.capital_allocation_analysis, cd)
         with ca_right:
             st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Cash Flow Trends</div>', unsafe_allow_html=True)
+            st.markdown('<div class="profile-chart-wrapper">', unsafe_allow_html=True)
             _build_cashflow_chart(cd, key="cashflow_capalloc")
+            st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Tab 6: Industry Analysis ─────────────────────
     with ai_tab6:
