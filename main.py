@@ -34,9 +34,9 @@ st.set_page_config(
 random.seed(42)
 def _gen_stars(count, spread=2000):
     return ", ".join(f"{random.randint(0,spread)}px {random.randint(0,spread)}px #FFF" for _ in range(count))
-_STARS1 = _gen_stars(300)
-_STARS2 = _gen_stars(200)
-_STARS3 = _gen_stars(100)
+_STARS1 = _gen_stars(80)
+_STARS2 = _gen_stars(50)
+_STARS3 = _gen_stars(30)
 
 # ══════════════════════════════════════════════════════════════
 # COMPREHENSIVE CUSTOM CSS — Immersive space theme
@@ -464,6 +464,17 @@ div[data-testid="stMetric"] div[data-testid="stMetricValue"] {{
 footer {{ visibility: hidden; }}
 header {{ visibility: hidden; }}
 
+/* ── PRICE DISPLAY BAR ──────────────────────────────────── */
+.price-bar {{
+    border-radius: 14px; padding: 1rem 1.5rem; margin-bottom: 1rem;
+    display: flex; gap: 1.5rem; align-items: center;
+}}
+</style>
+""", unsafe_allow_html=True)
+
+# ── Space-specific CSS (starfield, nebula, orbs, glass cards) ──
+st.markdown(f"""
+<style>
 /* ── SPLASH HERO ────────────────────────────────────────── */
 .splash-hero {{
     background: linear-gradient(170deg, #020515 0%, #0B0E1A 30%, #151933 60%, #1a1040 80%, #2d1b69 100%);
@@ -773,12 +784,6 @@ header {{ visibility: hidden; }}
 .feature-icon {{ font-size: 2.2rem; margin-bottom: 0.5rem; }}
 .feature-title {{ font-size: 0.88rem; font-weight: 700; color: #E0DCF5; margin-bottom: 0.3rem; }}
 .feature-desc {{ font-size: 0.72rem; color: #8A85AD; line-height: 1.6; }}
-
-/* ── PRICE DISPLAY BAR ──────────────────────────────────── */
-.price-bar {{
-    border-radius: 14px; padding: 1rem 1.5rem; margin-bottom: 1rem;
-    display: flex; gap: 1.5rem; align-items: center;
-}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1508,124 +1513,67 @@ else:
     # ══════════════════════════════════════════════════════
     # SPLASH / LANDING PAGE — Immersive space experience
     # ══════════════════════════════════════════════════════
-    st.markdown("""
-    <div class="splash-hero">
-        <div class="star-layer-1"></div>
-        <div class="star-layer-2"></div>
-        <div class="star-layer-3"></div>
-        <div class="nebula-overlay"></div>
-        <div class="orb orb-1"></div>
-        <div class="orb orb-2"></div>
-        <div class="orb orb-3"></div>
-        <div class="orb orb-4"></div>
-        <div class="orb orb-5"></div>
-        <div class="shooting-star shooting-star-1"></div>
-        <div class="shooting-star shooting-star-2"></div>
-        <div class="shooting-star shooting-star-3"></div>
-        <div class="noise-overlay"></div>
-        <div class="title-glow"></div>
-        <div class="splash-content">
-            <p class="splash-title">M&A Profile <span class="splash-accent">Builder</span></p>
-            <p class="splash-subtitle">Institutional-grade company research & tear sheet generation</p>
-            <div class="pill-row">
-                <span class="feature-pill">Live Market Data</span>
-                <span class="feature-pill">Wikipedia M&A</span>
-                <span class="feature-pill">Peer Analysis</span>
-                <span class="feature-pill">AI Powered</span>
-                <span class="feature-pill">Global Exchanges</span>
-            </div>
-            <div class="splash-stats">
-                <div>
-                    <div class="splash-stat-value">60+</div>
-                    <div class="splash-stat-label">Data Points</div>
-                </div>
-                <div>
-                    <div class="splash-stat-value">8</div>
-                    <div class="splash-stat-label">PPTX Slides</div>
-                </div>
-                <div>
-                    <div class="splash-stat-value">20+</div>
-                    <div class="splash-stat-label">Exchanges</div>
-                </div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        '<div class="splash-hero">'
+        '<div class="star-layer-1">&#8203;</div>'
+        '<div class="star-layer-2">&#8203;</div>'
+        '<div class="star-layer-3">&#8203;</div>'
+        '<div class="nebula-overlay">&#8203;</div>'
+        '<div class="orb orb-1">&#8203;</div>'
+        '<div class="orb orb-2">&#8203;</div>'
+        '<div class="orb orb-3">&#8203;</div>'
+        '<div class="orb orb-4">&#8203;</div>'
+        '<div class="orb orb-5">&#8203;</div>'
+        '<div class="shooting-star shooting-star-1">&#8203;</div>'
+        '<div class="shooting-star shooting-star-2">&#8203;</div>'
+        '<div class="shooting-star shooting-star-3">&#8203;</div>'
+        '<div class="noise-overlay">&#8203;</div>'
+        '<div class="title-glow">&#8203;</div>'
+        '<div class="splash-content">'
+        '<p class="splash-title">M&amp;A Profile <span class="splash-accent">Builder</span></p>'
+        '<p class="splash-subtitle">Institutional-grade company research &amp; tear sheet generation</p>'
+        '<div class="pill-row">'
+        '<span class="feature-pill">Live Market Data</span>'
+        '<span class="feature-pill">Wikipedia M&amp;A</span>'
+        '<span class="feature-pill">Peer Analysis</span>'
+        '<span class="feature-pill">AI Powered</span>'
+        '<span class="feature-pill">Global Exchanges</span>'
+        '</div>'
+        '<div class="splash-stats">'
+        '<div><div class="splash-stat-value">60+</div><div class="splash-stat-label">Data Points</div></div>'
+        '<div><div class="splash-stat-value">8</div><div class="splash-stat-label">PPTX Slides</div></div>'
+        '<div><div class="splash-stat-value">20+</div><div class="splash-stat-label">Exchanges</div></div>'
+        '</div>'
+        '</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
     # Step cards and feature grid in dark space-section
-    st.markdown("""
-    <div class="space-section">
-        <div class="space-section-title">How It Works</div>
-        <div class="step-grid">
-            <div class="step-card">
-                <div class="step-num">1</div>
-                <div class="step-label">Enter Ticker</div>
-                <div class="step-detail">Any global exchange &mdash; AAPL, RY.TO, NVDA.L</div>
-            </div>
-            <div class="step-card">
-                <div class="step-num">2</div>
-                <div class="step-label">Generate Profile</div>
-                <div class="step-detail">60+ data points pulled in real-time</div>
-            </div>
-            <div class="step-card">
-                <div class="step-num">3</div>
-                <div class="step-label">Explore Dashboard</div>
-                <div class="step-detail">Charts, peer comparison & insights</div>
-            </div>
-            <div class="step-card">
-                <div class="step-num">4</div>
-                <div class="step-label">Download PPTX</div>
-                <div class="step-detail">8-slide IB-grade PowerPoint</div>
-            </div>
-        </div>
-
-        <div class="space-section-title">Platform Features</div>
-        <div class="feature-grid">
-            <div class="feature-card">
-                <div class="feature-icon">&#128200;</div>
-                <div class="feature-title">Price & Valuation</div>
-                <div class="feature-desc">Live prices, multiples, and historical charts</div>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">&#128101;</div>
-                <div class="feature-title">Peer Comparison</div>
-                <div class="feature-desc">Side-by-side valuation vs industry peers</div>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">&#128202;</div>
-                <div class="feature-title">Financial Statements</div>
-                <div class="feature-desc">Income, balance sheet, cash flow analysis</div>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">&#129309;</div>
-                <div class="feature-title">M&A History</div>
-                <div class="feature-desc">Deal history scraped from Wikipedia</div>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">&#127919;</div>
-                <div class="feature-title">Analyst Consensus</div>
-                <div class="feature-desc">Recommendations & price targets</div>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">&#128161;</div>
-                <div class="feature-title">AI Insights</div>
-                <div class="feature-desc">Powered by GPT (optional API key)</div>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">&#127760;</div>
-                <div class="feature-title">Global Exchanges</div>
-                <div class="feature-desc">TSX, LSE, JPX and more with local currencies</div>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">&#128196;</div>
-                <div class="feature-title">PowerPoint Export</div>
-                <div class="feature-desc">8-slide professional presentation</div>
-            </div>
-        </div>
-
-        <p style="font-size:0.72rem; color:#6B7280; margin-top:2rem; text-align:center;">
-            M&A history scraped from Wikipedia &mdash; no API key needed<br>
-            Set <code style="color:#9B8AFF;">OPENAI_API_KEY</code> for enhanced insights
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        '<div class="space-section">'
+        '<div class="space-section-title">How It Works</div>'
+        '<div class="step-grid">'
+        '<div class="step-card"><div class="step-num">1</div><div class="step-label">Enter Ticker</div><div class="step-detail">Any global exchange &mdash; AAPL, RY.TO, NVDA.L</div></div>'
+        '<div class="step-card"><div class="step-num">2</div><div class="step-label">Generate Profile</div><div class="step-detail">60+ data points pulled in real-time</div></div>'
+        '<div class="step-card"><div class="step-num">3</div><div class="step-label">Explore Dashboard</div><div class="step-detail">Charts, peer comparison &amp; insights</div></div>'
+        '<div class="step-card"><div class="step-num">4</div><div class="step-label">Download PPTX</div><div class="step-detail">8-slide IB-grade PowerPoint</div></div>'
+        '</div>'
+        '<div class="space-section-title">Platform Features</div>'
+        '<div class="feature-grid">'
+        '<div class="feature-card"><div class="feature-icon">&#128200;</div><div class="feature-title">Price &amp; Valuation</div><div class="feature-desc">Live prices, multiples, and historical charts</div></div>'
+        '<div class="feature-card"><div class="feature-icon">&#128101;</div><div class="feature-title">Peer Comparison</div><div class="feature-desc">Side-by-side valuation vs industry peers</div></div>'
+        '<div class="feature-card"><div class="feature-icon">&#128202;</div><div class="feature-title">Financial Statements</div><div class="feature-desc">Income, balance sheet, cash flow analysis</div></div>'
+        '<div class="feature-card"><div class="feature-icon">&#129309;</div><div class="feature-title">M&amp;A History</div><div class="feature-desc">Deal history scraped from Wikipedia</div></div>'
+        '<div class="feature-card"><div class="feature-icon">&#127919;</div><div class="feature-title">Analyst Consensus</div><div class="feature-desc">Recommendations &amp; price targets</div></div>'
+        '<div class="feature-card"><div class="feature-icon">&#128161;</div><div class="feature-title">AI Insights</div><div class="feature-desc">Powered by GPT (optional API key)</div></div>'
+        '<div class="feature-card"><div class="feature-icon">&#127760;</div><div class="feature-title">Global Exchanges</div><div class="feature-desc">TSX, LSE, JPX and more with local currencies</div></div>'
+        '<div class="feature-card"><div class="feature-icon">&#128196;</div><div class="feature-title">PowerPoint Export</div><div class="feature-desc">8-slide professional presentation</div></div>'
+        '</div>'
+        '<p style="font-size:0.72rem; color:#6B7280; margin-top:2rem; text-align:center;">'
+        'M&amp;A history scraped from Wikipedia &mdash; no API key needed<br>'
+        'Set <code style="color:#9B8AFF;">OPENAI_API_KEY</code> for enhanced insights'
+        '</p>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
