@@ -13,6 +13,7 @@ Falls back to deterministic templates if no API key is set.
 """
 
 import os
+from dataclasses import dataclass
 from data_engine import CompanyData, format_number, format_pct
 
 
@@ -850,3 +851,313 @@ def generate_insights(cd: CompanyData) -> CompanyData:
     else:
         generate_insights_fallback(cd)
     return cd
+
+
+# ══════════════════════════════════════════════════════════════
+# MERGER ANALYSIS INSIGHTS
+# ══════════════════════════════════════════════════════════════
+
+@dataclass
+class MergerInsights:
+    """AI-generated merger analysis content."""
+    strategic_rationale: str = ""
+    deal_risks: str = ""
+    synergy_assessment: str = ""
+    deal_verdict: str = ""
+    deal_grade: str = "B"  # A/B/C/D/F
+
+
+# ── Merger Prompt Builders ──────────────────────────────────
+
+def _build_strategic_rationale_prompt(acq: CompanyData, tgt: CompanyData, pro_forma) -> str:
+    cs_a = acq.currency_symbol
+    cs_t = tgt.currency_symbol
+    return f"""You are a senior M&A advisor evaluating the strategic rationale for {acq.name} acquiring {tgt.name}.
+
+Acquirer: {acq.name} ({acq.ticker})
+- Sector: {acq.sector} | Industry: {acq.industry}
+- Market Cap: {format_number(acq.market_cap, currency_symbol=cs_a)}
+- Revenue: {format_number(pro_forma.acq_revenue, currency_symbol=cs_a)}
+- EBITDA: {format_number(pro_forma.acq_ebitda, currency_symbol=cs_a)}
+- Margins: Gross {format_pct(acq.gross_margins)}, Operating {format_pct(acq.operating_margins)}
+- Revenue Growth: {f'{acq.revenue_growth:.1f}%' if acq.revenue_growth else 'N/A'}
+
+Target: {tgt.name} ({tgt.ticker})
+- Sector: {tgt.sector} | Industry: {tgt.industry}
+- Market Cap: {format_number(tgt.market_cap, currency_symbol=cs_t)}
+- Revenue: {format_number(pro_forma.tgt_revenue, currency_symbol=cs_t)}
+- EBITDA: {format_number(pro_forma.tgt_ebitda, currency_symbol=cs_t)}
+- Margins: Gross {format_pct(tgt.gross_margins)}, Operating {format_pct(tgt.operating_margins)}
+- Revenue Growth: {f'{tgt.revenue_growth:.1f}%' if tgt.revenue_growth else 'N/A'}
+
+Deal: Purchase price {format_number(pro_forma.purchase_price, currency_symbol=cs_a)} at {pro_forma.offer_price_per_share:.2f}/share
+
+Provide in EXACT format:
+
+STRATEGIC_RATIONALE:
+- [2-3 sentences: primary strategic logic for this deal — market expansion, vertical integration, technology acquisition, etc.]
+- [key synergy drivers — where do cost and revenue synergies come from?]
+- [strategic fit assessment — complementary or overlapping?]
+- [competitive implications — how does this change the competitive landscape?]
+"""
+
+
+def _build_deal_risks_prompt(acq: CompanyData, tgt: CompanyData, pro_forma) -> str:
+    cs_a = acq.currency_symbol
+    return f"""You are an M&A risk analyst evaluating the acquisition of {tgt.name} by {acq.name}.
+
+Deal Metrics:
+- Purchase Price: {format_number(pro_forma.purchase_price, currency_symbol=cs_a)}
+- Pro Forma Leverage: {f'{pro_forma.pf_leverage_ratio:.1f}x' if pro_forma.pf_leverage_ratio else 'N/A'} Debt/EBITDA
+- Interest Coverage: {f'{pro_forma.pf_interest_coverage:.1f}x' if pro_forma.pf_interest_coverage else 'N/A'}
+- Accretion/Dilution: {pro_forma.accretion_dilution_pct:+.1f}%
+- Same industry: {acq.industry == tgt.industry}
+
+Acquirer: {acq.sector} / {acq.industry} | Target: {tgt.sector} / {tgt.industry}
+
+Provide in EXACT format:
+
+DEAL_RISKS:
+- [ANTITRUST] [1-2 sentences on regulatory/antitrust risk — overlap, market share concentration]
+- [INTEGRATION] [1-2 sentences on integration complexity — culture, systems, geography]
+- [FINANCIAL] [1-2 sentences on financial risk — leverage, cash flow adequacy, rating impact]
+- [EXECUTION] [1-2 sentences on execution risk — management bandwidth, timeline]
+- [MARKET] [1-2 sentences on market/macro risk — timing, valuation, investor reception]
+"""
+
+
+def _build_synergy_assessment_prompt(acq: CompanyData, tgt: CompanyData, pro_forma, assumptions) -> str:
+    cs_a = acq.currency_symbol
+    return f"""You are an M&A synergy analyst evaluating the {acq.name} + {tgt.name} combination.
+
+Cost Synergies: {format_number(pro_forma.cost_synergies, currency_symbol=cs_a)} ({assumptions.cost_synergies_pct:.0f}% of target SG&A)
+Revenue Synergies: {format_number(pro_forma.revenue_synergies, currency_symbol=cs_a)} ({assumptions.revenue_synergies_pct:.0f}% of target revenue)
+Total Synergies: {format_number(pro_forma.total_synergies, currency_symbol=cs_a)}
+Synergy NPV: {format_number(pro_forma.synergy_npv, currency_symbol=cs_a)}
+
+Acquirer operates in: {acq.industry} | Target operates in: {tgt.industry}
+Same sector: {acq.sector == tgt.sector}
+
+Provide in EXACT format:
+
+SYNERGY_ASSESSMENT:
+- [realism of cost synergy assumptions — are they achievable? typical range is 5-15% of target SG&A]
+- [realism of revenue synergy assumptions — harder to achieve, typical realization rate 30-50%]
+- [expected timeline — when would synergies be fully realized? typically 2-3 years]
+- [risks to synergy realization — what could prevent achieving these numbers?]
+"""
+
+
+def _build_deal_verdict_prompt(acq: CompanyData, tgt: CompanyData, pro_forma, assumptions) -> str:
+    cs_a = acq.currency_symbol
+    return f"""You are an M&A committee advisor providing a final verdict on {acq.name} acquiring {tgt.name}.
+
+Key Deal Facts:
+- Purchase Price: {format_number(pro_forma.purchase_price, currency_symbol=cs_a)}
+- Premium: {assumptions.offer_premium_pct:.0f}%
+- Mix: {assumptions.pct_cash:.0f}% cash / {assumptions.pct_stock:.0f}% stock
+- EPS Impact: {pro_forma.accretion_dilution_pct:+.1f}% ({'accretive' if pro_forma.is_accretive else 'dilutive'})
+- Pro Forma Leverage: {f'{pro_forma.pf_leverage_ratio:.1f}x' if pro_forma.pf_leverage_ratio else 'N/A'}
+- Implied EV/EBITDA: {f'{pro_forma.implied_ev_ebitda:.1f}x' if pro_forma.implied_ev_ebitda else 'N/A'}
+- Total Synergies: {format_number(pro_forma.total_synergies, currency_symbol=cs_a)}
+- Goodwill: {format_number(pro_forma.goodwill, currency_symbol=cs_a)}
+
+Provide in EXACT format:
+
+DEAL_VERDICT:
+- [2-3 sentence overall assessment — is this a good deal for the acquirer's shareholders?]
+- [bull case — 1-2 sentences on best-case scenario]
+- [bear case — 1-2 sentences on worst-case scenario]
+
+DEAL_GRADE:
+[single letter: A / B / C / D / F — where A is excellent strategic and financial fit, F is value-destructive]
+"""
+
+
+# ── Merger Response Parsing ─────────────────────────────────
+
+def _parse_merger_sections(text: str) -> dict:
+    """Parse merger LLM output into named sections."""
+    sections = {}
+    current_key = None
+    current_lines = []
+
+    key_map = {
+        "STRATEGIC_RATIONALE": "strategic_rationale",
+        "DEAL_RISKS": "deal_risks",
+        "SYNERGY_ASSESSMENT": "synergy_assessment",
+        "DEAL_VERDICT": "deal_verdict",
+        "DEAL_GRADE": "deal_grade",
+    }
+
+    for line in text.strip().split("\n"):
+        stripped = line.strip()
+        matched = False
+        for marker, key in key_map.items():
+            if stripped.startswith(marker):
+                if current_key:
+                    sections[current_key] = "\n".join(current_lines)
+                current_key = key
+                current_lines = []
+                matched = True
+                break
+        if not matched and stripped:
+            current_lines.append(stripped)
+
+    if current_key:
+        sections[current_key] = "\n".join(current_lines)
+
+    return sections
+
+
+# ── Merger Deterministic Fallbacks ──────────────────────────
+
+def _fallback_merger_insights(acq, tgt, pro_forma, assumptions) -> MergerInsights:
+    """Build deterministic merger insights from raw numbers."""
+    cs = acq.currency_symbol
+    same_sector = acq.sector == tgt.sector
+    same_industry = acq.industry == tgt.industry
+
+    # Strategic rationale
+    if same_industry:
+        fit = "horizontal consolidation within the same industry"
+        synergy_type = "significant cost synergies from overlapping operations"
+    elif same_sector:
+        fit = "adjacent expansion within the same sector"
+        synergy_type = "moderate synergies from shared infrastructure and cross-selling"
+    else:
+        fit = "diversification into a new sector"
+        synergy_type = "limited near-term synergies; primarily strategic diversification"
+
+    strategic = (
+        f"- This deal represents {fit}. {acq.name} ({format_number(acq.market_cap, currency_symbol=cs)} market cap) "
+        f"would acquire {tgt.name} at a {assumptions.offer_premium_pct:.0f}% premium for "
+        f"{format_number(pro_forma.purchase_price, currency_symbol=cs)}.\n"
+        f"- Primary synergy drivers: {synergy_type}. Cost synergies of "
+        f"{format_number(pro_forma.cost_synergies, currency_symbol=cs)} represent "
+        f"{assumptions.cost_synergies_pct:.0f}% of target SG&A.\n"
+        f"- Strategic fit: {'Strong' if same_industry else 'Moderate' if same_sector else 'Weak'} — "
+        f"acquirer operates in {acq.industry}, target in {tgt.industry}.\n"
+        f"- The combined entity would have {format_number(pro_forma.pf_revenue, currency_symbol=cs)} in revenue "
+        f"and {format_number(pro_forma.pf_ebitda, currency_symbol=cs)} in EBITDA."
+    )
+
+    # Deal risks
+    leverage_risk = "elevated" if (pro_forma.pf_leverage_ratio or 0) > 3 else "manageable"
+    risks = (
+        f"- [ANTITRUST] {'High overlap risk — same industry may attract regulatory scrutiny' if same_industry else 'Low antitrust risk — different industries minimize overlap concerns'}\n"
+        f"- [INTEGRATION] Integration complexity is {'high' if not same_sector else 'moderate'} given "
+        f"{'different' if not same_sector else 'similar'} business models and operations.\n"
+        f"- [FINANCIAL] Pro forma leverage of {pro_forma.pf_leverage_ratio:.1f}x is {leverage_risk}. "
+        f"Interest coverage at {pro_forma.pf_interest_coverage:.1f}x {'provides adequate cushion' if (pro_forma.pf_interest_coverage or 0) > 3 else 'is tight'}.\n"
+        f"- [EXECUTION] Management must integrate operations while maintaining business momentum.\n"
+        f"- [MARKET] Deal is {pro_forma.accretion_dilution_pct:+.1f}% "
+        f"{'accretive' if pro_forma.is_accretive else 'dilutive'} to EPS — "
+        f"{'positive' if pro_forma.is_accretive else 'negative'} initial market reception expected."
+    )
+
+    # Synergy assessment
+    synergy = (
+        f"- Cost synergies of {format_number(pro_forma.cost_synergies, currency_symbol=cs)} "
+        f"({assumptions.cost_synergies_pct:.0f}% of target SG&A) are "
+        f"{'conservative and achievable' if assumptions.cost_synergies_pct <= 15 else 'aggressive and may be challenging to realize'}.\n"
+        f"- Revenue synergies of {format_number(pro_forma.revenue_synergies, currency_symbol=cs)} "
+        f"({assumptions.revenue_synergies_pct:.0f}% of target revenue) are "
+        f"{'realistic' if assumptions.revenue_synergies_pct <= 3 else 'optimistic — revenue synergies typically harder to achieve'}.\n"
+        f"- Expected timeline: full synergy realization in 2-3 years post-close.\n"
+        f"- Synergy NPV of {format_number(pro_forma.synergy_npv, currency_symbol=cs)} "
+        f"{'partially offsets' if pro_forma.synergy_npv < pro_forma.goodwill else 'exceeds'} "
+        f"goodwill of {format_number(pro_forma.goodwill, currency_symbol=cs)}."
+    )
+
+    # Deal verdict & grade
+    score = 0
+    if pro_forma.is_accretive:
+        score += 2
+    if (pro_forma.pf_leverage_ratio or 99) < 3.5:
+        score += 1
+    if same_sector:
+        score += 1
+    if assumptions.offer_premium_pct <= 35:
+        score += 1
+
+    grade_map = {5: "A", 4: "A", 3: "B", 2: "C", 1: "D", 0: "F"}
+    grade = grade_map.get(score, "C")
+
+    verdict = (
+        f"- Overall: This deal is {grade}-rated. The combination "
+        f"{'creates' if pro_forma.is_accretive else 'initially destroys'} shareholder value "
+        f"with {pro_forma.accretion_dilution_pct:+.1f}% EPS impact. "
+        f"Pro forma leverage of {pro_forma.pf_leverage_ratio:.1f}x is {leverage_risk}.\n"
+        f"- Bull case: synergies exceed expectations, cross-selling drives revenue growth, "
+        f"and rapid deleveraging improves credit profile.\n"
+        f"- Bear case: integration challenges delay synergy capture, market conditions deteriorate, "
+        f"and leverage constrains strategic flexibility."
+    )
+
+    return MergerInsights(
+        strategic_rationale=strategic,
+        deal_risks=risks,
+        synergy_assessment=synergy,
+        deal_verdict=verdict,
+        deal_grade=grade,
+    )
+
+
+# ── Merger Insights Orchestrator ────────────────────────────
+
+def generate_merger_insights(acq, tgt, pro_forma, assumptions) -> MergerInsights:
+    """Generate AI-powered merger insights, with deterministic fallback."""
+    if not (os.environ.get("OPENROUTER_API_KEY") or os.environ.get("OPENAI_API_KEY")):
+        return _fallback_merger_insights(acq, tgt, pro_forma, assumptions)
+
+    insights = MergerInsights()
+
+    # Strategic Rationale
+    try:
+        text = _call_llm(_build_strategic_rationale_prompt(acq, tgt, pro_forma), max_tokens=1500)
+        sections = _parse_merger_sections(text)
+        insights.strategic_rationale = sections.get("strategic_rationale", "")
+    except Exception as e:
+        print(f"Merger strategic rationale LLM failed ({e})")
+
+    # Deal Risks
+    try:
+        text = _call_llm(_build_deal_risks_prompt(acq, tgt, pro_forma), max_tokens=1500)
+        sections = _parse_merger_sections(text)
+        insights.deal_risks = sections.get("deal_risks", "")
+    except Exception as e:
+        print(f"Merger deal risks LLM failed ({e})")
+
+    # Synergy Assessment
+    try:
+        text = _call_llm(_build_synergy_assessment_prompt(acq, tgt, pro_forma, assumptions), max_tokens=1200)
+        sections = _parse_merger_sections(text)
+        insights.synergy_assessment = sections.get("synergy_assessment", "")
+    except Exception as e:
+        print(f"Merger synergy assessment LLM failed ({e})")
+
+    # Deal Verdict
+    try:
+        text = _call_llm(_build_deal_verdict_prompt(acq, tgt, pro_forma, assumptions), max_tokens=1200)
+        sections = _parse_merger_sections(text)
+        insights.deal_verdict = sections.get("deal_verdict", "")
+        grade_text = sections.get("deal_grade", "B").strip().upper()
+        if grade_text and grade_text[0] in "ABCDF":
+            insights.deal_grade = grade_text[0]
+    except Exception as e:
+        print(f"Merger deal verdict LLM failed ({e})")
+
+    # If any section is empty, fill from fallback
+    fallback = _fallback_merger_insights(acq, tgt, pro_forma, assumptions)
+    if not insights.strategic_rationale:
+        insights.strategic_rationale = fallback.strategic_rationale
+    if not insights.deal_risks:
+        insights.deal_risks = fallback.deal_risks
+    if not insights.synergy_assessment:
+        insights.synergy_assessment = fallback.synergy_assessment
+    if not insights.deal_verdict:
+        insights.deal_verdict = fallback.deal_verdict
+        insights.deal_grade = fallback.deal_grade
+
+    return insights

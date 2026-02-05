@@ -19,8 +19,9 @@ from data_engine import (
     fetch_company_data, fetch_peer_data,
     format_number, format_pct, format_multiple
 )
-from ai_insights import generate_insights
-from pptx_generator import generate_presentation
+from ai_insights import generate_insights, generate_merger_insights
+from pptx_generator import generate_presentation, generate_deal_book
+from merger_analysis import MergerAssumptions, calculate_pro_forma, build_football_field
 
 # ── Page Config ──────────────────────────────────────────────
 st.set_page_config(
@@ -1155,6 +1156,176 @@ def _build_earnings_surprise_chart(cd, key="earnings_surprise"):
     st.plotly_chart(fig, use_container_width=True, key=key)
 
 
+# ── CHART: Accretion/Dilution Waterfall ───────────────────────
+def _build_accretion_waterfall(pro_forma, key="accretion_waterfall"):
+    """Waterfall chart showing EPS bridge from standalone to pro forma."""
+    steps = pro_forma.waterfall_steps
+    if not steps:
+        st.info("Waterfall data not available.")
+        return
+
+    labels = [s["label"] for s in steps]
+    values = [s["value"] for s in steps]
+    types = [s["type"] for s in steps]
+
+    # Build Plotly waterfall measure types
+    measures = []
+    for t in types:
+        if t == "absolute":
+            measures.append("absolute")
+        elif t == "total":
+            measures.append("total")
+        else:
+            measures.append("relative")
+
+    colors = []
+    for i, (v, t) in enumerate(zip(values, types)):
+        if t == "absolute":
+            colors.append("#6B5CE7")
+        elif t == "total":
+            colors.append("#9B8AFF" if v >= values[0] else "#EF4444")
+        else:
+            colors.append("#10B981" if v >= 0 else "#EF4444")
+
+    fig = go.Figure(go.Waterfall(
+        x=labels, y=values, measure=measures,
+        text=[f"${v:.2f}" for v in values],
+        textposition="outside",
+        textfont=dict(size=10, color="#B8B3D7"),
+        connector=dict(line=dict(color="rgba(255,255,255,0.1)", width=1)),
+        increasing=dict(marker_color="#10B981"),
+        decreasing=dict(marker_color="#EF4444"),
+        totals=dict(marker_color="#9B8AFF" if values[-1] >= values[0] else "#EF4444"),
+    ))
+    # Override colors for absolute bar
+    fig.data[0].connector.line.color = "rgba(255,255,255,0.1)"
+
+    fig.update_layout(
+        height=400, margin=dict(t=30, b=30, l=50, r=50),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(tickfont=dict(size=10, color="#8A85AD"), showgrid=False),
+        yaxis=dict(title=dict(text="EPS ($)", font=dict(size=10, color="#8A85AD")),
+                   gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD"),
+                   tickprefix="$"),
+        hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
+    )
+    st.plotly_chart(fig, use_container_width=True, key=key)
+
+
+# ── CHART: Football Field Valuation ──────────────────────────
+def _build_football_field_chart(football_field, currency_symbol="$", key="football_field"):
+    """Horizontal range bars with offer price reference line."""
+    offer_price = football_field.get("_offer_price", 0)
+    methods = {k: v for k, v in football_field.items() if not k.startswith("_")}
+
+    if not methods:
+        st.info("Insufficient data for football field chart.")
+        return
+
+    labels = list(methods.keys())
+    lows = [methods[m]["low"] for m in labels]
+    highs = [methods[m]["high"] for m in labels]
+
+    colors = ["#6B5CE7", "#10B981", "#F5A623", "#E8638B", "#3B82F6"]
+
+    fig = go.Figure()
+    for i, label in enumerate(labels):
+        fig.add_trace(go.Bar(
+            y=[label], x=[highs[i] - lows[i]],
+            base=[lows[i]], orientation="h",
+            marker_color=colors[i % len(colors)],
+            opacity=0.7, name=label,
+            text=[f"{format_number(lows[i], currency_symbol=currency_symbol)} — {format_number(highs[i], currency_symbol=currency_symbol)}"],
+            textposition="inside",
+            textfont=dict(size=9, color="#fff"),
+            hoverinfo="text",
+            showlegend=False,
+        ))
+
+    if offer_price > 0:
+        fig.add_vline(
+            x=offer_price, line_dash="dash", line_color="#EF4444", line_width=2,
+            annotation_text=f"Offer: {format_number(offer_price, currency_symbol=currency_symbol)}",
+            annotation_position="top",
+            annotation_font=dict(size=10, color="#EF4444"),
+        )
+
+    fig.update_layout(
+        height=300, margin=dict(t=40, b=30, l=120, r=60),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD")),
+        yaxis=dict(tickfont=dict(size=10, color="#8A85AD"), autorange="reversed"),
+        hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
+        barmode="stack",
+    )
+    st.plotly_chart(fig, use_container_width=True, key=key)
+
+
+# ── CHART: Deal Structure Donut ──────────────────────────────
+def _build_deal_structure_donut(assumptions, key="deal_donut"):
+    """Pie chart with hole showing cash/stock split."""
+    fig = go.Figure(go.Pie(
+        labels=["Cash", "Stock"],
+        values=[assumptions.pct_cash, assumptions.pct_stock],
+        hole=0.55,
+        marker_colors=["#6B5CE7", "#E8638B"],
+        textinfo="label+percent",
+        textfont=dict(size=12, color="#fff"),
+        hoverinfo="label+percent+value",
+    ))
+    fig.update_layout(
+        height=280, margin=dict(t=30, b=30, l=30, r=30),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        showlegend=False,
+        annotations=[dict(text="Deal<br>Mix", x=0.5, y=0.5, font_size=14,
+                         font_color="#E0DCF5", showarrow=False)],
+    )
+    st.plotly_chart(fig, use_container_width=True, key=key)
+
+
+# ── CHART: Company Comparison Bars ───────────────────────────
+def _build_company_comparison_bars(acq_cd, tgt_cd, key="company_compare"):
+    """Grouped horizontal bars comparing acquirer vs target on key metrics."""
+    metrics = []
+    acq_vals = []
+    tgt_vals = []
+
+    for label, acq_v, tgt_v in [
+        ("Gross Margin %", (acq_cd.gross_margins or 0) * 100, (tgt_cd.gross_margins or 0) * 100),
+        ("Op Margin %", (acq_cd.operating_margins or 0) * 100, (tgt_cd.operating_margins or 0) * 100),
+        ("Net Margin %", (acq_cd.profit_margins or 0) * 100, (tgt_cd.profit_margins or 0) * 100),
+        ("ROE %", (acq_cd.return_on_equity or 0) * 100, (tgt_cd.return_on_equity or 0) * 100),
+    ]:
+        metrics.append(label)
+        acq_vals.append(acq_v)
+        tgt_vals.append(tgt_v)
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        y=metrics, x=acq_vals, orientation="h", name=acq_cd.ticker,
+        marker_color="#6B5CE7",
+        text=[f"{v:.1f}%" for v in acq_vals],
+        textposition="outside", textfont=dict(size=10, color="#B8B3D7"),
+    ))
+    fig.add_trace(go.Bar(
+        y=metrics, x=tgt_vals, orientation="h", name=tgt_cd.ticker,
+        marker_color="#E8638B",
+        text=[f"{v:.1f}%" for v in tgt_vals],
+        textposition="outside", textfont=dict(size=10, color="#B8B3D7"),
+    ))
+    fig.update_layout(
+        height=280, margin=dict(t=30, b=20, l=100, r=60),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD"),
+                   ticksuffix="%"),
+        yaxis=dict(tickfont=dict(size=10, color="#8A85AD"), autorange="reversed"),
+        legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
+        barmode="group",
+        hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
+    )
+    st.plotly_chart(fig, use_container_width=True, key=key)
+
+
 # ── RENDER: SWOT Grid ─────────────────────────────────────────
 def _render_swot_grid(swot):
     """2x2 CSS grid with color-coded SWOT cards."""
@@ -1281,12 +1452,57 @@ with st.sidebar:
     )
     st.markdown("---")
 
-    ticker_input = st.text_input(
-        "Stock Ticker", value="AAPL", max_chars=10,
-        help="Enter any stock ticker (e.g. AAPL, RY.TO, NVDA.L, 7203.T)"
-    ).strip().upper()
+    analysis_mode = st.radio("Analysis Mode", ["Company Profile", "Merger Analysis"], horizontal=True)
 
-    generate_btn = st.button("Generate Profile", type="primary", use_container_width=True)
+    if analysis_mode == "Company Profile":
+        ticker_input = st.text_input(
+            "Stock Ticker", value="AAPL", max_chars=10,
+            help="Enter any stock ticker (e.g. AAPL, RY.TO, NVDA.L, 7203.T)"
+        ).strip().upper()
+        generate_btn = st.button("Generate Profile", type="primary", use_container_width=True)
+        # Merger-specific variables (unused in this mode)
+        acquirer_input = ""
+        target_input = ""
+        merger_btn = False
+        merger_assumptions = MergerAssumptions()
+    else:
+        ticker_input = ""
+        generate_btn = False
+
+        acquirer_input = st.text_input(
+            "Acquirer Ticker", value="MSFT", max_chars=10,
+            help="Acquiring company ticker"
+        ).strip().upper()
+        target_input = st.text_input(
+            "Target Ticker", value="ATVI", max_chars=10,
+            help="Target company ticker"
+        ).strip().upper()
+
+        st.markdown('<div style="font-size:0.75rem; font-weight:600; color:#8A85AD; text-transform:uppercase; letter-spacing:1px; margin:0.8rem 0 0.3rem 0;">Deal Assumptions</div>', unsafe_allow_html=True)
+
+        offer_premium = st.slider("Offer Premium (%)", 0, 100, 30, 5)
+        pct_cash = st.slider("Cash Consideration (%)", 0, 100, 50, 5)
+        pct_stock = 100 - pct_cash
+        st.caption(f"Stock: {pct_stock}%")
+
+        cost_syn = st.slider("Cost Synergies (% of Target SG&A)", 0, 30, 10, 1)
+        rev_syn = st.slider("Revenue Synergies (% of Target Rev)", 0, 10, 2, 1)
+
+        with st.expander("Advanced"):
+            adv_tax_rate = st.slider("Tax Rate (%)", 10, 40, 25, 1)
+            adv_cost_of_debt = st.slider("Cost of Debt (%)", 2.0, 10.0, 5.0, 0.5)
+
+        merger_assumptions = MergerAssumptions(
+            offer_premium_pct=offer_premium,
+            pct_cash=pct_cash,
+            pct_stock=pct_stock,
+            cost_synergies_pct=cost_syn,
+            revenue_synergies_pct=rev_syn,
+            tax_rate=adv_tax_rate,
+            cost_of_debt=adv_cost_of_debt,
+        )
+
+        merger_btn = st.button("Analyze Deal", type="primary", use_container_width=True)
 
     st.markdown("---")
     st.markdown(
@@ -1301,16 +1517,26 @@ with st.sidebar:
     )
 
 # ── Main Area ────────────────────────────────────────────────
-st.markdown(
-    '<div class="hero-header">'
-    '<p class="hero-title">M&A Profile <span class="hero-accent">Builder</span></p>'
-    '<p class="hero-sub">Comprehensive company research & 8-slide tear sheet generator</p>'
-    '<span class="hero-tagline">Powered by Live Market Data</span>'
-    '</div>',
-    unsafe_allow_html=True,
-)
+if analysis_mode == "Company Profile":
+    st.markdown(
+        '<div class="hero-header">'
+        '<p class="hero-title">M&A Profile <span class="hero-accent">Builder</span></p>'
+        '<p class="hero-sub">Comprehensive company research & 8-slide tear sheet generator</p>'
+        '<span class="hero-tagline">Powered by Live Market Data</span>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+else:
+    st.markdown(
+        '<div class="hero-header">'
+        '<p class="hero-title">Merger <span class="hero-accent">Simulator</span></p>'
+        '<p class="hero-sub">Pro forma analysis, accretion/dilution & deal book generation</p>'
+        '<span class="hero-tagline">Powered by Live Market Data</span>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
-if generate_btn and ticker_input:
+if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     # ── Data Fetching ────────────────────────────────────
     with st.spinner(f"Fetching comprehensive data for {ticker_input}..."):
         try:
@@ -1978,73 +2204,532 @@ if generate_btn and ticker_input:
             unsafe_allow_html=True,
         )
 
-elif generate_btn and not ticker_input:
+elif analysis_mode == "Company Profile" and generate_btn and not ticker_input:
     st.warning("Please enter a ticker symbol in the sidebar.")
+
+elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and target_input:
+    # ══════════════════════════════════════════════════════
+    # MERGER ANALYSIS DASHBOARD
+    # ══════════════════════════════════════════════════════
+
+    import time as _time
+
+    # ── Fetch data for both companies ─────────────────────
+    with st.spinner(f"Fetching data for {acquirer_input}..."):
+        try:
+            acq_cd = fetch_company_data(acquirer_input)
+        except Exception as e:
+            st.error(f"Failed to fetch data for **{acquirer_input}**: {e}")
+            st.stop()
+
+    _time.sleep(1)  # Avoid rate limits
+
+    with st.spinner(f"Fetching data for {target_input}..."):
+        try:
+            tgt_cd = fetch_company_data(target_input)
+        except Exception as e:
+            st.error(f"Failed to fetch data for **{target_input}**: {e}")
+            st.stop()
+
+    with st.spinner("Fetching peer data..."):
+        try:
+            tgt_cd = fetch_peer_data(tgt_cd)
+        except Exception:
+            pass
+
+    # ── Compute pro forma ─────────────────────────────────
+    with st.spinner("Computing pro forma financials..."):
+        pro_forma = calculate_pro_forma(acq_cd, tgt_cd, merger_assumptions)
+        pro_forma.football_field = build_football_field(acq_cd, tgt_cd, pro_forma)
+
+    with st.spinner("Generating merger insights..."):
+        merger_insights = generate_merger_insights(acq_cd, tgt_cd, pro_forma, merger_assumptions)
+
+    acq_cs = acq_cd.currency_symbol
+    tgt_cs = tgt_cd.currency_symbol
+
+    # ── Warnings ──────────────────────────────────────────
+    for warn in pro_forma.warnings:
+        st.warning(warn)
+
+    # ══════════════════════════════════════════════════════
+    # M1. DEAL HEADER
+    # ══════════════════════════════════════════════════════
+    acq_logo = ""
+    if acq_cd.logo_url:
+        acq_logo = (
+            f'<img src="{acq_cd.logo_url}" '
+            f'style="width:48px; height:48px; border-radius:10px; object-fit:contain; '
+            f'background:white; padding:4px;" onerror="this.style.display=\'none\'">'
+        )
+    tgt_logo = ""
+    if tgt_cd.logo_url:
+        tgt_logo = (
+            f'<img src="{tgt_cd.logo_url}" '
+            f'style="width:48px; height:48px; border-radius:10px; object-fit:contain; '
+            f'background:white; padding:4px;" onerror="this.style.display=\'none\'">'
+        )
+
+    st.markdown(
+        f'<div class="company-card">'
+        f'<div style="display:flex; align-items:center; gap:1.2rem; position:relative;">'
+        f'{acq_logo}'
+        f'<div>'
+        f'<p class="company-name" style="font-size:1.5rem;">{acq_cd.name}</p>'
+        f'<p class="company-meta"><span>{acq_cd.ticker}</span> &middot; {acq_cd.sector}</p>'
+        f'</div>'
+        f'<div style="font-size:2rem; font-weight:300; color:#6B5CE7; margin:0 1rem;">+</div>'
+        f'{tgt_logo}'
+        f'<div>'
+        f'<p class="company-name" style="font-size:1.5rem;">{tgt_cd.name}</p>'
+        f'<p class="company-meta"><span>{tgt_cd.ticker}</span> &middot; {tgt_cd.sector}</p>'
+        f'</div>'
+        f'</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    # ══════════════════════════════════════════════════════
+    # M2. COMPANY COMPARISON
+    # ══════════════════════════════════════════════════════
+    _section("Company Comparison")
+
+    cc1, cc2, cc3, cc4, cc5, cc6 = st.columns(6)
+    cc1.metric(f"{acq_cd.ticker} Mkt Cap", format_number(acq_cd.market_cap, currency_symbol=acq_cs))
+    cc2.metric(f"{tgt_cd.ticker} Mkt Cap", format_number(tgt_cd.market_cap, currency_symbol=tgt_cs))
+    cc3.metric(f"{acq_cd.ticker} Revenue", format_number(pro_forma.acq_revenue, currency_symbol=acq_cs))
+    cc4.metric(f"{tgt_cd.ticker} Revenue", format_number(pro_forma.tgt_revenue, currency_symbol=tgt_cs))
+    cc5.metric(f"{acq_cd.ticker} EBITDA", format_number(pro_forma.acq_ebitda, currency_symbol=acq_cs))
+    cc6.metric(f"{tgt_cd.ticker} EBITDA", format_number(pro_forma.tgt_ebitda, currency_symbol=tgt_cs))
+
+    # Company comparison bars
+    _build_company_comparison_bars(acq_cd, tgt_cd)
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # M3. DEAL TERMS
+    # ══════════════════════════════════════════════════════
+    _section("Deal Terms")
+
+    dt1, dt2, dt3, dt4, dt5 = st.columns(5)
+    dt1.metric("Purchase Price", format_number(pro_forma.purchase_price, currency_symbol=acq_cs))
+    dt2.metric("Offer Premium", f"{merger_assumptions.offer_premium_pct:.0f}%")
+    dt3.metric("Implied EV/EBITDA", f"{pro_forma.implied_ev_ebitda:.1f}x" if pro_forma.implied_ev_ebitda else "N/A")
+    dt4.metric("Implied P/E", f"{pro_forma.implied_pe:.1f}x" if pro_forma.implied_pe else "N/A")
+    dt5.metric("Transaction Fees", format_number(pro_forma.transaction_fees, currency_symbol=acq_cs))
+
+    # Deal structure donut
+    deal_col1, deal_col2 = st.columns([2, 3])
+    with deal_col1:
+        _build_deal_structure_donut(merger_assumptions)
+    with deal_col2:
+        st.markdown(
+            f'<div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); '
+            f'border-radius:14px; padding:1.2rem;">'
+            f'<div style="font-size:0.75rem; font-weight:600; color:#8A85AD; text-transform:uppercase; letter-spacing:1px; margin-bottom:0.5rem;">Consideration Detail</div>'
+            f'<div style="font-size:0.9rem; color:#B8B3D7; line-height:2;">'
+            f'Cash: {format_number(pro_forma.cash_consideration, currency_symbol=acq_cs)} (debt-funded)<br>'
+            f'Stock: {format_number(pro_forma.stock_consideration, currency_symbol=acq_cs)} '
+            f'({pro_forma.new_shares_issued / 1e6:,.1f}M new shares @ {acq_cs}{acq_cd.current_price:,.2f})<br>'
+            f'Offer Price: {acq_cs}{pro_forma.offer_price_per_share:,.2f}/share '
+            f'(vs current {tgt_cs}{tgt_cd.current_price:,.2f})'
+            f'</div></div>',
+            unsafe_allow_html=True,
+        )
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # M4. PRO FORMA FINANCIALS
+    # ══════════════════════════════════════════════════════
+    _section("Pro Forma Financials")
+
+    tax_r = merger_assumptions.tax_rate / 100
+    ats = pro_forma.total_synergies * (1 - tax_r)
+    ati = pro_forma.incremental_interest * (1 - tax_r)
+
+    pf_data = {
+        "": ["Revenue", "EBITDA", "Net Income", "Shares (M)", "EPS"],
+        acq_cd.ticker: [
+            format_number(pro_forma.acq_revenue, currency_symbol=acq_cs),
+            format_number(pro_forma.acq_ebitda, currency_symbol=acq_cs),
+            format_number(pro_forma.acq_net_income, currency_symbol=acq_cs),
+            f"{pro_forma.acq_shares / 1e6:,.0f}" if pro_forma.acq_shares else "N/A",
+            f"{acq_cs}{pro_forma.acq_eps:.2f}" if pro_forma.acq_eps else "N/A",
+        ],
+        tgt_cd.ticker: [
+            format_number(pro_forma.tgt_revenue, currency_symbol=tgt_cs),
+            format_number(pro_forma.tgt_ebitda, currency_symbol=tgt_cs),
+            format_number(pro_forma.tgt_net_income, currency_symbol=tgt_cs),
+            "—",
+            "—",
+        ],
+        "Adjustments": [
+            format_number(pro_forma.revenue_synergies, currency_symbol=acq_cs),
+            format_number(pro_forma.total_synergies, currency_symbol=acq_cs),
+            format_number(ats - ati, currency_symbol=acq_cs),
+            f"+{pro_forma.new_shares_issued / 1e6:,.0f}" if pro_forma.new_shares_issued else "—",
+            "—",
+        ],
+        "Pro Forma": [
+            format_number(pro_forma.pf_revenue, currency_symbol=acq_cs),
+            format_number(pro_forma.pf_ebitda, currency_symbol=acq_cs),
+            format_number(pro_forma.pf_net_income, currency_symbol=acq_cs),
+            f"{pro_forma.pf_shares_outstanding / 1e6:,.0f}" if pro_forma.pf_shares_outstanding else "N/A",
+            f"{acq_cs}{pro_forma.pf_eps:.2f}" if pro_forma.pf_eps else "N/A",
+        ],
+    }
+    pf_df = pd.DataFrame(pf_data)
+    st.dataframe(pf_df, use_container_width=True, hide_index=True, height=230)
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # M5. ACCRETION / DILUTION
+    # ══════════════════════════════════════════════════════
+    _section("Accretion / Dilution Analysis")
+
+    acc_color = "#10B981" if pro_forma.is_accretive else "#EF4444"
+    acc_word = "ACCRETIVE" if pro_forma.is_accretive else "DILUTIVE"
+    acc_bg = "rgba(16,185,129,0.08)" if pro_forma.is_accretive else "rgba(239,68,68,0.08)"
+
+    st.markdown(
+        f'<div style="text-align:center; padding:1rem; background:{acc_bg}; border-radius:14px; margin-bottom:1rem;">'
+        f'<div style="font-size:0.7rem; font-weight:600; color:#8A85AD; text-transform:uppercase; letter-spacing:1px;">EPS Impact</div>'
+        f'<div style="font-size:2.5rem; font-weight:800; color:{acc_color};">{pro_forma.accretion_dilution_pct:+.1f}%</div>'
+        f'<div style="font-size:1rem; font-weight:700; color:{acc_color};">{acc_word}</div>'
+        f'<div style="font-size:0.8rem; color:#B8B3D7; margin-top:0.3rem;">'
+        f'Standalone: {acq_cs}{pro_forma.acq_eps:.2f} &rarr; Pro Forma: {acq_cs}{pro_forma.pf_eps:.2f}</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    _build_accretion_waterfall(pro_forma)
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # M6. FOOTBALL FIELD VALUATION
+    # ══════════════════════════════════════════════════════
+    if pro_forma.football_field and len([k for k in pro_forma.football_field if not k.startswith("_")]) > 0:
+        _section("Football Field Valuation")
+        _build_football_field_chart(pro_forma.football_field, acq_cs)
+        _divider()
+
+    # ══════════════════════════════════════════════════════
+    # M7. SOURCES & USES
+    # ══════════════════════════════════════════════════════
+    _section("Sources & Uses")
+
+    su1, su2 = st.columns(2)
+    with su1:
+        st.markdown('<div style="font-size:0.85rem; font-weight:700; color:#E0DCF5; margin-bottom:0.5rem;">Sources</div>', unsafe_allow_html=True)
+        for k, v in pro_forma.sources.items():
+            weight = "700" if k.startswith("Total") else "400"
+            st.markdown(
+                f'<div style="display:flex; justify-content:space-between; padding:0.3rem 0; '
+                f'border-bottom:1px solid rgba(255,255,255,0.05); font-size:0.85rem; color:#B8B3D7; font-weight:{weight};">'
+                f'<span>{k}</span><span>{format_number(v, currency_symbol=acq_cs)}</span></div>',
+                unsafe_allow_html=True,
+            )
+    with su2:
+        st.markdown('<div style="font-size:0.85rem; font-weight:700; color:#E0DCF5; margin-bottom:0.5rem;">Uses</div>', unsafe_allow_html=True)
+        for k, v in pro_forma.uses.items():
+            weight = "700" if k.startswith("Total") else "400"
+            st.markdown(
+                f'<div style="display:flex; justify-content:space-between; padding:0.3rem 0; '
+                f'border-bottom:1px solid rgba(255,255,255,0.05); font-size:0.85rem; color:#B8B3D7; font-weight:{weight};">'
+                f'<span>{k}</span><span>{format_number(v, currency_symbol=acq_cs)}</span></div>',
+                unsafe_allow_html=True,
+            )
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # M8. PRO FORMA CREDIT
+    # ══════════════════════════════════════════════════════
+    _section("Pro Forma Credit Profile")
+
+    cr1, cr2, cr3, cr4 = st.columns(4)
+
+    def _lev_color(val):
+        if val is None: return "#8A85AD"
+        if val < 2: return "#10B981"
+        if val < 4: return "#F5A623"
+        return "#EF4444"
+
+    def _cov_color(val):
+        if val is None: return "#8A85AD"
+        if val > 5: return "#10B981"
+        if val > 2.5: return "#F5A623"
+        return "#EF4444"
+
+    lev_c = _lev_color(pro_forma.pf_leverage_ratio)
+    cov_c = _cov_color(pro_forma.pf_interest_coverage)
+
+    cr1.metric("PF Debt / EBITDA", f"{pro_forma.pf_leverage_ratio:.1f}x" if pro_forma.pf_leverage_ratio else "N/A")
+    cr2.metric("PF Interest Coverage", f"{pro_forma.pf_interest_coverage:.1f}x" if pro_forma.pf_interest_coverage else "N/A")
+    cr3.metric("PF Total Debt", format_number(pro_forma.pf_total_debt, currency_symbol=acq_cs))
+    cr4.metric("PF Net Debt", format_number(pro_forma.pf_net_debt, currency_symbol=acq_cs))
+
+    st.markdown(
+        f'<div style="display:flex; gap:1rem; margin-top:0.5rem;">'
+        f'<div style="flex:1; text-align:center; padding:0.6rem; background:rgba(255,255,255,0.04); border-radius:10px; border-left:3px solid {lev_c};">'
+        f'<div style="font-size:0.65rem; font-weight:600; color:#8A85AD; text-transform:uppercase;">Leverage</div>'
+        f'<div style="font-size:1.1rem; font-weight:700; color:{lev_c};">'
+        f'{"Conservative" if (pro_forma.pf_leverage_ratio or 0) < 2 else "Moderate" if (pro_forma.pf_leverage_ratio or 0) < 4 else "Aggressive"}</div></div>'
+        f'<div style="flex:1; text-align:center; padding:0.6rem; background:rgba(255,255,255,0.04); border-radius:10px; border-left:3px solid {cov_c};">'
+        f'<div style="font-size:0.65rem; font-weight:600; color:#8A85AD; text-transform:uppercase;">Coverage</div>'
+        f'<div style="font-size:1.1rem; font-weight:700; color:{cov_c};">'
+        f'{"Strong" if (pro_forma.pf_interest_coverage or 0) > 5 else "Adequate" if (pro_forma.pf_interest_coverage or 0) > 2.5 else "Tight"}</div></div>'
+        f'<div style="flex:1; text-align:center; padding:0.6rem; background:rgba(255,255,255,0.04); border-radius:10px;">'
+        f'<div style="font-size:0.65rem; font-weight:600; color:#8A85AD; text-transform:uppercase;">Goodwill</div>'
+        f'<div style="font-size:1.1rem; font-weight:700; color:#E0DCF5;">{format_number(pro_forma.goodwill, currency_symbol=acq_cs)}</div></div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # M9. AI STRATEGIC RATIONALE
+    # ══════════════════════════════════════════════════════
+    _section("Strategic Rationale")
+    for line in merger_insights.strategic_rationale.split("\n"):
+        line = line.strip()
+        if line.startswith("- "):
+            line = line[2:]
+        if line:
+            st.markdown(f"<div style='font-size:0.88rem; color:#B8B3D7; line-height:1.7; padding:0.2rem 0;'>&bull; {line}</div>", unsafe_allow_html=True)
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # M10. AI DEAL RISKS
+    # ══════════════════════════════════════════════════════
+    _section("Deal Risk Assessment")
+    for line in merger_insights.deal_risks.split("\n"):
+        line = line.strip()
+        if line.startswith("- "):
+            line = line[2:]
+        if not line:
+            continue
+        severity_color = "#8A85AD"
+        severity_bg = "rgba(138,133,173,0.05)"
+        severity_border = "rgba(138,133,173,0.2)"
+        for tag, color, bg, border in [
+            ("[ANTITRUST]", "#EF4444", "rgba(239,68,68,0.06)", "rgba(239,68,68,0.3)"),
+            ("[INTEGRATION]", "#F5A623", "rgba(245,166,35,0.06)", "rgba(245,166,35,0.3)"),
+            ("[FINANCIAL]", "#E8638B", "rgba(232,99,139,0.06)", "rgba(232,99,139,0.3)"),
+            ("[EXECUTION]", "#6B5CE7", "rgba(107,92,231,0.06)", "rgba(107,92,231,0.3)"),
+            ("[MARKET]", "#10B981", "rgba(16,185,129,0.06)", "rgba(16,185,129,0.3)"),
+        ]:
+            if line.startswith(tag):
+                line = line[len(tag):].strip()
+                severity_color = color
+                severity_bg = bg
+                severity_border = border
+                break
+        st.markdown(
+            f'<div style="border-left:3px solid {severity_border}; background:{severity_bg}; '
+            f'padding:0.5rem 0.8rem; margin-bottom:0.4rem; border-radius:0 8px 8px 0;">'
+            f'<div style="font-size:0.86rem; color:#B8B3D7; line-height:1.7;">{line}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # M11. AI DEAL VERDICT
+    # ══════════════════════════════════════════════════════
+    _section("Deal Verdict")
+
+    grade_colors = {"A": "#10B981", "B": "#6B5CE7", "C": "#F5A623", "D": "#EF4444", "F": "#EF4444"}
+    grade_c = grade_colors.get(merger_insights.deal_grade, "#8A85AD")
+    grade_bg = {"A": "rgba(16,185,129,0.12)", "B": "rgba(107,92,231,0.12)",
+                "C": "rgba(245,166,35,0.12)", "D": "rgba(239,68,68,0.12)", "F": "rgba(239,68,68,0.12)"}
+
+    st.markdown(
+        f'<div style="display:inline-block; background:{grade_bg.get(merger_insights.deal_grade, "rgba(138,133,173,0.12)")}; '
+        f'color:{grade_c}; padding:0.5rem 1.5rem; border-radius:20px; font-weight:800; '
+        f'font-size:1.2rem; letter-spacing:1px; margin-bottom:1rem;">Deal Grade: {merger_insights.deal_grade}</div>',
+        unsafe_allow_html=True,
+    )
+
+    for line in merger_insights.deal_verdict.split("\n"):
+        line = line.strip()
+        if line.startswith("- "):
+            line = line[2:]
+        if line:
+            st.markdown(f"<div style='font-size:0.88rem; color:#B8B3D7; line-height:1.7; padding:0.2rem 0;'>&bull; {line}</div>", unsafe_allow_html=True)
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # M12. DOWNLOAD DEAL BOOK
+    # ══════════════════════════════════════════════════════
+    _section("Download Deal Book")
+
+    if not os.path.exists("assets/template.pptx"):
+        with st.spinner("Creating template..."):
+            from create_template import build
+            build()
+
+    with st.spinner("Building 10-slide Deal Book..."):
+        deal_book_buf = generate_deal_book(acq_cd, tgt_cd, pro_forma, merger_insights, merger_assumptions)
+
+    dl1, dl2, dl3 = st.columns([1, 2, 1])
+    with dl2:
+        st.download_button(
+            label=f"Download {acq_cd.ticker}+{tgt_cd.ticker} Deal Book  (10 slides)",
+            data=deal_book_buf,
+            file_name=f"{acq_cd.ticker}_{tgt_cd.ticker}_Deal_Book.pptx",
+            mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            use_container_width=True,
+        )
+        st.markdown(
+            "<p style='text-align:center; font-size:0.72rem; color:#8A85AD; margin-top:0.3rem;'>"
+            "Professional deal book &middot; Pro forma analysis &middot; AI-powered insights"
+            "</p>",
+            unsafe_allow_html=True,
+        )
+
+elif analysis_mode == "Merger Analysis" and merger_btn and (not acquirer_input or not target_input):
+    st.warning("Please enter both Acquirer and Target tickers in the sidebar.")
+
 else:
     # ══════════════════════════════════════════════════════
     # SPLASH / LANDING PAGE — Immersive space experience
     # ══════════════════════════════════════════════════════
-    st.markdown(
-        '<div class="splash-hero">'
-        '<div class="star-layer-1">&#8203;</div>'
-        '<div class="star-layer-2">&#8203;</div>'
-        '<div class="star-layer-3">&#8203;</div>'
-        '<div class="nebula-overlay">&#8203;</div>'
-        '<div class="orb orb-1">&#8203;</div>'
-        '<div class="orb orb-2">&#8203;</div>'
-        '<div class="orb orb-3">&#8203;</div>'
-        '<div class="orb orb-4">&#8203;</div>'
-        '<div class="orb orb-5">&#8203;</div>'
-        '<div class="shooting-star shooting-star-1">&#8203;</div>'
-        '<div class="shooting-star shooting-star-2">&#8203;</div>'
-        '<div class="shooting-star shooting-star-3">&#8203;</div>'
-        '<div class="noise-overlay">&#8203;</div>'
-        '<div class="title-glow">&#8203;</div>'
-        '<div class="splash-content">'
-        '<p class="splash-title">M&amp;A Profile <span class="splash-accent">Builder</span></p>'
-        '<p class="splash-subtitle">Institutional-grade company research &amp; tear sheet generation</p>'
-        '<div class="pill-row">'
-        '<span class="feature-pill">Live Market Data</span>'
-        '<span class="feature-pill">Wikipedia M&amp;A</span>'
-        '<span class="feature-pill">Peer Analysis</span>'
-        '<span class="feature-pill">AI Powered</span>'
-        '<span class="feature-pill">Global Exchanges</span>'
-        '</div>'
-        '<div class="splash-stats">'
-        '<div><div class="splash-stat-value">60+</div><div class="splash-stat-label">Data Points</div></div>'
-        '<div><div class="splash-stat-value">8</div><div class="splash-stat-label">PPTX Slides</div></div>'
-        '<div><div class="splash-stat-value">20+</div><div class="splash-stat-label">Exchanges</div></div>'
-        '</div>'
-        '</div>'
-        '</div>',
-        unsafe_allow_html=True,
-    )
+    if analysis_mode == "Merger Analysis":
+        # Merger-specific splash
+        st.markdown(
+            '<div class="splash-hero">'
+            '<div class="star-layer-1">&#8203;</div>'
+            '<div class="star-layer-2">&#8203;</div>'
+            '<div class="star-layer-3">&#8203;</div>'
+            '<div class="nebula-overlay">&#8203;</div>'
+            '<div class="orb orb-1">&#8203;</div>'
+            '<div class="orb orb-2">&#8203;</div>'
+            '<div class="orb orb-3">&#8203;</div>'
+            '<div class="orb orb-4">&#8203;</div>'
+            '<div class="orb orb-5">&#8203;</div>'
+            '<div class="shooting-star shooting-star-1">&#8203;</div>'
+            '<div class="shooting-star shooting-star-2">&#8203;</div>'
+            '<div class="shooting-star shooting-star-3">&#8203;</div>'
+            '<div class="noise-overlay">&#8203;</div>'
+            '<div class="title-glow">&#8203;</div>'
+            '<div class="splash-content">'
+            '<p class="splash-title">Merger <span class="splash-accent">Simulator</span></p>'
+            '<p class="splash-subtitle">Pro forma merger analysis, accretion/dilution &amp; deal book generation</p>'
+            '<div class="pill-row">'
+            '<span class="feature-pill">Pro Forma Analysis</span>'
+            '<span class="feature-pill">Accretion/Dilution</span>'
+            '<span class="feature-pill">Football Field</span>'
+            '<span class="feature-pill">AI Insights</span>'
+            '<span class="feature-pill">Deal Book PPTX</span>'
+            '</div>'
+            '<div class="splash-stats">'
+            '<div><div class="splash-stat-value">12</div><div class="splash-stat-label">Dashboard Sections</div></div>'
+            '<div><div class="splash-stat-value">10</div><div class="splash-stat-label">Deal Book Slides</div></div>'
+            '<div><div class="splash-stat-value">4</div><div class="splash-stat-label">AI Analyses</div></div>'
+            '</div>'
+            '</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
 
-    # Step cards and feature grid in dark space-section
-    st.markdown(
-        '<div class="space-section">'
-        '<div class="space-section-title">How It Works</div>'
-        '<div class="step-grid">'
-        '<div class="step-card"><div class="step-num">1</div><div class="step-label">Enter Ticker</div><div class="step-detail">Any global exchange &mdash; AAPL, RY.TO, NVDA.L</div></div>'
-        '<div class="step-card"><div class="step-num">2</div><div class="step-label">Generate Profile</div><div class="step-detail">60+ data points pulled in real-time</div></div>'
-        '<div class="step-card"><div class="step-num">3</div><div class="step-label">Explore Dashboard</div><div class="step-detail">Charts, peer comparison &amp; insights</div></div>'
-        '<div class="step-card"><div class="step-num">4</div><div class="step-label">Download PPTX</div><div class="step-detail">8-slide IB-grade PowerPoint</div></div>'
-        '</div>'
-        '<div class="space-section-title">Platform Features</div>'
-        '<div class="feature-grid">'
-        '<div class="feature-card"><div class="feature-icon">&#128200;</div><div class="feature-title">Price &amp; Valuation</div><div class="feature-desc">Live prices, multiples, and historical charts</div></div>'
-        '<div class="feature-card"><div class="feature-icon">&#128101;</div><div class="feature-title">Peer Comparison</div><div class="feature-desc">Side-by-side valuation vs industry peers</div></div>'
-        '<div class="feature-card"><div class="feature-icon">&#128202;</div><div class="feature-title">Financial Statements</div><div class="feature-desc">Income, balance sheet, cash flow analysis</div></div>'
-        '<div class="feature-card"><div class="feature-icon">&#129309;</div><div class="feature-title">M&amp;A History</div><div class="feature-desc">Deal history scraped from Wikipedia</div></div>'
-        '<div class="feature-card"><div class="feature-icon">&#127919;</div><div class="feature-title">Analyst Consensus</div><div class="feature-desc">Recommendations &amp; price targets</div></div>'
-        '<div class="feature-card"><div class="feature-icon">&#128161;</div><div class="feature-title">AI Insights</div><div class="feature-desc">Powered by GPT (optional API key)</div></div>'
-        '<div class="feature-card"><div class="feature-icon">&#127760;</div><div class="feature-title">Global Exchanges</div><div class="feature-desc">TSX, LSE, JPX and more with local currencies</div></div>'
-        '<div class="feature-card"><div class="feature-icon">&#128196;</div><div class="feature-title">PowerPoint Export</div><div class="feature-desc">8-slide professional presentation</div></div>'
-        '</div>'
-        '<p style="font-size:0.72rem; color:#8A85AD; margin-top:2rem; text-align:center;">'
-        'M&amp;A history scraped from Wikipedia &mdash; no API key needed<br>'
-        'Set <code style="color:#9B8AFF;">OPENAI_API_KEY</code> for enhanced insights'
-        '</p>'
-        '</div>',
-        unsafe_allow_html=True,
-    )
+        st.markdown(
+            '<div class="space-section">'
+            '<div class="space-section-title">How It Works</div>'
+            '<div class="step-grid">'
+            '<div class="step-card"><div class="step-num">1</div><div class="step-label">Enter Tickers</div><div class="step-detail">Acquirer + Target company tickers</div></div>'
+            '<div class="step-card"><div class="step-num">2</div><div class="step-label">Set Assumptions</div><div class="step-detail">Premium, cash/stock mix, synergies</div></div>'
+            '<div class="step-card"><div class="step-num">3</div><div class="step-label">Analyze Deal</div><div class="step-detail">Pro forma financials &amp; AI insights</div></div>'
+            '<div class="step-card"><div class="step-num">4</div><div class="step-label">Download Book</div><div class="step-detail">10-slide deal book PowerPoint</div></div>'
+            '</div>'
+            '<div class="space-section-title">Analysis Features</div>'
+            '<div class="feature-grid">'
+            '<div class="feature-card"><div class="feature-icon">&#128200;</div><div class="feature-title">Pro Forma P&amp;L</div><div class="feature-desc">Combined income statement with synergy adjustments</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#128202;</div><div class="feature-title">Accretion/Dilution</div><div class="feature-desc">Waterfall chart showing EPS bridge</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#127919;</div><div class="feature-title">Football Field</div><div class="feature-desc">Multi-method valuation range analysis</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#128176;</div><div class="feature-title">Sources &amp; Uses</div><div class="feature-desc">Classic IB deal structure breakdown</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#128161;</div><div class="feature-title">AI Rationale</div><div class="feature-desc">Strategic fit and synergy assessment</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#9888;</div><div class="feature-title">Risk Analysis</div><div class="feature-desc">Antitrust, integration, financial risks</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#127942;</div><div class="feature-title">Deal Grade</div><div class="feature-desc">AI-powered A-F deal verdict</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#128196;</div><div class="feature-title">Deal Book</div><div class="feature-desc">10-slide professional PPTX export</div></div>'
+            '</div>'
+            '<p style="font-size:0.72rem; color:#8A85AD; margin-top:2rem; text-align:center;">'
+            'Enter Acquirer &amp; Target tickers in the sidebar to begin<br>'
+            'Set <code style="color:#9B8AFF;">OPENAI_API_KEY</code> for AI-powered deal insights'
+            '</p>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            '<div class="splash-hero">'
+            '<div class="star-layer-1">&#8203;</div>'
+            '<div class="star-layer-2">&#8203;</div>'
+            '<div class="star-layer-3">&#8203;</div>'
+            '<div class="nebula-overlay">&#8203;</div>'
+            '<div class="orb orb-1">&#8203;</div>'
+            '<div class="orb orb-2">&#8203;</div>'
+            '<div class="orb orb-3">&#8203;</div>'
+            '<div class="orb orb-4">&#8203;</div>'
+            '<div class="orb orb-5">&#8203;</div>'
+            '<div class="shooting-star shooting-star-1">&#8203;</div>'
+            '<div class="shooting-star shooting-star-2">&#8203;</div>'
+            '<div class="shooting-star shooting-star-3">&#8203;</div>'
+            '<div class="noise-overlay">&#8203;</div>'
+            '<div class="title-glow">&#8203;</div>'
+            '<div class="splash-content">'
+            '<p class="splash-title">M&amp;A Profile <span class="splash-accent">Builder</span></p>'
+            '<p class="splash-subtitle">Institutional-grade company research &amp; tear sheet generation</p>'
+            '<div class="pill-row">'
+            '<span class="feature-pill">Live Market Data</span>'
+            '<span class="feature-pill">Wikipedia M&amp;A</span>'
+            '<span class="feature-pill">Peer Analysis</span>'
+            '<span class="feature-pill">AI Powered</span>'
+            '<span class="feature-pill">Global Exchanges</span>'
+            '</div>'
+            '<div class="splash-stats">'
+            '<div><div class="splash-stat-value">60+</div><div class="splash-stat-label">Data Points</div></div>'
+            '<div><div class="splash-stat-value">8</div><div class="splash-stat-label">PPTX Slides</div></div>'
+            '<div><div class="splash-stat-value">20+</div><div class="splash-stat-label">Exchanges</div></div>'
+            '</div>'
+            '</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+        # Step cards and feature grid in dark space-section
+        st.markdown(
+            '<div class="space-section">'
+            '<div class="space-section-title">How It Works</div>'
+            '<div class="step-grid">'
+            '<div class="step-card"><div class="step-num">1</div><div class="step-label">Enter Ticker</div><div class="step-detail">Any global exchange &mdash; AAPL, RY.TO, NVDA.L</div></div>'
+            '<div class="step-card"><div class="step-num">2</div><div class="step-label">Generate Profile</div><div class="step-detail">60+ data points pulled in real-time</div></div>'
+            '<div class="step-card"><div class="step-num">3</div><div class="step-label">Explore Dashboard</div><div class="step-detail">Charts, peer comparison &amp; insights</div></div>'
+            '<div class="step-card"><div class="step-num">4</div><div class="step-label">Download PPTX</div><div class="step-detail">8-slide IB-grade PowerPoint</div></div>'
+            '</div>'
+            '<div class="space-section-title">Platform Features</div>'
+            '<div class="feature-grid">'
+            '<div class="feature-card"><div class="feature-icon">&#128200;</div><div class="feature-title">Price &amp; Valuation</div><div class="feature-desc">Live prices, multiples, and historical charts</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#128101;</div><div class="feature-title">Peer Comparison</div><div class="feature-desc">Side-by-side valuation vs industry peers</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#128202;</div><div class="feature-title">Financial Statements</div><div class="feature-desc">Income, balance sheet, cash flow analysis</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#129309;</div><div class="feature-title">M&amp;A History</div><div class="feature-desc">Deal history scraped from Wikipedia</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#127919;</div><div class="feature-title">Analyst Consensus</div><div class="feature-desc">Recommendations &amp; price targets</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#128161;</div><div class="feature-title">AI Insights</div><div class="feature-desc">Powered by GPT (optional API key)</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#127760;</div><div class="feature-title">Global Exchanges</div><div class="feature-desc">TSX, LSE, JPX and more with local currencies</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#128196;</div><div class="feature-title">PowerPoint Export</div><div class="feature-desc">8-slide professional presentation</div></div>'
+            '</div>'
+            '<p style="font-size:0.72rem; color:#8A85AD; margin-top:2rem; text-align:center;">'
+            'M&amp;A history scraped from Wikipedia &mdash; no API key needed<br>'
+            'Set <code style="color:#9B8AFF;">OPENAI_API_KEY</code> for enhanced insights'
+            '</p>'
+            '</div>',
+            unsafe_allow_html=True,
+        )

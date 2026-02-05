@@ -979,3 +979,517 @@ def generate_presentation(cd: CompanyData, template_path: str = "assets/template
     prs.save(buf)
     buf.seek(0)
     return buf
+
+
+# ══════════════════════════════════════════════════════════════
+# DEAL BOOK — 10-Slide Merger Presentation
+# ══════════════════════════════════════════════════════════════
+
+def _deal_footer(slide, acq_cd, tgt_cd):
+    """Add confidential footer bar for deal book slides."""
+    _add_rect(slide, Inches(0), SLIDE_H - Inches(0.35), SLIDE_W, Inches(0.35), NAVY)
+    _add_textbox(slide, Inches(0.5), SLIDE_H - Inches(0.32), Inches(8), Inches(0.25),
+                 f"Confidential  |  {acq_cd.name} + {tgt_cd.name}  |  {datetime.now().strftime('%B %d, %Y')}",
+                 font_size=7, color=WHITE)
+    _add_textbox(slide, SLIDE_W - Inches(2.5), SLIDE_H - Inches(0.32),
+                 Inches(2.2), Inches(0.25),
+                 "ProfileBuilder — Deal Book", font_size=7, bold=True, color=GOLD,
+                 alignment=PP_ALIGN.RIGHT)
+
+
+def _render_accretion_waterfall_mpl(pro_forma) -> io.BytesIO:
+    """Render accretion/dilution waterfall as matplotlib PNG."""
+    steps = pro_forma.waterfall_steps
+    if not steps:
+        fig, ax = plt.subplots(figsize=(6, 3))
+        ax.text(0.5, 0.5, "No data", ha="center", va="center", fontsize=10, color="#999")
+        ax.axis("off")
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=150, bbox_inches="tight", facecolor="white")
+        plt.close(fig)
+        buf.seek(0)
+        return buf
+
+    labels = [s["label"] for s in steps]
+    values = [s["value"] for s in steps]
+    types = [s["type"] for s in steps]
+
+    fig, ax = plt.subplots(figsize=(7, 3.5))
+
+    cumulative = 0
+    bottoms = []
+    bar_vals = []
+    colors = []
+
+    for i, (val, t) in enumerate(zip(values, types)):
+        if t == "absolute":
+            bottoms.append(0)
+            bar_vals.append(val)
+            cumulative = val
+            colors.append("#1E90FF")
+        elif t == "total":
+            bottoms.append(0)
+            bar_vals.append(val)
+            colors.append("#6B5CE7" if val >= values[0] else "#C62828")
+        else:  # relative
+            bottoms.append(cumulative)
+            bar_vals.append(val)
+            cumulative += val
+            colors.append("#2E7D32" if val >= 0 else "#C62828")
+
+    x = np.arange(len(labels))
+    bars = ax.bar(x, bar_vals, bottom=bottoms, color=colors, width=0.5, alpha=0.85)
+
+    for i, bar in enumerate(bars):
+        height = bar.get_height()
+        y_pos = bar.get_y() + height + (0.01 if height >= 0 else -0.03)
+        ax.text(bar.get_x() + bar.get_width() / 2, y_pos,
+                f"${values[i]:.2f}", ha="center", va="bottom" if height >= 0 else "top",
+                fontsize=7, fontweight="bold", color="#333")
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=7, rotation=15, ha="right")
+    ax.set_ylabel("EPS ($)", fontsize=8)
+    ax.set_title("Accretion / Dilution Waterfall", fontsize=10, fontweight="bold",
+                  color="#0B1D3A", pad=8)
+    ax.grid(axis="y", alpha=0.15)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.tick_params(axis="y", labelsize=7)
+
+    fig.tight_layout()
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=150, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    buf.seek(0)
+    return buf
+
+
+def _render_football_field_mpl(football_field, acq_cs="$") -> io.BytesIO:
+    """Render football field valuation as matplotlib PNG."""
+    # Filter out the _offer_price key
+    offer_price = football_field.get("_offer_price", 0)
+    methods = {k: v for k, v in football_field.items() if not k.startswith("_")}
+
+    fig, ax = plt.subplots(figsize=(7, 3.5))
+
+    if not methods:
+        ax.text(0.5, 0.5, "Insufficient data for valuation ranges",
+                ha="center", va="center", fontsize=10, color="#999")
+        ax.axis("off")
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", dpi=150, bbox_inches="tight", facecolor="white")
+        plt.close(fig)
+        buf.seek(0)
+        return buf
+
+    labels = list(methods.keys())
+    lows = [methods[m]["low"] for m in labels]
+    highs = [methods[m]["high"] for m in labels]
+    widths = [h - l for l, h in zip(lows, highs)]
+
+    y = np.arange(len(labels))
+    colors = ["#1E90FF", "#2E7D32", "#D4A537", "#6B5CE7", "#E8638B"]
+
+    for i in range(len(labels)):
+        ax.barh(y[i], widths[i], left=lows[i], height=0.5,
+                color=colors[i % len(colors)], alpha=0.7)
+        # Labels
+        def _fmt(v):
+            if abs(v) >= 1e9:
+                return f"{acq_cs}{v/1e9:.1f}B"
+            elif abs(v) >= 1e6:
+                return f"{acq_cs}{v/1e6:.0f}M"
+            else:
+                return f"{acq_cs}{v:,.0f}"
+        ax.text(lows[i], y[i], f" {_fmt(lows[i])}", va="center", ha="right", fontsize=6, color="#666")
+        ax.text(highs[i], y[i], f" {_fmt(highs[i])}", va="center", ha="left", fontsize=6, color="#666")
+
+    # Offer price line
+    if offer_price > 0:
+        ax.axvline(x=offer_price, color="#C62828", linewidth=2, linestyle="--", label="Offer Price")
+        ax.legend(fontsize=7, loc="lower right")
+
+    ax.set_yticks(y)
+    ax.set_yticklabels(labels, fontsize=8)
+    ax.set_title("Football Field Valuation", fontsize=10, fontweight="bold",
+                  color="#0B1D3A", pad=8)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.tick_params(axis="x", labelsize=7)
+    ax.xaxis.set_major_formatter(mticker.FuncFormatter(
+        lambda x, _: f"{acq_cs}{x/1e9:.1f}B" if abs(x) >= 1e9
+        else f"{acq_cs}{x/1e6:.0f}M" if abs(x) >= 1e6
+        else f"{acq_cs}{x:,.0f}"
+    ))
+
+    fig.tight_layout()
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=150, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    buf.seek(0)
+    return buf
+
+
+def _deal_slide_1(prs, acq, tgt, pf, assumptions):
+    """Deal Overview slide."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    _slide_header(slide, f"Deal Overview — {acq.name} + {tgt.name}")
+    cs = acq.currency_symbol
+
+    # Deal summary
+    _add_textbox(slide, Inches(0.5), Inches(0.9), Inches(12), Inches(0.3),
+                 f"{acq.name} ({acq.ticker}) to acquire {tgt.name} ({tgt.ticker})",
+                 font_size=14, bold=True, color=NAVY)
+
+    # Key deal metrics
+    metrics = [
+        ["Purchase Price", format_number(pf.purchase_price, currency_symbol=cs)],
+        ["Offer Premium", f"{assumptions.offer_premium_pct:.0f}%"],
+        ["Consideration", f"{assumptions.pct_cash:.0f}% Cash / {assumptions.pct_stock:.0f}% Stock"],
+        ["Implied EV/EBITDA", f"{pf.implied_ev_ebitda:.1f}x" if pf.implied_ev_ebitda else "N/A"],
+        ["Implied P/E", f"{pf.implied_pe:.1f}x" if pf.implied_pe else "N/A"],
+        ["EPS Impact", f"{pf.accretion_dilution_pct:+.1f}% ({'Accretive' if pf.is_accretive else 'Dilutive'})"],
+        ["PF Leverage", f"{pf.pf_leverage_ratio:.1f}x" if pf.pf_leverage_ratio else "N/A"],
+        ["Total Synergies", format_number(pf.total_synergies, currency_symbol=cs)],
+    ]
+    _add_styled_table(slide, ["Metric", "Value"], metrics,
+                      Inches(0.5), Inches(1.4), Inches(5.5), Inches(3.5),
+                      col_widths=[Inches(2.5), Inches(3.0)])
+
+    # Company comparison (right)
+    _add_textbox(slide, Inches(6.8), Inches(0.9), Inches(6), Inches(0.25),
+                 "Company Comparison", font_size=10, bold=True, color=NAVY)
+    comp_rows = [
+        ["Market Cap", format_number(acq.market_cap, currency_symbol=cs),
+         format_number(tgt.market_cap, currency_symbol=tgt.currency_symbol)],
+        ["Revenue", format_number(pf.acq_revenue, currency_symbol=cs),
+         format_number(pf.tgt_revenue, currency_symbol=tgt.currency_symbol)],
+        ["EBITDA", format_number(pf.acq_ebitda, currency_symbol=cs),
+         format_number(pf.tgt_ebitda, currency_symbol=tgt.currency_symbol)],
+        ["Gross Margin", format_pct(acq.gross_margins), format_pct(tgt.gross_margins)],
+        ["Op Margin", format_pct(acq.operating_margins), format_pct(tgt.operating_margins)],
+        ["P/E", f"{acq.trailing_pe:.1f}" if acq.trailing_pe else "N/A",
+         f"{tgt.trailing_pe:.1f}" if tgt.trailing_pe else "N/A"],
+    ]
+    _add_styled_table(slide, ["", acq.ticker, tgt.ticker], comp_rows,
+                      Inches(6.8), Inches(1.2), Inches(6), Inches(2.8),
+                      col_widths=[Inches(1.8), Inches(2.1), Inches(2.1)])
+
+    # Warnings
+    if pf.warnings:
+        warn_text = " | ".join(pf.warnings[:3])
+        _add_textbox(slide, Inches(0.5), Inches(5.2), Inches(12), Inches(0.4),
+                     f"Note: {warn_text}", font_size=7, color=MED_GRAY)
+
+    _deal_footer(slide, acq, tgt)
+
+
+def _deal_slide_2(prs, cd, label="Acquirer"):
+    """Company profile slide (acquirer or target)."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    _slide_header(slide, f"{label} Profile — {cd.name}")
+    cs = cd.currency_symbol
+
+    _add_textbox(slide, Inches(0.5), Inches(0.9), Inches(8), Inches(0.25),
+                 f"{cd.exchange}  |  {cd.sector}  >  {cd.industry}",
+                 font_size=9, color=MED_GRAY)
+
+    desc = cd.long_business_summary or "Description not available."
+    if len(desc) > 500:
+        desc = desc[:497] + "..."
+    desc_box = _add_textbox(slide, Inches(0.5), Inches(1.3), Inches(6), Inches(2.0),
+                            "Business Overview", font_size=10, bold=True, color=NAVY)
+    _add_para(desc_box.text_frame, desc, font_size=8, color=DARK_GRAY, space_before=Pt(4))
+
+    metrics = [
+        ["Market Cap", format_number(cd.market_cap, currency_symbol=cs),
+         "Revenue", format_number(cd.revenue.iloc[0], currency_symbol=cs) if cd.revenue is not None and len(cd.revenue) > 0 else "N/A"],
+        ["EBITDA", format_number(cd.ebitda.iloc[0], currency_symbol=cs) if cd.ebitda is not None and len(cd.ebitda) > 0 else "N/A",
+         "Net Income", format_number(cd.net_income.iloc[0], currency_symbol=cs) if cd.net_income is not None and len(cd.net_income) > 0 else "N/A"],
+        ["P/E", f"{cd.trailing_pe:.1f}" if cd.trailing_pe else "N/A",
+         "EV/EBITDA", format_multiple(cd.ev_to_ebitda)],
+        ["Gross Margin", format_pct(cd.gross_margins),
+         "Op Margin", format_pct(cd.operating_margins)],
+        ["ROE", format_pct(cd.return_on_equity),
+         "D/E", f"{cd.debt_to_equity / 100:.2f}x" if cd.debt_to_equity else "N/A"],
+    ]
+    _add_styled_table(slide, ["Metric", "Value", "Metric", "Value"], metrics,
+                      Inches(0.5), Inches(3.5), Inches(6), Inches(2.2),
+                      col_widths=[Inches(1.3), Inches(1.2), Inches(1.3), Inches(1.2)])
+
+    # Price chart (right)
+    chart_buf = _render_5y_price_chart(cd)
+    slide.shapes.add_picture(chart_buf, Inches(6.8), Inches(1.0), Inches(6), Inches(3.0))
+
+    # Revenue chart (right bottom)
+    chart_buf2 = _render_revenue_margin_chart(cd)
+    slide.shapes.add_picture(chart_buf2, Inches(6.8), Inches(4.2), Inches(6), Inches(2.5))
+
+    _slide_footer(slide, cd)
+
+
+def _deal_slide_strategic(prs, acq, tgt, insights):
+    """Strategic Rationale slide."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    _slide_header(slide, "Strategic Rationale")
+
+    _add_textbox(slide, Inches(0.5), Inches(0.9), Inches(12), Inches(0.25),
+                 f"Why {acq.name} + {tgt.name}?", font_size=12, bold=True, color=NAVY)
+
+    content_box = _add_textbox(slide, Inches(0.5), Inches(1.3), Inches(12), Inches(4.5),
+                               "", font_size=9, color=DARK_GRAY)
+    tf = content_box.text_frame
+    for line in insights.strategic_rationale.split("\n"):
+        line = line.strip()
+        if line.startswith("- "):
+            line = line[2:]
+        if line:
+            _add_para(tf, f"\u2022  {line}", font_size=9, color=DARK_GRAY, space_before=Pt(6))
+
+    _deal_footer(slide, acq, tgt)
+
+
+def _deal_slide_pro_forma(prs, acq, tgt, pf):
+    """Pro Forma Financials slide."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    _slide_header(slide, "Pro Forma Financials")
+    cs = acq.currency_symbol
+
+    _fmtv = lambda v: format_number(v, currency_symbol=cs) if v else "N/A"
+
+    # Combined income statement
+    tax_rate = 0.25
+    after_tax_syn = pf.total_synergies * (1 - tax_rate)
+    after_tax_int = pf.incremental_interest * (1 - tax_rate)
+
+    rows = [
+        ["Revenue", _fmtv(pf.acq_revenue), _fmtv(pf.tgt_revenue),
+         _fmtv(pf.revenue_synergies), _fmtv(pf.pf_revenue)],
+        ["EBITDA", _fmtv(pf.acq_ebitda), _fmtv(pf.tgt_ebitda),
+         _fmtv(pf.total_synergies), _fmtv(pf.pf_ebitda)],
+        ["Net Income", _fmtv(pf.acq_net_income), _fmtv(pf.tgt_net_income),
+         _fmtv(after_tax_syn - after_tax_int), _fmtv(pf.pf_net_income)],
+        ["Shares (M)", f"{pf.acq_shares / 1e6:,.0f}" if pf.acq_shares else "N/A",
+         "—", f"+{pf.new_shares_issued / 1e6:,.0f}" if pf.new_shares_issued else "—",
+         f"{pf.pf_shares_outstanding / 1e6:,.0f}" if pf.pf_shares_outstanding else "N/A"],
+        ["EPS", f"{cs}{pf.acq_eps:.2f}" if pf.acq_eps else "N/A",
+         "—", "—", f"{cs}{pf.pf_eps:.2f}" if pf.pf_eps else "N/A"],
+    ]
+    _add_styled_table(slide,
+                      ["", acq.ticker, tgt.ticker, "Adjustments", "Pro Forma"],
+                      rows,
+                      Inches(0.5), Inches(1.0), Inches(12.3), Inches(2.5),
+                      col_widths=[Inches(2.0), Inches(2.5), Inches(2.5), Inches(2.5), Inches(2.8)])
+
+    # EPS comparison
+    _add_textbox(slide, Inches(0.5), Inches(3.8), Inches(6), Inches(0.25),
+                 "EPS Impact Analysis", font_size=10, bold=True, color=NAVY)
+    eps_rows = [
+        ["Standalone EPS", f"{cs}{pf.acq_eps:.2f}"],
+        ["Pro Forma EPS", f"{cs}{pf.pf_eps:.2f}"],
+        ["Accretion / Dilution", f"{pf.accretion_dilution_pct:+.1f}%"],
+        ["Impact", "ACCRETIVE" if pf.is_accretive else "DILUTIVE"],
+    ]
+    _add_styled_table(slide, ["", ""], eps_rows,
+                      Inches(0.5), Inches(4.1), Inches(5), Inches(1.8),
+                      col_widths=[Inches(2.5), Inches(2.5)])
+
+    # Accretion waterfall chart (right)
+    chart_buf = _render_accretion_waterfall_mpl(pf)
+    slide.shapes.add_picture(chart_buf, Inches(6.5), Inches(3.5), Inches(6.3), Inches(3.5))
+
+    _deal_footer(slide, acq, tgt)
+
+
+def _deal_slide_accretion(prs, acq, tgt, pf):
+    """Accretion/Dilution detail slide."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    _slide_header(slide, "Accretion / Dilution Analysis")
+
+    # Large waterfall chart
+    chart_buf = _render_accretion_waterfall_mpl(pf)
+    slide.shapes.add_picture(chart_buf, Inches(0.5), Inches(1.0), Inches(8), Inches(4.5))
+
+    # Summary box (right)
+    cs = acq.currency_symbol
+    impact_color = GREEN if pf.is_accretive else RED
+
+    _add_textbox(slide, Inches(9.0), Inches(1.0), Inches(4), Inches(0.4),
+                 "ACCRETIVE" if pf.is_accretive else "DILUTIVE",
+                 font_size=18, bold=True, color=impact_color,
+                 alignment=PP_ALIGN.CENTER)
+
+    details = [
+        ["Standalone EPS", f"{cs}{pf.acq_eps:.2f}"],
+        ["Pro Forma EPS", f"{cs}{pf.pf_eps:.2f}"],
+        ["EPS Change", f"{pf.accretion_dilution_pct:+.1f}%"],
+        ["New Shares Issued", f"{pf.new_shares_issued / 1e6:,.1f}M" if pf.new_shares_issued else "0"],
+        ["PF Shares Outstanding", f"{pf.pf_shares_outstanding / 1e6:,.1f}M" if pf.pf_shares_outstanding else "N/A"],
+    ]
+    _add_styled_table(slide, ["", ""], details,
+                      Inches(9.0), Inches(1.6), Inches(4), Inches(2.5),
+                      col_widths=[Inches(2.2), Inches(1.8)])
+
+    _deal_footer(slide, acq, tgt)
+
+
+def _deal_slide_football_field(prs, acq, tgt, pf):
+    """Football Field Valuation slide."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    _slide_header(slide, f"Football Field Valuation — {tgt.name}")
+
+    chart_buf = _render_football_field_mpl(pf.football_field, acq.currency_symbol)
+    slide.shapes.add_picture(chart_buf, Inches(0.5), Inches(1.0), Inches(12.3), Inches(5.5))
+
+    _deal_footer(slide, acq, tgt)
+
+
+def _deal_slide_sources_uses(prs, acq, tgt, pf):
+    """Sources & Uses + Credit slide."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    _slide_header(slide, "Sources & Uses / Pro Forma Credit")
+    cs = acq.currency_symbol
+
+    # Sources table (left)
+    _add_textbox(slide, Inches(0.5), Inches(0.9), Inches(5.5), Inches(0.25),
+                 "Sources", font_size=10, bold=True, color=NAVY)
+    src_rows = [[k, format_number(v, currency_symbol=cs)] for k, v in pf.sources.items()]
+    _add_styled_table(slide, ["Source", "Amount"], src_rows,
+                      Inches(0.5), Inches(1.2), Inches(5.5), Inches(2.0),
+                      col_widths=[Inches(3.0), Inches(2.5)])
+
+    # Uses table (right)
+    _add_textbox(slide, Inches(6.8), Inches(0.9), Inches(5.5), Inches(0.25),
+                 "Uses", font_size=10, bold=True, color=NAVY)
+    use_rows = [[k, format_number(v, currency_symbol=cs)] for k, v in pf.uses.items()]
+    _add_styled_table(slide, ["Use", "Amount"], use_rows,
+                      Inches(6.8), Inches(1.2), Inches(5.5), Inches(2.0),
+                      col_widths=[Inches(3.0), Inches(2.5)])
+
+    # Credit metrics (bottom)
+    _add_rect(slide, Inches(0.5), Inches(3.5), Inches(12.3), Inches(0.03), GOLD)
+    _add_textbox(slide, Inches(0.5), Inches(3.7), Inches(12), Inches(0.25),
+                 "Pro Forma Credit Profile", font_size=10, bold=True, color=NAVY)
+
+    credit_rows = [
+        ["PF Total Debt", format_number(pf.pf_total_debt, currency_symbol=cs)],
+        ["PF Net Debt", format_number(pf.pf_net_debt, currency_symbol=cs)],
+        ["PF Debt / EBITDA", f"{pf.pf_leverage_ratio:.1f}x" if pf.pf_leverage_ratio else "N/A"],
+        ["PF Interest Coverage", f"{pf.pf_interest_coverage:.1f}x" if pf.pf_interest_coverage else "N/A"],
+        ["Incremental Interest", format_number(pf.incremental_interest, currency_symbol=cs)],
+        ["Goodwill Created", format_number(pf.goodwill, currency_symbol=cs)],
+    ]
+    _add_styled_table(slide, ["Metric", "Value"], credit_rows,
+                      Inches(0.5), Inches(4.0), Inches(6), Inches(2.5),
+                      col_widths=[Inches(3.0), Inches(3.0)])
+
+    _deal_footer(slide, acq, tgt)
+
+
+def _deal_slide_synergies(prs, acq, tgt, pf, insights, assumptions):
+    """Synergy Summary slide."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    _slide_header(slide, "Synergy Analysis")
+    cs = acq.currency_symbol
+
+    # Synergy table (left)
+    _add_textbox(slide, Inches(0.5), Inches(0.9), Inches(6), Inches(0.25),
+                 "Synergy Breakdown", font_size=10, bold=True, color=NAVY)
+    syn_rows = [
+        ["Cost Synergies", format_number(pf.cost_synergies, currency_symbol=cs),
+         f"{assumptions.cost_synergies_pct:.0f}% of target SG&A"],
+        ["Revenue Synergies", format_number(pf.revenue_synergies, currency_symbol=cs),
+         f"{assumptions.revenue_synergies_pct:.0f}% of target revenue"],
+        ["Total Synergies", format_number(pf.total_synergies, currency_symbol=cs), ""],
+        ["Synergy NPV (10%)", format_number(pf.synergy_npv, currency_symbol=cs), "Perpetuity model"],
+        ["Goodwill", format_number(pf.goodwill, currency_symbol=cs), ""],
+        ["NPV vs Goodwill", f"{pf.synergy_npv / pf.goodwill * 100:.0f}%" if pf.goodwill > 0 else "N/A",
+         "Synergy coverage"],
+    ]
+    _add_styled_table(slide, ["Item", "Amount", "Basis"], syn_rows,
+                      Inches(0.5), Inches(1.2), Inches(6), Inches(2.8),
+                      col_widths=[Inches(2.0), Inches(2.0), Inches(2.0)])
+
+    # AI synergy assessment (right)
+    _add_textbox(slide, Inches(6.8), Inches(0.9), Inches(6), Inches(0.25),
+                 "Synergy Assessment", font_size=10, bold=True, color=NAVY)
+    assess_box = _add_textbox(slide, Inches(6.8), Inches(1.2), Inches(6), Inches(5.0),
+                              "", font_size=8, color=DARK_GRAY)
+    tf = assess_box.text_frame
+    for line in insights.synergy_assessment.split("\n"):
+        line = line.strip()
+        if line.startswith("- "):
+            line = line[2:]
+        if line:
+            _add_para(tf, f"\u2022  {line}", font_size=8, color=DARK_GRAY, space_before=Pt(4))
+
+    _deal_footer(slide, acq, tgt)
+
+
+def _deal_slide_risks_verdict(prs, acq, tgt, insights):
+    """Risk Factors & Verdict slide."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    _slide_header(slide, "Risk Assessment & Deal Verdict")
+
+    # Risks (left)
+    _add_textbox(slide, Inches(0.5), Inches(0.9), Inches(6), Inches(0.25),
+                 "Key Risk Factors", font_size=10, bold=True, color=NAVY)
+    risk_box = _add_textbox(slide, Inches(0.5), Inches(1.2), Inches(6), Inches(3.5),
+                            "", font_size=8, color=DARK_GRAY)
+    tf = risk_box.text_frame
+    for line in insights.deal_risks.split("\n"):
+        line = line.strip()
+        if line.startswith("- "):
+            line = line[2:]
+        if line:
+            _add_para(tf, f"\u2022  {line}", font_size=8, color=DARK_GRAY, space_before=Pt(4))
+
+    # Verdict (right)
+    grade_colors = {"A": GREEN, "B": ACCENT_BLUE, "C": GOLD, "D": RED, "F": RED}
+    grade_color = grade_colors.get(insights.deal_grade, MED_GRAY)
+
+    _add_textbox(slide, Inches(6.8), Inches(0.9), Inches(6), Inches(0.25),
+                 "Deal Verdict", font_size=10, bold=True, color=NAVY)
+
+    # Grade badge
+    _add_textbox(slide, Inches(6.8), Inches(1.3), Inches(2), Inches(0.6),
+                 f"Grade: {insights.deal_grade}", font_size=20, bold=True,
+                 color=grade_color, alignment=PP_ALIGN.CENTER)
+
+    verdict_box = _add_textbox(slide, Inches(6.8), Inches(2.0), Inches(6), Inches(4.0),
+                               "", font_size=8, color=DARK_GRAY)
+    tf2 = verdict_box.text_frame
+    for line in insights.deal_verdict.split("\n"):
+        line = line.strip()
+        if line.startswith("- "):
+            line = line[2:]
+        if line:
+            _add_para(tf2, f"\u2022  {line}", font_size=9, color=DARK_GRAY, space_before=Pt(6))
+
+    _deal_footer(slide, acq, tgt)
+
+
+def generate_deal_book(acq_cd, tgt_cd, pro_forma, merger_insights, assumptions,
+                       template_path="assets/template.pptx") -> io.BytesIO:
+    """Build a 10-slide deal book and return as an in-memory BytesIO buffer."""
+    prs = Presentation(template_path)
+    prs.slide_width = SLIDE_W
+    prs.slide_height = SLIDE_H
+
+    _deal_slide_1(prs, acq_cd, tgt_cd, pro_forma, assumptions)   # 1. Deal Overview
+    _deal_slide_2(prs, acq_cd, label="Acquirer")                  # 2. Acquirer Profile
+    _deal_slide_2(prs, tgt_cd, label="Target")                    # 3. Target Profile
+    _deal_slide_strategic(prs, acq_cd, tgt_cd, merger_insights)   # 4. Strategic Rationale
+    _deal_slide_pro_forma(prs, acq_cd, tgt_cd, pro_forma)         # 5. Pro Forma Financials
+    _deal_slide_accretion(prs, acq_cd, tgt_cd, pro_forma)         # 6. Accretion/Dilution
+    _deal_slide_football_field(prs, acq_cd, tgt_cd, pro_forma)    # 7. Football Field
+    _deal_slide_sources_uses(prs, acq_cd, tgt_cd, pro_forma)      # 8. Sources & Uses + Credit
+    _deal_slide_synergies(prs, acq_cd, tgt_cd, pro_forma,         # 9. Synergy Summary
+                          merger_insights, assumptions)
+    _deal_slide_risks_verdict(prs, acq_cd, tgt_cd, merger_insights) # 10. Risks & Verdict
+
+    buf = io.BytesIO()
+    prs.save(buf)
+    buf.seek(0)
+    return buf

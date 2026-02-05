@@ -84,6 +84,10 @@ class CompanyData:
     total_cash: Optional[float] = None
     total_debt_info: Optional[float] = None
 
+    # ── Shares & Book Value ────────────────────────────────
+    shares_outstanding: Optional[float] = None
+    book_value_per_share: Optional[float] = None
+
     # ── Dividends ─────────────────────────────────────────
     dividend_yield: Optional[float] = None
     dividend_rate: Optional[float] = None
@@ -111,6 +115,9 @@ class CompanyData:
     ebitda: Optional[pd.Series] = None
     net_income: Optional[pd.Series] = None
     eps_basic: Optional[pd.Series] = None
+    interest_expense: Optional[pd.Series] = None
+    tax_provision: Optional[pd.Series] = None
+    sga_expense: Optional[pd.Series] = None
     ebitda_margin: Optional[pd.Series] = None
     gross_margin_series: Optional[pd.Series] = None
     operating_margin_series: Optional[pd.Series] = None
@@ -588,6 +595,13 @@ def fetch_company_data(ticker_str: str) -> CompanyData:
     cd.total_cash = _safe_get(info, "totalCash")
     cd.total_debt_info = _safe_get(info, "totalDebt")
 
+    # ── Shares & Book Value ──────────────────────────────
+    cd.shares_outstanding = _safe_get(info, "sharesOutstanding")
+    cd.book_value_per_share = _safe_get(info, "bookValue")
+    # Fallback: derive shares from market cap / price
+    if cd.shares_outstanding is None and cd.market_cap and cd.current_price:
+        cd.shares_outstanding = cd.market_cap / cd.current_price
+
     # ── Dividends ────────────────────────────────────────
     cd.dividend_yield = _safe_get(info, "dividendYield")
     cd.dividend_rate = _safe_get(info, "dividendRate")
@@ -609,6 +623,12 @@ def fetch_company_data(ticker_str: str) -> CompanyData:
             cd.ebitda = _safe_series(inc, "EBITDA")
             cd.net_income = _safe_series(inc, "Net Income")
             cd.eps_basic = _safe_series(inc, "Basic EPS")
+            cd.interest_expense = _safe_series(inc, "Interest Expense")
+            cd.tax_provision = _safe_series(inc, "Tax Provision")
+            cd.sga_expense = (
+                _safe_series(inc, "Selling General And Administration")
+                or _safe_series(inc, "Selling And Marketing Expense")
+            )
 
             # Margin series
             if cd.revenue is not None:
