@@ -177,6 +177,17 @@ class CompanyData:
     peer_data: List[Dict] = field(default_factory=list)  # list of peer metric dicts
     peer_tickers: List[str] = field(default_factory=list)
 
+    # ── Alpha Vantage Supplementary Data ────────────────────
+    cik: str = ""                                          # SEC Central Index Key
+    ev_to_ebitda_av: Optional[float] = None                # AV-sourced multiple
+    ev_to_revenue_av: Optional[float] = None               # AV-sourced multiple
+    earnings_history: List[Dict] = field(default_factory=list)       # quarterly EPS actual/estimate/surprise
+    news_sentiment: List[Dict] = field(default_factory=list)         # recent news + sentiment scores
+    av_insider_transactions: List[Dict] = field(default_factory=list)  # AV-sourced insider buys/sells
+
+    # ── Precedent Transaction Data ───────────────────────────
+    precedent_data: Optional[object] = None                # PrecedentData from precedent_deals.py
+
     # ── AI-Generated Content ──────────────────────────────
     product_overview: str = ""
     mgmt_sentiment: str = ""
@@ -836,6 +847,13 @@ def fetch_company_data(ticker_str: str) -> CompanyData:
             cd.ma_source = source
     except Exception as e:
         print(f"M&A scraping failed: {e}")
+
+    # ── Alpha Vantage Enrichment ───────────────────────
+    try:
+        from alpha_vantage import enrich_company_data
+        cd = enrich_company_data(cd)
+    except Exception as e:
+        print(f"Alpha Vantage enrichment failed: {e}")
 
     return cd
 

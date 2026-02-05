@@ -344,6 +344,7 @@ def build_football_field(
     acq: CompanyData,
     tgt: CompanyData,
     pro_forma: ProFormaData,
+    precedent=None,
 ) -> Dict[str, Dict]:
     """Build valuation range data for a football field chart.
 
@@ -419,6 +420,14 @@ def build_football_field(
                 "low": min(dcf_low, dcf_high),
                 "high": max(dcf_low, dcf_high),
             }
+
+    # 6. Precedent Transactions
+    if precedent and getattr(precedent, "ev_ebitda_range", None) and tgt_ebitda > 0:
+        low_mult, high_mult = precedent.ev_ebitda_range
+        ff["Precedent Txns"] = {
+            "low": tgt_ebitda * low_mult - tgt_net_debt,
+            "high": tgt_ebitda * high_mult - tgt_net_debt,
+        }
 
     # Store offer price for reference line
     ff["_offer_price"] = pro_forma.purchase_price

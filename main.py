@@ -15,6 +15,9 @@ import numpy as np
 import os
 import random
 import time
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from data_engine import (
     fetch_company_data, fetch_peer_data,
@@ -291,6 +294,22 @@ html, body, [class*="css"] {{
     0%, 100% {{ filter: blur(90px) hue-rotate(0deg); }}
     50% {{ filter: blur(90px) hue-rotate(30deg); }}
 }}
+@keyframes bounceIn {{
+    0%   {{ opacity: 0; transform: scale(0.85) translateY(30px); }}
+    50%  {{ opacity: 1; transform: scale(1.03) translateY(-5px); }}
+    70%  {{ transform: scale(0.98) translateY(2px); }}
+    100% {{ opacity: 1; transform: scale(1) translateY(0); }}
+}}
+@keyframes slideUpBounce {{
+    0%   {{ opacity: 0; transform: translateY(40px); }}
+    60%  {{ opacity: 1; transform: translateY(-8px); }}
+    80%  {{ transform: translateY(3px); }}
+    100% {{ transform: translateY(0); }}
+}}
+@keyframes chartGlow {{
+    0%, 100% {{ box-shadow: 0 2px 15px rgba(107,92,231,0.15); }}
+    50%      {{ box-shadow: 0 8px 35px rgba(107,92,231,0.3); }}
+}}
 
 /* ── SIDEBAR ─────────────────────────────────────────────── */
 section[data-testid="stSidebar"] {{
@@ -518,11 +537,10 @@ section[data-testid="stSidebar"] .stSlider label p {{
 
 /* ── SECTION STYLING ─────────────────────────────────────── */
 .section-header {{
-    display: flex; align-items: center; gap: 0.6rem;
-    margin: 2rem 0 0.8rem 0; padding-bottom: 0.5rem;
-    border-bottom: none;
+    display: flex; align-items: center; gap: 0.8rem;
+    margin: 2.5rem 0 1rem 0; padding-bottom: 0.6rem;
     position: relative;
-    animation: slideInLeft 0.5s ease-out both;
+    animation: slideUpBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }}
 .section-header::after {{
     content: '';
@@ -532,10 +550,10 @@ section[data-testid="stSidebar"] .stSlider label p {{
     border-radius: 2px;
 }}
 .section-header h3 {{
-    font-size: 1.15rem; font-weight: 700; color: #E0DCF5; margin: 0;
+    font-size: 1.3rem; font-weight: 800; color: #E0DCF5; margin: 0; letter-spacing: -0.3px;
 }}
 .section-header .accent-bar {{
-    width: 4px; height: 22px; background: linear-gradient(180deg, #6B5CE7, #E8638B); border-radius: 2px;
+    width: 5px; height: 26px; background: linear-gradient(180deg, #6B5CE7, #E8638B); border-radius: 3px;
 }}
 
 /* ── GRADIENT DIVIDER ────────────────────────────────────── */
@@ -548,35 +566,34 @@ section[data-testid="stSidebar"] .stSlider label p {{
 div[data-testid="stMetric"] {{
     background: rgba(255,255,255,0.04);
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 14px;
-    padding: 0.8rem 1rem;
-    transition: all 0.25s ease;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    border: 1px solid rgba(107,92,231,0.15);
+    border-radius: 16px;
+    padding: 1rem 1.2rem;
+    box-shadow: 0 4px 15px rgba(107,92,231,0.1);
     position: relative;
     overflow: hidden;
-    animation: countUp 0.4s ease-out both;
+    animation: slideUpBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }}
 div[data-testid="stMetric"]::before {{
     content: '';
     position: absolute; top: 0; left: 0; right: 0; height: 3px;
-    background: linear-gradient(90deg, #6B5CE7, #9B8AFF);
+    background: linear-gradient(90deg, #6B5CE7, #9B8AFF, #E8638B);
     opacity: 0; transition: opacity 0.3s ease;
 }}
 div[data-testid="stMetric"]:hover {{
-    border-color: rgba(107,92,231,0.3);
-    box-shadow: 0 8px 25px rgba(107,92,231,0.2);
-    transform: translateY(-3px);
+    border-color: rgba(107,92,231,0.4);
+    box-shadow: 0 10px 30px rgba(107,92,231,0.25);
+    transform: translateY(-5px);
 }}
 div[data-testid="stMetric"]:hover::before {{
     opacity: 1;
 }}
 div[data-testid="stMetric"] label {{
-    font-size: 0.7rem !important; font-weight: 600 !important;
+    font-size: 0.75rem !important; font-weight: 600 !important;
     text-transform: uppercase; letter-spacing: 0.8px; color: #8A85AD !important;
 }}
 div[data-testid="stMetric"] div[data-testid="stMetricValue"] {{
-    font-size: 1.1rem !important; font-weight: 700 !important; color: #E0DCF5 !important;
+    font-size: 1.25rem !important; font-weight: 700 !important; color: #E0DCF5 !important;
 }}
 
 /* ── TABS ────────────────────────────────────────────────── */
@@ -646,16 +663,19 @@ div[data-testid="stMetric"] div[data-testid="stMetricValue"] {{
 
 /* ── PLOTLY CHARTS ──────────────────────────────────────── */
 .stPlotlyChart {{
-    border: 1px solid rgba(255,255,255,0.1); border-radius: 14px;
-    overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(107,92,231,0.2);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(107,92,231,0.15);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    background: rgba(107,92,231,0.03);
+    animation: bounceIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
     transition: all 0.3s ease;
-    animation: fadeInScale 0.5s ease-out both;
 }}
 .stPlotlyChart:hover {{
-    border-color: rgba(107,92,231,0.4);
-    box-shadow: 0 4px 20px rgba(107,92,231,0.2);
-    transform: scale(1.005);
+    border-color: rgba(107,92,231,0.45);
+    box-shadow: 0 12px 40px rgba(107,92,231,0.25);
+    transform: translateY(-4px) scale(1.008);
 }}
 
 /* ── RADIO BUTTONS ──────────────────────────────────────── */
@@ -688,6 +708,56 @@ header {{ visibility: hidden; }}
     display: flex; gap: 1.5rem; align-items: center;
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
 }}
+
+/* ── MERGER CHART WRAPPER ──────────────────────────────── */
+.merger-chart-wrapper {{
+    background: linear-gradient(135deg, rgba(107,92,231,0.05), rgba(232,99,139,0.02));
+    border: 1px solid rgba(107,92,231,0.15);
+    border-radius: 20px; padding: 1.5rem; margin: 0.5rem 0 1rem 0;
+    animation: bounceIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+               chartGlow 4s ease-in-out 1s infinite;
+}}
+
+/* ── PRECEDENT & INSIDER TABLES ────────────────────────── */
+.precedent-table, .insider-table {{
+    width: 100%; border-collapse: separate; border-spacing: 0;
+    border-radius: 14px; overflow: hidden;
+    animation: bounceIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}}
+.precedent-table th, .insider-table th {{
+    background: rgba(107,92,231,0.15); color: #9B8AFF; font-size: 0.7rem;
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 0.7rem 0.8rem; font-weight: 700;
+    border-bottom: 2px solid rgba(107,92,231,0.3);
+}}
+.precedent-table td, .insider-table td {{
+    padding: 0.55rem 0.8rem; font-size: 0.8rem; color: #C8C3E3;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}}
+.precedent-table tr:hover td, .insider-table tr:hover td {{
+    background: rgba(107,92,231,0.08);
+}}
+
+/* ── NEWS SENTIMENT CARDS ──────────────────────────────── */
+.news-card {{
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px; padding: 0.8rem 1rem; margin-bottom: 0.6rem;
+    animation: slideUpBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    transition: all 0.25s ease;
+}}
+.news-card:hover {{
+    border-color: rgba(107,92,231,0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(107,92,231,0.15);
+}}
+.news-sentiment-bullish {{ border-left: 3px solid #10B981; }}
+.news-sentiment-bearish {{ border-left: 3px solid #EF4444; }}
+.news-sentiment-neutral {{ border-left: 3px solid #8A85AD; }}
+
+/* ── EARNINGS SURPRISE CHART CARD ─────────────────────── */
+.earnings-beat {{ color: #10B981; font-weight: 700; }}
+.earnings-miss {{ color: #EF4444; font-weight: 700; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1655,7 +1725,7 @@ def _build_accretion_waterfall(pro_forma, key="accretion_waterfall"):
     fig.data[0].connector.line.color = "rgba(255,255,255,0.1)"
 
     fig.update_layout(
-        height=400, margin=dict(t=30, b=30, l=50, r=50),
+        height=480, margin=dict(t=30, b=30, l=50, r=50),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         xaxis=dict(tickfont=dict(size=10, color="#8A85AD"), showgrid=False),
         yaxis=dict(title=dict(text="EPS ($)", font=dict(size=10, color="#8A85AD")),
@@ -1705,7 +1775,7 @@ def _build_football_field_chart(football_field, currency_symbol="$", key="footba
         )
 
     fig.update_layout(
-        height=300, margin=dict(t=40, b=30, l=120, r=60),
+        height=420, margin=dict(t=40, b=30, l=120, r=60),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         xaxis=dict(gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD")),
         yaxis=dict(tickfont=dict(size=10, color="#8A85AD"), autorange="reversed"),
@@ -1728,7 +1798,7 @@ def _build_deal_structure_donut(assumptions, key="deal_donut"):
         hoverinfo="label+percent+value",
     ))
     fig.update_layout(
-        height=280, margin=dict(t=30, b=30, l=30, r=30),
+        height=340, margin=dict(t=30, b=30, l=30, r=30),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         showlegend=False,
         annotations=[dict(text="Deal<br>Mix", x=0.5, y=0.5, font_size=14,
@@ -1768,7 +1838,7 @@ def _build_company_comparison_bars(acq_cd, tgt_cd, key="company_compare"):
         textposition="outside", textfont=dict(size=10, color="#B8B3D7"),
     ))
     fig.update_layout(
-        height=280, margin=dict(t=30, b=20, l=100, r=60),
+        height=380, margin=dict(t=30, b=20, l=100, r=60),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         xaxis=dict(gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD"),
                    ticksuffix="%"),
@@ -2544,7 +2614,130 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         st.info("No recent news available.")
 
     # ══════════════════════════════════════════════════════
-    # 14. INSIGHTS — 7 Rich Tabs
+    # 14a. EARNINGS SURPRISE CHART (Alpha Vantage)
+    # ══════════════════════════════════════════════════════
+    if getattr(cd, "earnings_history", None) and len(cd.earnings_history) > 0:
+        _section("Earnings Surprise")
+        earnings = cd.earnings_history[:8]  # last 8 quarters, most recent first
+        earnings = list(reversed(earnings))  # oldest first for chart
+        eq_dates = [e.get("date", "")[:7] for e in earnings]
+        eq_actual = [e.get("actual_eps") for e in earnings]
+        eq_estimate = [e.get("estimated_eps") for e in earnings]
+
+        # Build colors: green for beat, red for miss
+        bar_colors = []
+        for a, est in zip(eq_actual, eq_estimate):
+            if a is not None and est is not None:
+                bar_colors.append("#10B981" if a >= est else "#EF4444")
+            else:
+                bar_colors.append("#8A85AD")
+
+        fig_earn = go.Figure()
+        fig_earn.add_trace(go.Bar(
+            x=eq_dates, y=eq_estimate, name="Estimate",
+            marker_color="rgba(138,133,173,0.4)",
+            text=[f"{v:.2f}" if v is not None else "" for v in eq_estimate],
+            textposition="outside", textfont=dict(size=9, color="#8A85AD"),
+        ))
+        fig_earn.add_trace(go.Bar(
+            x=eq_dates, y=eq_actual, name="Actual",
+            marker_color=bar_colors,
+            text=[f"{v:.2f}" if v is not None else "" for v in eq_actual],
+            textposition="outside", textfont=dict(size=9, color="#B8B3D7"),
+        ))
+        fig_earn.update_layout(
+            height=380, barmode="group",
+            margin=dict(t=30, b=30, l=50, r=30),
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            xaxis=dict(tickfont=dict(size=10, color="#8A85AD"), showgrid=False),
+            yaxis=dict(title=dict(text="EPS", font=dict(size=10, color="#8A85AD")),
+                       gridcolor="rgba(255,255,255,0.05)", tickfont=dict(size=9, color="#8A85AD"),
+                       tickprefix=cd.currency_symbol),
+            legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h",
+                        yanchor="bottom", y=1.02),
+            hoverlabel=dict(bgcolor="#1A1D2E", font_size=11, font_color="#fff"),
+        )
+        st.plotly_chart(fig_earn, use_container_width=True, key="earnings_surprise_chart")
+
+    # ══════════════════════════════════════════════════════
+    # 14b. NEWS SENTIMENT (Alpha Vantage)
+    # ══════════════════════════════════════════════════════
+    if getattr(cd, "news_sentiment", None) and len(cd.news_sentiment) > 0:
+        _section("News Sentiment")
+        for ns in cd.news_sentiment[:10]:
+            title = ns.get("title", "")
+            url = ns.get("url", "")
+            source = ns.get("source", "")
+            published = ns.get("published", "")
+            sentiment = ns.get("overall_sentiment", "Neutral").lower()
+            score = ns.get("overall_score")
+            score_str = f"{score:.2f}" if score is not None else ""
+
+            if "bullish" in sentiment or "positive" in sentiment:
+                css_class = "news-sentiment-bullish"
+                badge = '<span style="color:#10B981; font-weight:700; font-size:0.7rem;">BULLISH</span>'
+            elif "bearish" in sentiment or "negative" in sentiment:
+                css_class = "news-sentiment-bearish"
+                badge = '<span style="color:#EF4444; font-weight:700; font-size:0.7rem;">BEARISH</span>'
+            else:
+                css_class = "news-sentiment-neutral"
+                badge = '<span style="color:#8A85AD; font-weight:700; font-size:0.7rem;">NEUTRAL</span>'
+
+            link_html = f'<a href="{url}" target="_blank" style="color:#E0DCF5; text-decoration:none; font-weight:600; font-size:0.85rem;">{title}</a>' if url else f'<span style="color:#E0DCF5; font-weight:600; font-size:0.85rem;">{title}</span>'
+            st.markdown(
+                f'<div class="news-card {css_class}">'
+                f'{link_html}'
+                f'<div style="margin-top:0.3rem; display:flex; gap:0.8rem; align-items:center;">'
+                f'{badge}'
+                f'<span style="color:#8A85AD; font-size:0.7rem;">{source} &middot; {published}</span>'
+                f'</div></div>',
+                unsafe_allow_html=True,
+            )
+
+    # ══════════════════════════════════════════════════════
+    # 14c. INSIDER ACTIVITY (Alpha Vantage)
+    # ══════════════════════════════════════════════════════
+    av_insiders = getattr(cd, "av_insider_transactions", None)
+    if av_insiders and len(av_insiders) > 0:
+        _section("Insider Activity")
+        rows_html = ""
+        for t in av_insiders[:20]:
+            date = t.get("date", "")
+            insider = t.get("insider", "")
+            title = t.get("title", "")
+            txn_type = t.get("type", "")
+            shares = t.get("shares")
+            value = t.get("value")
+
+            if txn_type == "A":
+                type_label = '<span style="color:#10B981; font-weight:700;">Buy</span>'
+                row_bg = "rgba(16,185,129,0.04)"
+            elif txn_type == "D":
+                type_label = '<span style="color:#EF4444; font-weight:700;">Sell</span>'
+                row_bg = "rgba(239,68,68,0.04)"
+            else:
+                type_label = txn_type
+                row_bg = "transparent"
+
+            shares_str = f"{shares:,.0f}" if shares else "—"
+            value_str = f"{cd.currency_symbol}{value:,.0f}" if value else "—"
+            rows_html += (
+                f'<tr style="background:{row_bg};">'
+                f'<td>{date}</td><td>{insider}</td><td style="font-size:0.72rem;">{title}</td>'
+                f'<td>{type_label}</td><td style="text-align:right;">{shares_str}</td>'
+                f'<td style="text-align:right;">{value_str}</td></tr>'
+            )
+        st.markdown(
+            f'<table class="insider-table">'
+            f'<thead><tr><th>Date</th><th>Insider</th><th>Title</th>'
+            f'<th>Type</th><th style="text-align:right;">Shares</th>'
+            f'<th style="text-align:right;">Value</th></tr></thead>'
+            f'<tbody>{rows_html}</tbody></table>'.replace("$", "&#36;"),
+            unsafe_allow_html=True,
+        )
+
+    # ══════════════════════════════════════════════════════
+    # 15. INSIGHTS — 7 Rich Tabs
     # ══════════════════════════════════════════════════════
     _section("Insights")
     ai_tab1, ai_tab2, ai_tab3, ai_tab4, ai_tab5, ai_tab6, ai_tab7 = st.tabs([
@@ -2729,10 +2922,21 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     except Exception:
         pass
 
-    # Phase 3 → compute pro forma
+    # Phase 3 → compute pro forma + precedent transactions
     mission.markdown(_render_mission_control(acq_label, tgt_label, 3), unsafe_allow_html=True)
     pro_forma = calculate_pro_forma(acq_cd, tgt_cd, merger_assumptions)
-    pro_forma.football_field = build_football_field(acq_cd, tgt_cd, pro_forma)
+
+    # Fetch precedent transactions
+    precedent = None
+    try:
+        from precedent_deals import fetch_precedent_transactions
+        precedent = fetch_precedent_transactions(
+            target_input, getattr(tgt_cd, "cik", ""), tgt_cd.sector
+        )
+    except Exception as e:
+        print(f"Precedent transactions fetch failed: {e}")
+
+    pro_forma.football_field = build_football_field(acq_cd, tgt_cd, pro_forma, precedent)
 
     # Phase 4 → generate insights
     mission.markdown(_render_mission_control(acq_label, tgt_label, 4), unsafe_allow_html=True)
@@ -2823,7 +3027,9 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     cc6.metric(f"{tgt_cd.ticker} EBITDA", format_number(pro_forma.tgt_ebitda, currency_symbol=tgt_cs))
 
     # Company comparison bars
+    _mhtml('<div class="merger-chart-wrapper">')
     _build_company_comparison_bars(acq_cd, tgt_cd)
+    _mhtml('</div>')
 
     _divider()
 
@@ -2923,7 +3129,9 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         f'</div>'
     )
 
+    _mhtml('<div class="merger-chart-wrapper">')
     _build_accretion_waterfall(pro_forma)
+    _mhtml('</div>')
 
     _divider()
 
@@ -2932,7 +3140,42 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     # ══════════════════════════════════════════════════════
     if pro_forma.football_field and len([k for k in pro_forma.football_field if not k.startswith("_")]) > 0:
         _section("Football Field Valuation")
+        _mhtml('<div class="merger-chart-wrapper">')
         _build_football_field_chart(pro_forma.football_field, acq_cs)
+        _mhtml('</div>')
+        _divider()
+
+    # ══════════════════════════════════════════════════════
+    # M6b. PRECEDENT TRANSACTIONS TABLE
+    # ══════════════════════════════════════════════════════
+    if precedent and precedent.deals:
+        _section("Precedent Transactions")
+        rows_html = ""
+        for d in precedent.deals[:15]:
+            name = d.get("name", d.get("target", ""))
+            date = d.get("date", "")
+            ev_eb = d.get("ev_ebitda")
+            ev_rev = d.get("ev_revenue")
+            dval = d.get("deal_value")
+            ev_eb_str = f"{ev_eb:.1f}x" if ev_eb else "—"
+            ev_rev_str = f"{ev_rev:.1f}x" if ev_rev else "—"
+            dval_str = format_number(dval, currency_symbol=tgt_cs) if dval else "—"
+            rows_html += (
+                f"<tr><td>{date}</td><td>{name}</td>"
+                f"<td>{dval_str}</td><td>{ev_eb_str}</td><td>{ev_rev_str}</td></tr>"
+            )
+        source_note = ""
+        if precedent.source_url:
+            source_note = f'<div style="font-size:0.7rem; color:#8A85AD; margin-top:0.5rem;">Source: {precedent.source} — <a href="{precedent.source_url}" style="color:#9B8AFF;" target="_blank">Filing</a></div>'
+        elif precedent.source:
+            source_note = f'<div style="font-size:0.7rem; color:#8A85AD; margin-top:0.5rem;">Source: {precedent.source}</div>'
+        _mhtml(
+            f'<table class="precedent-table">'
+            f'<thead><tr><th>Date</th><th>Transaction</th>'
+            f'<th>Deal Value</th><th>EV/EBITDA</th><th>EV/Revenue</th></tr></thead>'
+            f'<tbody>{rows_html}</tbody></table>'
+            f'{source_note}'
+        )
         _divider()
 
     # ══════════════════════════════════════════════════════
