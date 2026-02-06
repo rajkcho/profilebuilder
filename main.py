@@ -4043,36 +4043,30 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
          f"{acq_cs}{pro_forma.pf_eps:.2f}" if pro_forma.pf_eps else "N/A"),
     ]
 
-    pf_table_html = f'''
-    <div class="pf-table-wrapper">
-        <table class="pf-table">
-            <thead>
-                <tr>
-                    <th>Metric</th>
-                    <th>{acq_cd.ticker}</th>
-                    <th>{tgt_cd.ticker}</th>
-                    <th>Adjustments</th>
-                    <th>✨ Pro Forma</th>
-                </tr>
-            </thead>
-            <tbody>
-    '''
+    pf_table_html = (
+        f'<div class="pf-table-wrapper">'
+        f'<table class="pf-table">'
+        f'<thead><tr>'
+        f'<th>Metric</th>'
+        f'<th>{acq_cd.ticker}</th>'
+        f'<th>{tgt_cd.ticker}</th>'
+        f'<th>Adjustments</th>'
+        f'<th>✨ Pro Forma</th>'
+        f'</tr></thead>'
+        f'<tbody>'
+    )
     for metric, acq_val, tgt_val, adj_val, pf_val in pf_rows:
         adj_class = ' class="pf-adj"' if adj_val not in ["—", "N/A"] else ''
-        pf_table_html += f'''
-                <tr>
-                    <td>{metric}</td>
-                    <td>{acq_val}</td>
-                    <td>{tgt_val}</td>
-                    <td{adj_class}>{adj_val}</td>
-                    <td>{pf_val}</td>
-                </tr>
-        '''
-    pf_table_html += '''
-            </tbody>
-        </table>
-    </div>
-    '''
+        pf_table_html += (
+            f'<tr>'
+            f'<td>{metric}</td>'
+            f'<td>{acq_val}</td>'
+            f'<td>{tgt_val}</td>'
+            f'<td{adj_class}>{adj_val}</td>'
+            f'<td>{pf_val}</td>'
+            f'</tr>'
+        )
+    pf_table_html += '</tbody></table></div>'
     _mhtml(pf_table_html)
 
     _divider()
@@ -4153,44 +4147,44 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     # Calculate totals for bar percentages
     sources_total = sum(v for k, v in pro_forma.sources.items() if not k.startswith("Total") and v)
     uses_total = sum(v for k, v in pro_forma.uses.items() if not k.startswith("Total") and v)
-    max_total = max(sources_total, uses_total, 1)
 
-    def _build_su_rows(items, total, panel_type):
+    def _build_su_rows(items, total):
         rows_html = ""
         delay = 0.1
         for k, v in items.items():
             is_total = k.startswith("Total")
             pct = (v / total * 100) if total and v else 0
             total_class = " total" if is_total else ""
-            rows_html += f'''
-            <div class="su-row{total_class}" style="animation-delay:{delay:.2f}s;">
-                <div class="su-row-header">
-                    <span class="su-row-label">{k}</span>
-                    <span class="su-row-value">{format_number(v, currency_symbol=acq_cs)}</span>
-                </div>
-                <div class="su-bar">
-                    <div class="su-bar-fill" style="width:{pct:.1f}%; animation-delay:{delay + 0.2:.2f}s;"></div>
-                </div>
-            </div>
-            '''
+            val_str = format_number(v, currency_symbol=acq_cs)
+            rows_html += (
+                f'<div class="su-row{total_class}" style="animation-delay:{delay:.2f}s;">'
+                f'<div class="su-row-header">'
+                f'<span class="su-row-label">{k}</span>'
+                f'<span class="su-row-value">{val_str}</span>'
+                f'</div>'
+                f'<div class="su-bar">'
+                f'<div class="su-bar-fill" style="width:{pct:.1f}%; animation-delay:{delay + 0.2:.2f}s;"></div>'
+                f'</div>'
+                f'</div>'
+            )
             delay += 0.08
         return rows_html
 
-    sources_rows = _build_su_rows(pro_forma.sources, sources_total, "sources")
-    uses_rows = _build_su_rows(pro_forma.uses, uses_total, "uses")
+    sources_rows = _build_su_rows(pro_forma.sources, sources_total)
+    uses_rows = _build_su_rows(pro_forma.uses, uses_total)
 
-    su_html = f'''
-    <div class="su-container">
-        <div class="su-panel sources">
-            <div class="su-panel-header"><span class="su-icon">💵</span> Sources of Funds</div>
-            {sources_rows}
-        </div>
-        <div class="su-panel uses">
-            <div class="su-panel-header"><span class="su-icon">💸</span> Uses of Funds</div>
-            {uses_rows}
-        </div>
-    </div>
-    '''
+    su_html = (
+        f'<div class="su-container">'
+        f'<div class="su-panel sources">'
+        f'<div class="su-panel-header"><span class="su-icon">💵</span> Sources of Funds</div>'
+        f'{sources_rows}'
+        f'</div>'
+        f'<div class="su-panel uses">'
+        f'<div class="su-panel-header"><span class="su-icon">💸</span> Uses of Funds</div>'
+        f'{uses_rows}'
+        f'</div>'
+        f'</div>'
+    )
     _mhtml(su_html)
 
     _divider()
