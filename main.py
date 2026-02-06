@@ -91,18 +91,10 @@ _CHART_LAYOUT_BASE = dict(
 
 def _apply_space_grid(fig, show_x_grid=False, show_y_grid=True):
     """Apply purple-tinted dot grid for space-coordinate look."""
-    axis_common = dict(
-        tickfont=dict(size=12, color="#8A85AD"),
-        titlefont=dict(size=14, color="#B8B3D7"),
-    )
     if show_y_grid:
-        fig.update_yaxes(gridcolor="rgba(107,92,231,0.1)", griddash="dot", **axis_common)
-    else:
-        fig.update_yaxes(**axis_common)
+        fig.update_yaxes(gridcolor="rgba(107,92,231,0.1)", griddash="dot")
     if show_x_grid:
-        fig.update_xaxes(gridcolor="rgba(107,92,231,0.1)", griddash="dot", **axis_common)
-    else:
-        fig.update_xaxes(**axis_common)
+        fig.update_xaxes(gridcolor="rgba(107,92,231,0.1)", griddash="dot")
 
 def _glow_line_traces(fig, x, y, color, name, width=2.5, glow_width=8, yaxis=None):
     """Add a neon glow effect: wide transparent underlay + sharp main line."""
