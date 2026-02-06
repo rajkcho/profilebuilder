@@ -3600,6 +3600,14 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         st.error(f"Failed to fetch data for **{acquirer_input}**: {e}")
         st.stop()
 
+    # Validate acquirer has required data
+    if not acq_cd.shares_outstanding and acq_cd.market_cap and acq_cd.current_price:
+        acq_cd.shares_outstanding = acq_cd.market_cap / acq_cd.current_price
+    if not acq_cd.shares_outstanding:
+        mission.empty()
+        st.error(f"Unable to fetch shares outstanding for **{acquirer_input}**. Please try a different ticker.")
+        st.stop()
+
     # Phase 1 → fetch target (with rate limit delay)
     mission.markdown(_render_mission_control(acq_label, tgt_label, 1), unsafe_allow_html=True)
     time.sleep(1)
@@ -3608,6 +3616,14 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     except Exception as e:
         mission.empty()
         st.error(f"Failed to fetch data for **{target_input}**: {e}")
+        st.stop()
+
+    # Validate target has required data
+    if not tgt_cd.shares_outstanding and tgt_cd.market_cap and tgt_cd.current_price:
+        tgt_cd.shares_outstanding = tgt_cd.market_cap / tgt_cd.current_price
+    if not tgt_cd.shares_outstanding:
+        mission.empty()
+        st.error(f"Unable to fetch shares outstanding for **{target_input}**. Please try a different ticker.")
         st.stop()
 
     # Phase 2 → fetch peers
