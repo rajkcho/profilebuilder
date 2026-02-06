@@ -609,10 +609,15 @@ def fetch_company_data(ticker_str: str) -> CompanyData:
     cd.total_debt_info = _safe_get(info, "totalDebt")
 
     # ── Shares & Book Value ──────────────────────────────
-    cd.shares_outstanding = _safe_get(info, "sharesOutstanding")
+    # Try multiple sources for shares outstanding
+    cd.shares_outstanding = (
+        _safe_get(info, "sharesOutstanding") or
+        _safe_get(info, "impliedSharesOutstanding") or
+        _safe_get(info, "floatShares")  # Less accurate but a fallback
+    )
     cd.book_value_per_share = _safe_get(info, "bookValue")
     # Fallback: derive shares from market cap / price
-    if cd.shares_outstanding is None and cd.market_cap and cd.current_price:
+    if not cd.shares_outstanding and cd.market_cap and cd.current_price and cd.current_price > 0:
         cd.shares_outstanding = cd.market_cap / cd.current_price
 
     # ── Dividends ────────────────────────────────────────

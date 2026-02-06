@@ -3600,12 +3600,16 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         st.error(f"Failed to fetch data for **{acquirer_input}**: {e}")
         st.stop()
 
-    # Validate acquirer has required data
-    if not acq_cd.shares_outstanding and acq_cd.market_cap and acq_cd.current_price:
-        acq_cd.shares_outstanding = acq_cd.market_cap / acq_cd.current_price
+    # Ensure acquirer has shares_outstanding (calculate from market_cap/price if needed)
+    if not acq_cd.shares_outstanding:
+        if acq_cd.market_cap and acq_cd.current_price and acq_cd.current_price > 0:
+            acq_cd.shares_outstanding = acq_cd.market_cap / acq_cd.current_price
+        elif acq_cd.enterprise_value and acq_cd.current_price and acq_cd.current_price > 0:
+            # Rough estimate from EV
+            acq_cd.shares_outstanding = acq_cd.enterprise_value / acq_cd.current_price
     if not acq_cd.shares_outstanding:
         mission.empty()
-        st.error(f"Unable to fetch shares outstanding for **{acquirer_input}**. Please try a different ticker.")
+        st.error(f"Unable to determine shares outstanding for **{acquirer_input}**. Market cap: {acq_cd.market_cap}, Price: {acq_cd.current_price}")
         st.stop()
 
     # Phase 1 → fetch target (with rate limit delay)
@@ -3618,12 +3622,15 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         st.error(f"Failed to fetch data for **{target_input}**: {e}")
         st.stop()
 
-    # Validate target has required data
-    if not tgt_cd.shares_outstanding and tgt_cd.market_cap and tgt_cd.current_price:
-        tgt_cd.shares_outstanding = tgt_cd.market_cap / tgt_cd.current_price
+    # Ensure target has shares_outstanding (calculate from market_cap/price if needed)
+    if not tgt_cd.shares_outstanding:
+        if tgt_cd.market_cap and tgt_cd.current_price and tgt_cd.current_price > 0:
+            tgt_cd.shares_outstanding = tgt_cd.market_cap / tgt_cd.current_price
+        elif tgt_cd.enterprise_value and tgt_cd.current_price and tgt_cd.current_price > 0:
+            tgt_cd.shares_outstanding = tgt_cd.enterprise_value / tgt_cd.current_price
     if not tgt_cd.shares_outstanding:
         mission.empty()
-        st.error(f"Unable to fetch shares outstanding for **{target_input}**. Please try a different ticker.")
+        st.error(f"Unable to determine shares outstanding for **{target_input}**. Market cap: {tgt_cd.market_cap}, Price: {tgt_cd.current_price}")
         st.stop()
 
     # Phase 2 → fetch peers
