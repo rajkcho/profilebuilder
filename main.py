@@ -451,97 +451,114 @@ html, body, [class*="css"] {{
 /* ── ORBITAL LOGO COMPONENT ────────────────────────────── */
 .orbital-logo {{
     position: relative;
-    width: 56px; height: 56px;
+    width: 120px; height: 120px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
 }}
-.orbital-core {{
+.orbital-text {{
     position: absolute;
-    width: 16px; height: 16px;
-    background: linear-gradient(135deg, #6B5CE7 0%, #9B8AFF 100%);
-    border-radius: 50%;
-    animation: coreGlow 2s ease-in-out infinite;
-    z-index: 3;
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: #fff;
+    z-index: 5;
+    text-shadow: 0 0 20px rgba(107,92,231,0.8), 0 0 40px rgba(107,92,231,0.4);
 }}
 .orbital-ring {{
     position: absolute;
     border: 2px solid transparent;
     border-radius: 50%;
-    border-top-color: #6B5CE7;
-    border-right-color: rgba(107,92,231,0.3);
 }}
 .orbital-ring-1 {{
-    width: 32px; height: 32px;
+    width: 60px; height: 60px;
+    border-top-color: #6B5CE7;
+    border-right-color: rgba(107,92,231,0.4);
+    border-bottom-color: rgba(107,92,231,0.1);
     animation: orbitRotate 3s linear infinite;
 }}
 .orbital-ring-2 {{
-    width: 44px; height: 44px;
+    width: 85px; height: 85px;
     border-top-color: #E8638B;
     border-right-color: rgba(232,99,139,0.3);
-    animation: orbitRotateReverse 4s linear infinite;
+    animation: orbitRotateReverse 5s linear infinite;
 }}
 .orbital-ring-3 {{
-    width: 56px; height: 56px;
+    width: 110px; height: 110px;
     border-top-color: #9B8AFF;
-    border-right-color: rgba(155,138,255,0.2);
-    animation: orbitRotate 5s linear infinite, ringFlash 3s ease-in-out infinite;
+    border-left-color: rgba(155,138,255,0.2);
+    animation: orbitRotate 7s linear infinite, ringFlash 4s ease-in-out infinite;
 }}
 .orbital-particle {{
     position: absolute;
-    width: 6px; height: 6px;
+    width: 8px; height: 8px;
     border-radius: 50%;
-    animation: orbitPulse 2s ease-in-out infinite;
 }}
 .orbital-particle-1 {{
     background: #6B5CE7;
     color: #6B5CE7;
-    top: 0; left: 50%;
+    top: 5px; left: 50%;
     transform: translateX(-50%);
     animation: particleGlow 1.5s ease-in-out infinite;
 }}
 .orbital-particle-2 {{
     background: #E8638B;
     color: #E8638B;
-    bottom: 4px; right: 4px;
+    bottom: 12px; right: 12px;
     animation: particleGlow 1.5s ease-in-out infinite 0.5s;
 }}
 .orbital-particle-3 {{
     background: #10B981;
     color: #10B981;
-    bottom: 4px; left: 4px;
+    bottom: 12px; left: 12px;
     animation: particleGlow 1.5s ease-in-out infinite 1s;
 }}
 
-/* Large orbital logo for hero */
-.orbital-logo-lg {{
-    width: 80px; height: 80px;
+/* Small orbital logo for sidebar */
+.orbital-logo-sm {{
+    width: 50px; height: 50px;
 }}
-.orbital-logo-lg .orbital-core {{
-    width: 22px; height: 22px;
+.orbital-logo-sm .orbital-text {{
+    font-size: 0.5rem;
+    letter-spacing: 0.5px;
 }}
-.orbital-logo-lg .orbital-ring-1 {{ width: 44px; height: 44px; }}
-.orbital-logo-lg .orbital-ring-2 {{ width: 60px; height: 60px; }}
-.orbital-logo-lg .orbital-ring-3 {{ width: 80px; height: 80px; }}
-.orbital-logo-lg .orbital-particle {{ width: 8px; height: 8px; }}
-.orbital-logo-lg .orbital-particle-2 {{ bottom: 6px; right: 6px; }}
-.orbital-logo-lg .orbital-particle-3 {{ bottom: 6px; left: 6px; }}
+.orbital-logo-sm .orbital-ring-1 {{ width: 26px; height: 26px; border-width: 1.5px; }}
+.orbital-logo-sm .orbital-ring-2 {{ width: 36px; height: 36px; border-width: 1.5px; }}
+.orbital-logo-sm .orbital-ring-3 {{ width: 48px; height: 48px; border-width: 1.5px; }}
+.orbital-logo-sm .orbital-particle {{ width: 4px; height: 4px; }}
+.orbital-logo-sm .orbital-particle-1 {{ top: 1px; }}
+.orbital-logo-sm .orbital-particle-2 {{ bottom: 4px; right: 4px; }}
+.orbital-logo-sm .orbital-particle-3 {{ bottom: 4px; left: 4px; }}
 
-/* Orbital brand text */
+/* Large orbital logo for splash */
+.orbital-logo-lg {{
+    width: 160px; height: 160px;
+}}
+.orbital-logo-lg .orbital-text {{
+    font-size: 1.5rem;
+    letter-spacing: 2px;
+}}
+.orbital-logo-lg .orbital-ring-1 {{ width: 80px; height: 80px; border-width: 2.5px; }}
+.orbital-logo-lg .orbital-ring-2 {{ width: 115px; height: 115px; border-width: 2.5px; }}
+.orbital-logo-lg .orbital-ring-3 {{ width: 150px; height: 150px; border-width: 2.5px; }}
+.orbital-logo-lg .orbital-particle {{ width: 10px; height: 10px; }}
+.orbital-logo-lg .orbital-particle-1 {{ top: 5px; }}
+.orbital-logo-lg .orbital-particle-2 {{ bottom: 16px; right: 16px; }}
+.orbital-logo-lg .orbital-particle-3 {{ bottom: 16px; left: 16px; }}
+
+/* Orbital brand container */
 .orbital-brand {{
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 1rem;
+    gap: 0.5rem;
 }}
-.orbital-wordmark {{
-    font-size: 2.4rem;
-    font-weight: 800;
-    letter-spacing: -1px;
-    background: linear-gradient(135deg, #fff 0%, #E0DCF5 50%, #9B8AFF 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+.orbital-tagline {{
+    font-size: 0.9rem;
+    color: #A8A3C7;
+    font-weight: 400;
+    margin-top: -0.5rem;
 }}
 
 /* ── Deal Terms & Consideration animations ─────────────── */
@@ -2875,13 +2892,19 @@ def _render_company_card(ticker: str, role: str = "") -> None:
 
 # ── Sidebar ──────────────────────────────────────────────────
 with st.sidebar:
-    # Logo / Brand Header
+    # Animated Orbital Logo
     st.markdown(
-        '<div style="text-align:center; padding: 1.5rem 0 1rem 0;">'
-        '<div style="font-size:1.6rem; font-weight:800; letter-spacing:-0.5px; color:#fff;">Orbital</div>'
-        '<div style="font-size:1.6rem; font-weight:800; background:linear-gradient(135deg,#9B8AFF,#E8638B);'
-        '-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-top:-0.4rem;">Builder</div>'
-        '<div style="font-size:0.65rem; color:#A8A3C7; margin-top:0.4rem; letter-spacing:2px; text-transform:uppercase;">Investment Research Platform</div>'
+        '<div style="text-align:center; padding: 1rem 0 0.5rem 0;">'
+        '<div class="orbital-logo orbital-logo-sm" style="margin:0 auto;">'
+        '<span class="orbital-text">ORBITAL</span>'
+        '<div class="orbital-ring orbital-ring-1"></div>'
+        '<div class="orbital-ring orbital-ring-2"></div>'
+        '<div class="orbital-ring orbital-ring-3"></div>'
+        '<div class="orbital-particle orbital-particle-1"></div>'
+        '<div class="orbital-particle orbital-particle-2"></div>'
+        '<div class="orbital-particle orbital-particle-3"></div>'
+        '</div>'
+        '<div style="font-size:0.6rem; color:#8A85AD; margin-top:0.5rem; letter-spacing:1.5px; text-transform:uppercase;">M&amp;A Intelligence</div>'
         '</div>',
         unsafe_allow_html=True,
     )
@@ -3013,28 +3036,27 @@ with st.sidebar:
     )
 
 # ── Main Area ────────────────────────────────────────────────
-# Orbital animated logo HTML
-_orbital_logo_html = (
-    '<div class="orbital-logo orbital-logo-lg">'
-    '<div class="orbital-core"></div>'
-    '<div class="orbital-ring orbital-ring-1"></div>'
-    '<div class="orbital-ring orbital-ring-2"></div>'
-    '<div class="orbital-ring orbital-ring-3"></div>'
-    '<div class="orbital-particle orbital-particle-1"></div>'
-    '<div class="orbital-particle orbital-particle-2"></div>'
-    '<div class="orbital-particle orbital-particle-3"></div>'
-    '</div>'
-)
+# Orbital animated logo HTML (text inside orbit)
+def _orbital_logo(size="", text="ORBITAL"):
+    size_class = f" orbital-logo-{size}" if size else ""
+    return (
+        f'<div class="orbital-logo{size_class}">'
+        f'<span class="orbital-text">{text}</span>'
+        '<div class="orbital-ring orbital-ring-1"></div>'
+        '<div class="orbital-ring orbital-ring-2"></div>'
+        '<div class="orbital-ring orbital-ring-3"></div>'
+        '<div class="orbital-particle orbital-particle-1"></div>'
+        '<div class="orbital-particle orbital-particle-2"></div>'
+        '<div class="orbital-particle orbital-particle-3"></div>'
+        '</div>'
+    )
 
 if analysis_mode == "Company Profile":
     st.markdown(
         '<div class="hero-header">'
         '<div class="orbital-brand">'
-        f'{_orbital_logo_html}'
-        '<div>'
-        '<p class="orbital-wordmark">Orbital</p>'
-        '<p class="hero-sub" style="margin-top:-0.3rem;">Company Intelligence & Tear Sheet Generator</p>'
-        '</div>'
+        f'{_orbital_logo()}'
+        '<p class="orbital-tagline">Company Intelligence & Tear Sheet Generator</p>'
         '</div>'
         '<span class="hero-tagline">Powered by Live Market Data</span>'
         '</div>',
@@ -3044,11 +3066,8 @@ else:
     st.markdown(
         '<div class="hero-header">'
         '<div class="orbital-brand">'
-        f'{_orbital_logo_html}'
-        '<div>'
-        '<p class="orbital-wordmark">Orbital</p>'
-        '<p class="hero-sub" style="margin-top:-0.3rem;">M&A Simulator & Deal Book Generator</p>'
-        '</div>'
+        f'{_orbital_logo()}'
+        '<p class="orbital-tagline">M&A Simulator & Deal Book Generator</p>'
         '</div>'
         '<span class="hero-tagline">Powered by Live Market Data</span>'
         '</div>',
@@ -4600,19 +4619,16 @@ else:
             '<div class="noise-overlay">&#8203;</div>'
             '<div class="title-glow">&#8203;</div>'
             '<div class="splash-content">'
-            '<div style="display:flex; align-items:center; justify-content:center; gap:1.2rem; margin-bottom:0.5rem;">'
-            '<div class="orbital-logo" style="width:70px; height:70px;">'
-            '<div class="orbital-core" style="width:18px; height:18px;"></div>'
-            '<div class="orbital-ring orbital-ring-1" style="width:38px; height:38px;"></div>'
-            '<div class="orbital-ring orbital-ring-2" style="width:52px; height:52px;"></div>'
-            '<div class="orbital-ring orbital-ring-3" style="width:70px; height:70px;"></div>'
+            '<div class="orbital-logo orbital-logo-lg">'
+            '<span class="orbital-text">ORBITAL</span>'
+            '<div class="orbital-ring orbital-ring-1"></div>'
+            '<div class="orbital-ring orbital-ring-2"></div>'
+            '<div class="orbital-ring orbital-ring-3"></div>'
             '<div class="orbital-particle orbital-particle-1"></div>'
             '<div class="orbital-particle orbital-particle-2"></div>'
             '<div class="orbital-particle orbital-particle-3"></div>'
             '</div>'
-            '<p class="splash-title" style="margin:0;">Orbital</p>'
-            '</div>'
-            '<p class="splash-subtitle" style="font-size:1.3rem; margin-top:0;">M&amp;A Simulator &amp; Deal Intelligence</p>'
+            '<p class="splash-subtitle" style="font-size:1.4rem; margin-top:1rem;">M&amp;A Simulator &amp; Deal Intelligence</p>'
             '<div class="pill-row">'
             '<span class="feature-pill">Pro Forma Analysis</span>'
             '<span class="feature-pill">Accretion/Dilution</span>'
@@ -4677,19 +4693,16 @@ else:
             '<div class="noise-overlay">&#8203;</div>'
             '<div class="title-glow">&#8203;</div>'
             '<div class="splash-content">'
-            '<div style="display:flex; align-items:center; justify-content:center; gap:1.2rem; margin-bottom:0.5rem;">'
-            '<div class="orbital-logo" style="width:70px; height:70px;">'
-            '<div class="orbital-core" style="width:18px; height:18px;"></div>'
-            '<div class="orbital-ring orbital-ring-1" style="width:38px; height:38px;"></div>'
-            '<div class="orbital-ring orbital-ring-2" style="width:52px; height:52px;"></div>'
-            '<div class="orbital-ring orbital-ring-3" style="width:70px; height:70px;"></div>'
+            '<div class="orbital-logo orbital-logo-lg">'
+            '<span class="orbital-text">ORBITAL</span>'
+            '<div class="orbital-ring orbital-ring-1"></div>'
+            '<div class="orbital-ring orbital-ring-2"></div>'
+            '<div class="orbital-ring orbital-ring-3"></div>'
             '<div class="orbital-particle orbital-particle-1"></div>'
             '<div class="orbital-particle orbital-particle-2"></div>'
             '<div class="orbital-particle orbital-particle-3"></div>'
             '</div>'
-            '<p class="splash-title" style="margin:0;">Orbital</p>'
-            '</div>'
-            '<p class="splash-subtitle" style="font-size:1.3rem; margin-top:0;">Company Intelligence &amp; Tear Sheet Generator</p>'
+            '<p class="splash-subtitle" style="font-size:1.4rem; margin-top:1rem;">Company Intelligence &amp; Tear Sheet Generator</p>'
             '<div class="pill-row">'
             '<span class="feature-pill">Live Market Data</span>'
             '<span class="feature-pill">Wikipedia M&amp;A</span>'
