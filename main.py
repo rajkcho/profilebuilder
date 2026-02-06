@@ -525,6 +525,12 @@ section[data-testid="stSidebar"] hr {{
     box-shadow: 0 4px 20px rgba(107,92,231,0.2);
     transform: translateY(-2px);
 }}
+.sb-logo-wrapper {{
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    position: relative;
+}}
 .sb-company-logo {{
     width: 44px;
     height: 44px;
@@ -532,7 +538,19 @@ section[data-testid="stSidebar"] hr {{
     background: #fff;
     padding: 4px;
     object-fit: contain;
-    flex-shrink: 0;
+}}
+.sb-logo-fallback {{
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #6B5CE7, #9B8AFF);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #fff !important;
+    text-transform: uppercase;
 }}
 .sb-company-info {{
     flex: 1;
@@ -2503,10 +2521,20 @@ def _render_company_card(ticker: str, role: str = "") -> None:
     else:
         change_str = ""
 
-    # Logo with fallback
-    logo_html = f'<img src="{logo_url}" class="sb-company-logo" onerror="this.style.display=\'none\'">' if logo_url else ""
-    if not logo_html:
-        logo_html = f'<div class="sb-company-logo" style="display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:800;background:linear-gradient(135deg,#6B5CE7,#9B8AFF);color:#fff;">{ticker[0]}</div>'
+    # Logo with fallback - always show initial letter as backup
+    initial = ticker[0] if ticker else "?"
+    fallback_div = f'<div class="sb-logo-fallback">{initial}</div>'
+    if logo_url:
+        # Wrapper contains both image and fallback; JS shows fallback on error
+        logo_html = (
+            f'<div class="sb-logo-wrapper">'
+            f'<img src="{logo_url}" class="sb-company-logo" '
+            f'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'
+            f'<div class="sb-logo-fallback" style="display:none;">{initial}</div>'
+            f'</div>'
+        )
+    else:
+        logo_html = f'<div class="sb-logo-wrapper">{fallback_div}</div>'
 
     # Role label
     role_html = f'<span class="sb-role-label {role.lower()}">{role}</span>' if role else ""
