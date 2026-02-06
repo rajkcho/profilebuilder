@@ -3376,6 +3376,16 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         st.error(f"Failed to fetch data for **{target_input}**: {e}")
         st.stop()
 
+    # DEBUG: Show key data immediately after fetch
+    st.markdown(
+        f'<div style="background:#0F172A; padding:0.75rem 1rem; border-radius:8px; margin:0.5rem 0; font-size:0.8rem; font-family:monospace;">'
+        f'<div style="color:#10B981; font-weight:600;">DEBUG: Data Fetch Results</div>'
+        f'<div style="color:#B8B3D7;">Acquirer ({acq_cd.ticker}): shares={acq_cd.shares_outstanding}, price=${acq_cd.current_price}, mcap=${acq_cd.market_cap:,.0f if acq_cd.market_cap else "N/A"}</div>'
+        f'<div style="color:#B8B3D7;">Target ({tgt_cd.ticker}): shares={tgt_cd.shares_outstanding}, price=${tgt_cd.current_price}, mcap=${tgt_cd.market_cap:,.0f if tgt_cd.market_cap else "N/A"}</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
     # Phase 2 → fetch peers
     mission.markdown(_render_mission_control(acq_label, tgt_label, 2), unsafe_allow_html=True)
     try:
@@ -3387,6 +3397,18 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     mission.markdown(_render_mission_control(acq_label, tgt_label, 3), unsafe_allow_html=True)
     try:
         pro_forma = calculate_pro_forma(acq_cd, tgt_cd, merger_assumptions)
+        # DEBUG: Show pro forma results
+        st.markdown(
+            f'<div style="background:#0F172A; padding:0.75rem 1rem; border-radius:8px; margin:0.5rem 0; font-size:0.8rem; font-family:monospace;">'
+            f'<div style="color:#10B981; font-weight:600;">DEBUG: Pro Forma Calculation</div>'
+            f'<div style="color:#B8B3D7;">acq_shares: {pro_forma.acq_shares:,.0f}</div>'
+            f'<div style="color:#B8B3D7;">offer_price: ${pro_forma.offer_price_per_share:.2f}</div>'
+            f'<div style="color:#B8B3D7;">purchase_price: ${pro_forma.purchase_price:,.0f}</div>'
+            f'<div style="color:#B8B3D7;">pf_eps: ${pro_forma.pf_eps:.2f}</div>'
+            f'<div style="color:#B8B3D7;">accretion: {pro_forma.accretion_dilution_pct:+.1f}%</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
     except Exception as e:
         mission.empty()
         st.error(f"Failed to calculate pro forma: {e}")
