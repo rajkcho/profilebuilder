@@ -26,6 +26,37 @@ from data_engine import (
 from ai_insights import generate_insights, generate_merger_insights
 from pptx_generator import generate_presentation, generate_deal_book
 from merger_analysis import MergerAssumptions, calculate_pro_forma, build_football_field
+import yfinance as yf
+
+# ── Quick Ticker Lookup (for sidebar previews) ───────────────
+@st.cache_data(ttl=300, show_spinner=False)
+def _quick_ticker_lookup(ticker: str) -> dict:
+    """Lightweight ticker lookup for sidebar preview cards."""
+    if not ticker or len(ticker) < 1:
+        return {}
+    try:
+        tk = yf.Ticker(ticker)
+        info = tk.info or {}
+        name = info.get("shortName") or info.get("longName") or ticker
+        price = info.get("currentPrice") or info.get("regularMarketPrice")
+        currency = info.get("currency", "USD")
+        market_cap = info.get("marketCap")
+        change_pct = info.get("regularMarketChangePercent")
+        # Logo URL
+        website = info.get("website", "")
+        domain = website.replace("https://", "").replace("http://", "").replace("www.", "").split("/")[0] if website else ""
+        logo_url = f"https://logo.clearbit.com/{domain}" if domain else ""
+        return {
+            "name": name,
+            "price": price,
+            "currency": currency,
+            "market_cap": market_cap,
+            "change_pct": change_pct,
+            "logo_url": logo_url,
+            "valid": True,
+        }
+    except Exception:
+        return {"valid": False}
 
 # ── Page Config ──────────────────────────────────────────────
 st.set_page_config(
@@ -394,36 +425,80 @@ section[data-testid="stSidebar"] {{
     background: linear-gradient(180deg, #0B0E1A 0%, #10132A 50%, #151933 100%);
     border-right: 1px solid rgba(107,92,231,0.2);
     box-shadow: 4px 0 30px rgba(107,92,231,0.08);
+    min-width: 340px !important;
+}}
+section[data-testid="stSidebar"] > div:first-child {{
+    padding: 1rem 1.5rem !important;
 }}
 section[data-testid="stSidebar"] * {{
     color: #C8C3E3 !important;
+}}
+/* Hide default radio labels */
+section[data-testid="stSidebar"] .stRadio > label {{
+    display: none !important;
+}}
+section[data-testid="stSidebar"] .stRadio > div {{
+    flex-direction: row !important;
+    gap: 0 !important;
+    background: rgba(107,92,231,0.1);
+    border-radius: 14px;
+    padding: 4px;
+    border: 1px solid rgba(107,92,231,0.2);
+}}
+section[data-testid="stSidebar"] .stRadio > div > label {{
+    flex: 1 !important;
+    margin: 0 !important;
+    padding: 0.6rem 0.8rem !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    font-size: 0.8rem !important;
+    text-align: center !important;
+    transition: all 0.3s ease !important;
+    cursor: pointer !important;
+    background: transparent !important;
+}}
+section[data-testid="stSidebar"] .stRadio > div > label[data-checked="true"] {{
+    background: linear-gradient(135deg, #6B5CE7 0%, #9B8AFF 100%) !important;
+    box-shadow: 0 4px 15px rgba(107,92,231,0.4) !important;
+}}
+section[data-testid="stSidebar"] .stRadio > div > label[data-checked="true"] span,
+section[data-testid="stSidebar"] .stRadio > div > label[data-checked="true"] p {{
+    color: #fff !important;
 }}
 section[data-testid="stSidebar"] .stTextInput > div > div > input {{
     background: rgba(107,92,231,0.08);
     border: 1px solid rgba(107,92,231,0.3);
     border-radius: 12px;
     color: #fff !important;
-    font-weight: 600;
-    font-size: 1.1rem;
-    letter-spacing: 2px;
+    font-weight: 700;
+    font-size: 1.2rem;
+    letter-spacing: 3px;
     text-align: center;
-    padding: 0.7rem;
+    padding: 0.9rem;
+    text-transform: uppercase;
 }}
 section[data-testid="stSidebar"] .stTextInput > div > div > input:focus {{
     border-color: #6B5CE7;
-    box-shadow: 0 0 15px rgba(107,92,231,0.3);
+    box-shadow: 0 0 20px rgba(107,92,231,0.4);
+}}
+section[data-testid="stSidebar"] .stTextInput > div > div > input::placeholder {{
+    color: #6B5CE7 !important;
+    opacity: 0.5;
+    letter-spacing: 1px;
+    font-size: 0.85rem;
 }}
 section[data-testid="stSidebar"] .stButton > button {{
     background: linear-gradient(135deg, #6B5CE7 0%, #9B8AFF 100%) !important;
     color: #fff !important;
     font-weight: 700 !important;
     border: none !important;
-    border-radius: 12px !important;
-    padding: 0.7rem 2rem !important;
-    font-size: 0.95rem !important;
+    border-radius: 14px !important;
+    padding: 0.9rem 2rem !important;
+    font-size: 1rem !important;
     letter-spacing: 0.5px;
     box-shadow: 0 4px 20px rgba(107,92,231,0.3);
     animation: sb-btn-pulse 2s ease-in-out infinite;
+    margin-top: 0.5rem !important;
 }}
 section[data-testid="stSidebar"] .stButton > button:hover {{
     transform: translateY(-2px);
@@ -431,6 +506,91 @@ section[data-testid="stSidebar"] .stButton > button:hover {{
 }}
 section[data-testid="stSidebar"] hr {{
     border-color: rgba(107,92,231,0.2) !important;
+}}
+/* Company preview card */
+.sb-company-card {{
+    background: linear-gradient(135deg, rgba(107,92,231,0.12), rgba(232,99,139,0.05));
+    border: 1px solid rgba(107,92,231,0.25);
+    border-radius: 16px;
+    padding: 0.9rem 1rem;
+    margin: 0.6rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    animation: cardReveal 0.5s ease-out;
+    transition: all 0.3s ease;
+}}
+.sb-company-card:hover {{
+    border-color: rgba(107,92,231,0.5);
+    box-shadow: 0 4px 20px rgba(107,92,231,0.2);
+    transform: translateY(-2px);
+}}
+.sb-company-logo {{
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: #fff;
+    padding: 4px;
+    object-fit: contain;
+    flex-shrink: 0;
+}}
+.sb-company-info {{
+    flex: 1;
+    min-width: 0;
+}}
+.sb-company-name {{
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #fff !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin: 0;
+    line-height: 1.3;
+}}
+.sb-company-ticker {{
+    font-size: 0.7rem;
+    color: #9B8AFF !important;
+    font-weight: 600;
+    letter-spacing: 1px;
+}}
+.sb-company-price {{
+    text-align: right;
+    flex-shrink: 0;
+}}
+.sb-company-price-value {{
+    font-size: 1rem;
+    font-weight: 800;
+    color: #fff !important;
+}}
+.sb-company-price-change {{
+    font-size: 0.7rem;
+    font-weight: 600;
+}}
+.sb-company-price-change.up {{ color: #10B981 !important; }}
+.sb-company-price-change.down {{ color: #EF4444 !important; }}
+.sb-company-invalid {{
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 12px;
+    padding: 0.6rem 0.9rem;
+    margin: 0.5rem 0;
+    font-size: 0.75rem;
+    color: #EF4444 !important;
+    text-align: center;
+}}
+/* Role label styling */
+.sb-role-label {{
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #6B5CE7 !important;
+    margin-bottom: 0.3rem;
+    display: block;
+}}
+.sb-role-label.acquirer {{ color: #9B8AFF !important; }}
+.sb-role-label.target {{ color: #E8638B !important; }}
 }}
 
 /* ── SIDEBAR SECTIONS (merger mode) ─────────────────────── */
@@ -2310,54 +2470,144 @@ def _render_capital_allocation(ca, cd):
             )
 
 
+# ── Sidebar Helper: Render Company Preview Card ───────────────
+def _render_company_card(ticker: str, role: str = "") -> None:
+    """Render a company preview card in the sidebar."""
+    if not ticker or len(ticker) < 1:
+        return
+
+    info = _quick_ticker_lookup(ticker)
+    if not info or not info.get("valid"):
+        st.markdown(
+            f'<div class="sb-company-invalid">⚠️ Could not find: {ticker}</div>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    name = info.get("name", ticker)
+    price = info.get("price")
+    currency = info.get("currency", "USD")
+    change_pct = info.get("change_pct")
+    logo_url = info.get("logo_url", "")
+
+    # Currency symbol
+    curr_sym = {"USD": "$", "EUR": "€", "GBP": "£", "JPY": "¥", "CAD": "C$"}.get(currency, "$")
+
+    # Price display
+    price_str = f"{curr_sym}{price:,.2f}" if price else "—"
+
+    # Change display
+    if change_pct is not None:
+        change_class = "up" if change_pct >= 0 else "down"
+        change_str = f'<div class="sb-company-price-change {change_class}">{change_pct:+.2f}%</div>'
+    else:
+        change_str = ""
+
+    # Logo with fallback
+    logo_html = f'<img src="{logo_url}" class="sb-company-logo" onerror="this.style.display=\'none\'">' if logo_url else ""
+    if not logo_html:
+        logo_html = f'<div class="sb-company-logo" style="display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:800;background:linear-gradient(135deg,#6B5CE7,#9B8AFF);color:#fff;">{ticker[0]}</div>'
+
+    # Role label
+    role_html = f'<span class="sb-role-label {role.lower()}">{role}</span>' if role else ""
+
+    st.markdown(
+        f'{role_html}'
+        f'<div class="sb-company-card">'
+        f'{logo_html}'
+        f'<div class="sb-company-info">'
+        f'<div class="sb-company-name">{name}</div>'
+        f'<div class="sb-company-ticker">{ticker}</div>'
+        f'</div>'
+        f'<div class="sb-company-price">'
+        f'<div class="sb-company-price-value">{price_str}</div>'
+        f'{change_str}'
+        f'</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
 # ── Sidebar ──────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("")
+    # Logo / Brand Header
     st.markdown(
-        '<div style="text-align:center; padding: 1rem 0 0.5rem 0;">'
-        '<div style="font-size:1.4rem; font-weight:800; letter-spacing:-0.5px; color:#fff;">M&A Profile</div>'
-        '<div style="font-size:1.4rem; font-weight:800; background:linear-gradient(135deg,#9B8AFF,#E8638B);'
-        '-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-top:-0.3rem;">Builder</div>'
-        '<div style="font-size:0.7rem; color:#A8A3C7; margin-top:0.3rem; letter-spacing:1.5px; text-transform:uppercase;">Investment Research Platform</div>'
+        '<div style="text-align:center; padding: 1.5rem 0 1rem 0;">'
+        '<div style="font-size:1.6rem; font-weight:800; letter-spacing:-0.5px; color:#fff;">M&A Profile</div>'
+        '<div style="font-size:1.6rem; font-weight:800; background:linear-gradient(135deg,#9B8AFF,#E8638B);'
+        '-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-top:-0.4rem;">Builder</div>'
+        '<div style="font-size:0.65rem; color:#A8A3C7; margin-top:0.4rem; letter-spacing:2px; text-transform:uppercase;">Investment Research Platform</div>'
         '</div>',
         unsafe_allow_html=True,
     )
-    st.markdown("---")
 
-    analysis_mode = st.radio("Analysis Mode", ["Company Profile", "Merger Analysis"], horizontal=True)
+    st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
+
+    # Mode Toggle
+    analysis_mode = st.radio("Mode", ["Company Profile", "Merger Analysis"], horizontal=True, label_visibility="collapsed")
+
+    st.markdown('<div style="height:0.8rem;"></div>', unsafe_allow_html=True)
 
     if analysis_mode == "Company Profile":
+        # ── Company Profile Mode ──
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">📊</span> COMPANY</div>',
+            unsafe_allow_html=True,
+        )
+
         ticker_input = st.text_input(
-            "Stock Ticker", value="AAPL", max_chars=10,
-            help="Enter any stock ticker (e.g. AAPL, RY.TO, NVDA.L, 7203.T)"
+            "Stock Ticker", value="", max_chars=10,
+            placeholder="Enter ticker (e.g. AAPL)",
+            label_visibility="collapsed",
         ).strip().upper()
-        generate_btn = st.button("Generate Profile", type="primary", use_container_width=True)
+
+        # Show company preview card
+        if ticker_input:
+            _render_company_card(ticker_input)
+
+        st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
+        generate_btn = st.button("🚀 Generate Profile", type="primary", use_container_width=True)
+
         # Merger-specific variables (unused in this mode)
         acquirer_input = ""
         target_input = ""
         merger_btn = False
         merger_assumptions = MergerAssumptions()
+
     else:
+        # ── Merger Analysis Mode ──
         ticker_input = ""
         generate_btn = False
 
-        # ── Section: Tickers ──
+        # Acquirer
         st.markdown(
-            '<div class="sb-section"><span class="sb-section-icon">&#9670;</span> TICKERS</div>',
+            '<div class="sb-section"><span class="sb-section-icon">🏢</span> ACQUIRER</div>',
             unsafe_allow_html=True,
         )
         acquirer_input = st.text_input(
-            "Acquirer Ticker", value="MSFT", max_chars=10,
-            label_visibility="collapsed", placeholder="Acquirer (e.g. MSFT)",
+            "Acquirer", value="", max_chars=10,
+            placeholder="Enter ticker (e.g. MSFT)",
+            label_visibility="collapsed",
         ).strip().upper()
+        if acquirer_input:
+            _render_company_card(acquirer_input, "Acquirer")
+
+        # Target
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">🎯</span> TARGET</div>',
+            unsafe_allow_html=True,
+        )
         target_input = st.text_input(
-            "Target Ticker", value="ATVI", max_chars=10,
-            label_visibility="collapsed", placeholder="Target (e.g. ATVI)",
+            "Target", value="", max_chars=10,
+            placeholder="Enter ticker (e.g. ATVI)",
+            label_visibility="collapsed",
         ).strip().upper()
+        if target_input:
+            _render_company_card(target_input, "Target")
 
         # ── Section: Deal Structure ──
         st.markdown(
-            '<div class="sb-section"><span class="sb-section-icon">&#9670;</span> DEAL STRUCTURE</div>',
+            '<div class="sb-section"><span class="sb-section-icon">💰</span> DEAL STRUCTURE</div>',
             unsafe_allow_html=True,
         )
         offer_premium = st.slider("Offer Premium (%)", 0, 100, 30, 5)
@@ -2377,7 +2627,7 @@ with st.sidebar:
 
         # ── Section: Synergies ──
         st.markdown(
-            '<div class="sb-section"><span class="sb-section-icon">&#9670;</span> SYNERGIES</div>',
+            '<div class="sb-section"><span class="sb-section-icon">⚡</span> SYNERGIES</div>',
             unsafe_allow_html=True,
         )
         cost_syn = st.slider("Cost Synergies (% of Target SG&A)", 0, 30, 10, 1)
@@ -2385,7 +2635,7 @@ with st.sidebar:
 
         # ── Section: Financing & Fees ──
         st.markdown(
-            '<div class="sb-section"><span class="sb-section-icon">&#9670;</span> FINANCING &amp; FEES</div>',
+            '<div class="sb-section"><span class="sb-section-icon">🏦</span> FINANCING &amp; FEES</div>',
             unsafe_allow_html=True,
         )
         txn_fees = st.slider("Transaction Fees (%)", 0.5, 5.0, 2.0, 0.5)
@@ -2403,31 +2653,21 @@ with st.sidebar:
             cost_of_debt=adv_cost_of_debt,
         )
 
-        st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
-        merger_btn = st.button("Analyze Deal", type="primary", use_container_width=True)
+        st.markdown('<div style="height:0.8rem;"></div>', unsafe_allow_html=True)
+        merger_btn = st.button("🚀 Analyze Deal", type="primary", use_container_width=True)
 
-    st.markdown("---")
+    # Footer
+    st.markdown('<div class="sb-divider" style="margin-top:1.5rem;"></div>', unsafe_allow_html=True)
     st.markdown(
-        '<div style="text-align:center; padding: 0.5rem 0;">'
-        '<div style="font-size:0.65rem; color:#6B7280; letter-spacing:0.5px; line-height:1.8;">'
-        'DATA: YAHOO FINANCE<br>'
-        'M&A: WIKIPEDIA<br>'
-        'CHARTS: PLOTLY<br>'
-        'AI: OPENAI (OPT.)'
+        '<div style="text-align:center; padding: 0.3rem 0;">'
+        '<div style="font-size:0.6rem; color:#4B5563; letter-spacing:0.5px; line-height:1.9;">'
+        'DATA: YAHOO FINANCE • CHARTS: PLOTLY<br>'
+        'AI: OPENAI (OPT.) • LOGOS: CLEARBIT'
         '</div></div>',
         unsafe_allow_html=True,
     )
 
 # ── Main Area ────────────────────────────────────────────────
-# DEBUG: Show current state (remove after debugging)
-with st.expander("DEBUG: Current State", expanded=False):
-    st.text(f"analysis_mode: {analysis_mode}")
-    st.text(f"ticker_input: '{ticker_input}'")
-    st.text(f"generate_btn: {generate_btn}")
-    st.text(f"acquirer_input: '{acquirer_input}'")
-    st.text(f"target_input: '{target_input}'")
-    st.text(f"merger_btn: {merger_btn}")
-
 if analysis_mode == "Company Profile":
     st.markdown(
         '<div class="hero-header">'
@@ -2448,17 +2688,6 @@ else:
     )
 
 if analysis_mode == "Company Profile" and generate_btn and ticker_input:
-    print(f"DEBUG: Entering company profile for {ticker_input}")  # Debug
-
-    # Visible diagnostic banner
-    st.markdown(
-        '<div style="background:#1E3A5F; padding:0.5rem 1rem; border-radius:8px; margin-bottom:1rem; text-align:center;">'
-        f'<span style="color:#10B981;">✓ Company Profile Started</span> — '
-        f'<span style="color:#B8B3D7;">{ticker_input.upper()}</span>'
-        '</div>',
-        unsafe_allow_html=True,
-    )
-
     # ── Data Fetching (with scanner loading animation) ───
     _scanner_slot = st.empty()
 
@@ -3341,16 +3570,6 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     # ══════════════════════════════════════════════════════
     # MERGER ANALYSIS DASHBOARD
     # ══════════════════════════════════════════════════════
-    print(f"DEBUG: Entering merger analysis for {acquirer_input} + {target_input}")  # Debug
-
-    # Visible diagnostic banner
-    st.markdown(
-        '<div style="background:#1E3A5F; padding:0.5rem 1rem; border-radius:8px; margin-bottom:1rem; text-align:center;">'
-        f'<span style="color:#10B981;">✓ Merger Analysis Started</span> — '
-        f'<span style="color:#B8B3D7;">{acquirer_input.upper()} + {target_input.upper()}</span>'
-        '</div>',
-        unsafe_allow_html=True,
-    )
 
     # ── Mission Control animated loading ─────────────────
     mission = st.empty()
@@ -3376,18 +3595,6 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         st.error(f"Failed to fetch data for **{target_input}**: {e}")
         st.stop()
 
-    # DEBUG: Show key data immediately after fetch
-    acq_mcap = f"${acq_cd.market_cap:,.0f}" if acq_cd.market_cap else "N/A"
-    tgt_mcap = f"${tgt_cd.market_cap:,.0f}" if tgt_cd.market_cap else "N/A"
-    st.markdown(
-        f'<div style="background:#0F172A; padding:0.75rem 1rem; border-radius:8px; margin:0.5rem 0; font-size:0.8rem; font-family:monospace;">'
-        f'<div style="color:#10B981; font-weight:600;">DEBUG: Data Fetch Results</div>'
-        f'<div style="color:#B8B3D7;">Acquirer ({acq_cd.ticker}): shares={acq_cd.shares_outstanding}, price=${acq_cd.current_price}, mcap={acq_mcap}</div>'
-        f'<div style="color:#B8B3D7;">Target ({tgt_cd.ticker}): shares={tgt_cd.shares_outstanding}, price=${tgt_cd.current_price}, mcap={tgt_mcap}</div>'
-        f'</div>',
-        unsafe_allow_html=True,
-    )
-
     # Phase 2 → fetch peers
     mission.markdown(_render_mission_control(acq_label, tgt_label, 2), unsafe_allow_html=True)
     try:
@@ -3399,18 +3606,6 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     mission.markdown(_render_mission_control(acq_label, tgt_label, 3), unsafe_allow_html=True)
     try:
         pro_forma = calculate_pro_forma(acq_cd, tgt_cd, merger_assumptions)
-        # DEBUG: Show pro forma results
-        st.markdown(
-            f'<div style="background:#0F172A; padding:0.75rem 1rem; border-radius:8px; margin:0.5rem 0; font-size:0.8rem; font-family:monospace;">'
-            f'<div style="color:#10B981; font-weight:600;">DEBUG: Pro Forma Calculation</div>'
-            f'<div style="color:#B8B3D7;">acq_shares: {pro_forma.acq_shares:,.0f}</div>'
-            f'<div style="color:#B8B3D7;">offer_price: ${pro_forma.offer_price_per_share:.2f}</div>'
-            f'<div style="color:#B8B3D7;">purchase_price: ${pro_forma.purchase_price:,.0f}</div>'
-            f'<div style="color:#B8B3D7;">pf_eps: ${pro_forma.pf_eps:.2f}</div>'
-            f'<div style="color:#B8B3D7;">accretion: {pro_forma.accretion_dilution_pct:+.1f}%</div>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
     except Exception as e:
         mission.empty()
         st.error(f"Failed to calculate pro forma: {e}")
@@ -3450,19 +3645,6 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
 
     acq_cs = acq_cd.currency_symbol
     tgt_cs = tgt_cd.currency_symbol
-
-    # ── Debug diagnostics (remove after confirming fix) ──
-    with st.expander("Debug: Data Pipeline Diagnostics", expanded=False):
-        st.text(f"Acquirer: {acq_cd.name} | Sector: {acq_cd.sector} | MktCap: {acq_cd.market_cap}")
-        st.text(f"Target:   {tgt_cd.name} | Sector: {tgt_cd.sector} | MktCap: {tgt_cd.market_cap}")
-        st.text(f"Purchase Price: {pro_forma.purchase_price:.0f}")
-        st.text(f"Accretion/Dilution: {pro_forma.accretion_dilution_pct:+.1f}%")
-        st.text(f"PF Leverage: {pro_forma.pf_leverage_ratio}")
-        st.text(f"Strategic Rationale: {len(merger_insights.strategic_rationale)} chars")
-        st.text(f"Deal Risks: {len(merger_insights.deal_risks)} chars")
-        st.text(f"Deal Verdict: {len(merger_insights.deal_verdict)} chars")
-        st.text(f"Grade: {merger_insights.deal_grade}")
-        st.text(f"First 200 chars of strategic: {merger_insights.strategic_rationale[:200]}")
 
     # ── Warnings ──────────────────────────────────────────
     for warn in pro_forma.warnings:
