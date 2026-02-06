@@ -1,5 +1,5 @@
 """
-M&A Profile Builder — Streamlit Application
+Orbital — M&A Intelligence Platform
 
 Professional-grade company research platform with Sky.money-inspired UI.
 Generates an 8-slide investment-banker-grade PowerPoint tear sheet.
@@ -55,7 +55,7 @@ def _quick_ticker_lookup(ticker: str) -> dict:
 
 # ── Page Config ──────────────────────────────────────────────
 st.set_page_config(
-    page_title="M&A Profile Builder",
+    page_title="Orbital — M&A Intelligence",
     page_icon="https://img.icons8.com/fluency/48/combo-chart.png",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -420,6 +420,128 @@ html, body, [class*="css"] {{
 @keyframes scannerPhasePulse {{
     0%, 100% {{ box-shadow: 0 0 8px rgba(6,182,212,0.2); }}
     50%      {{ box-shadow: 0 0 20px rgba(6,182,212,0.5), 0 0 40px rgba(6,182,212,0.15); }}
+}}
+
+/* ── ORBITAL LOGO ANIMATIONS ───────────────────────────── */
+@keyframes orbitRotate {{
+    0%   {{ transform: rotate(0deg); }}
+    100% {{ transform: rotate(360deg); }}
+}}
+@keyframes orbitRotateReverse {{
+    0%   {{ transform: rotate(360deg); }}
+    100% {{ transform: rotate(0deg); }}
+}}
+@keyframes orbitPulse {{
+    0%, 100% {{ opacity: 0.4; transform: scale(1); }}
+    50%      {{ opacity: 1; transform: scale(1.1); }}
+}}
+@keyframes particleGlow {{
+    0%, 100% {{ box-shadow: 0 0 4px currentColor, 0 0 8px currentColor; }}
+    50%      {{ box-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor; }}
+}}
+@keyframes coreGlow {{
+    0%, 100% {{ box-shadow: 0 0 15px rgba(107,92,231,0.6), 0 0 30px rgba(107,92,231,0.3); }}
+    50%      {{ box-shadow: 0 0 25px rgba(107,92,231,0.9), 0 0 50px rgba(107,92,231,0.5), 0 0 80px rgba(107,92,231,0.2); }}
+}}
+@keyframes ringFlash {{
+    0%, 90%, 100% {{ opacity: 0.3; }}
+    95%           {{ opacity: 1; }}
+}}
+
+/* ── ORBITAL LOGO COMPONENT ────────────────────────────── */
+.orbital-logo {{
+    position: relative;
+    width: 56px; height: 56px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}}
+.orbital-core {{
+    position: absolute;
+    width: 16px; height: 16px;
+    background: linear-gradient(135deg, #6B5CE7 0%, #9B8AFF 100%);
+    border-radius: 50%;
+    animation: coreGlow 2s ease-in-out infinite;
+    z-index: 3;
+}}
+.orbital-ring {{
+    position: absolute;
+    border: 2px solid transparent;
+    border-radius: 50%;
+    border-top-color: #6B5CE7;
+    border-right-color: rgba(107,92,231,0.3);
+}}
+.orbital-ring-1 {{
+    width: 32px; height: 32px;
+    animation: orbitRotate 3s linear infinite;
+}}
+.orbital-ring-2 {{
+    width: 44px; height: 44px;
+    border-top-color: #E8638B;
+    border-right-color: rgba(232,99,139,0.3);
+    animation: orbitRotateReverse 4s linear infinite;
+}}
+.orbital-ring-3 {{
+    width: 56px; height: 56px;
+    border-top-color: #9B8AFF;
+    border-right-color: rgba(155,138,255,0.2);
+    animation: orbitRotate 5s linear infinite, ringFlash 3s ease-in-out infinite;
+}}
+.orbital-particle {{
+    position: absolute;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    animation: orbitPulse 2s ease-in-out infinite;
+}}
+.orbital-particle-1 {{
+    background: #6B5CE7;
+    color: #6B5CE7;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    animation: particleGlow 1.5s ease-in-out infinite;
+}}
+.orbital-particle-2 {{
+    background: #E8638B;
+    color: #E8638B;
+    bottom: 4px; right: 4px;
+    animation: particleGlow 1.5s ease-in-out infinite 0.5s;
+}}
+.orbital-particle-3 {{
+    background: #10B981;
+    color: #10B981;
+    bottom: 4px; left: 4px;
+    animation: particleGlow 1.5s ease-in-out infinite 1s;
+}}
+
+/* Large orbital logo for hero */
+.orbital-logo-lg {{
+    width: 80px; height: 80px;
+}}
+.orbital-logo-lg .orbital-core {{
+    width: 22px; height: 22px;
+}}
+.orbital-logo-lg .orbital-ring-1 {{ width: 44px; height: 44px; }}
+.orbital-logo-lg .orbital-ring-2 {{ width: 60px; height: 60px; }}
+.orbital-logo-lg .orbital-ring-3 {{ width: 80px; height: 80px; }}
+.orbital-logo-lg .orbital-particle {{ width: 8px; height: 8px; }}
+.orbital-logo-lg .orbital-particle-2 {{ bottom: 6px; right: 6px; }}
+.orbital-logo-lg .orbital-particle-3 {{ bottom: 6px; left: 6px; }}
+
+/* Orbital brand text */
+.orbital-brand {{
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}}
+.orbital-wordmark {{
+    font-size: 2.4rem;
+    font-weight: 800;
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, #fff 0%, #E0DCF5 50%, #9B8AFF 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }}
 
 /* ── Deal Terms & Consideration animations ─────────────── */
@@ -2756,7 +2878,7 @@ with st.sidebar:
     # Logo / Brand Header
     st.markdown(
         '<div style="text-align:center; padding: 1.5rem 0 1rem 0;">'
-        '<div style="font-size:1.6rem; font-weight:800; letter-spacing:-0.5px; color:#fff;">M&A Profile</div>'
+        '<div style="font-size:1.6rem; font-weight:800; letter-spacing:-0.5px; color:#fff;">Orbital</div>'
         '<div style="font-size:1.6rem; font-weight:800; background:linear-gradient(135deg,#9B8AFF,#E8638B);'
         '-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-top:-0.4rem;">Builder</div>'
         '<div style="font-size:0.65rem; color:#A8A3C7; margin-top:0.4rem; letter-spacing:2px; text-transform:uppercase;">Investment Research Platform</div>'
@@ -2891,11 +3013,29 @@ with st.sidebar:
     )
 
 # ── Main Area ────────────────────────────────────────────────
+# Orbital animated logo HTML
+_orbital_logo_html = (
+    '<div class="orbital-logo orbital-logo-lg">'
+    '<div class="orbital-core"></div>'
+    '<div class="orbital-ring orbital-ring-1"></div>'
+    '<div class="orbital-ring orbital-ring-2"></div>'
+    '<div class="orbital-ring orbital-ring-3"></div>'
+    '<div class="orbital-particle orbital-particle-1"></div>'
+    '<div class="orbital-particle orbital-particle-2"></div>'
+    '<div class="orbital-particle orbital-particle-3"></div>'
+    '</div>'
+)
+
 if analysis_mode == "Company Profile":
     st.markdown(
         '<div class="hero-header">'
-        '<p class="hero-title">M&A Profile <span class="hero-accent">Builder</span></p>'
-        '<p class="hero-sub">Comprehensive company research & 8-slide tear sheet generator</p>'
+        '<div class="orbital-brand">'
+        f'{_orbital_logo_html}'
+        '<div>'
+        '<p class="orbital-wordmark">Orbital</p>'
+        '<p class="hero-sub" style="margin-top:-0.3rem;">Company Intelligence & Tear Sheet Generator</p>'
+        '</div>'
+        '</div>'
         '<span class="hero-tagline">Powered by Live Market Data</span>'
         '</div>',
         unsafe_allow_html=True,
@@ -2903,8 +3043,13 @@ if analysis_mode == "Company Profile":
 else:
     st.markdown(
         '<div class="hero-header">'
-        '<p class="hero-title">Merger <span class="hero-accent">Simulator</span></p>'
-        '<p class="hero-sub">Pro forma analysis, accretion/dilution & deal book generation</p>'
+        '<div class="orbital-brand">'
+        f'{_orbital_logo_html}'
+        '<div>'
+        '<p class="orbital-wordmark">Orbital</p>'
+        '<p class="hero-sub" style="margin-top:-0.3rem;">M&A Simulator & Deal Book Generator</p>'
+        '</div>'
+        '</div>'
         '<span class="hero-tagline">Powered by Live Market Data</span>'
         '</div>',
         unsafe_allow_html=True,
@@ -3773,9 +3918,9 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     dl1, dl2, dl3 = st.columns([1, 2, 1])
     with dl2:
         st.download_button(
-            label=f"Download {cd.ticker} M&A Profile  (8 slides)",
+            label=f"Download {cd.ticker} Orbital Profile  (8 slides)",
             data=pptx_buf,
-            file_name=f"{cd.ticker}_MA_Profile.pptx",
+            file_name=f"{cd.ticker}_Orbital_Profile.pptx",
             mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
             use_container_width=True,
         )
@@ -4455,8 +4600,19 @@ else:
             '<div class="noise-overlay">&#8203;</div>'
             '<div class="title-glow">&#8203;</div>'
             '<div class="splash-content">'
-            '<p class="splash-title">Merger <span class="splash-accent">Simulator</span></p>'
-            '<p class="splash-subtitle">Pro forma merger analysis, accretion/dilution &amp; deal book generation</p>'
+            '<div style="display:flex; align-items:center; justify-content:center; gap:1.2rem; margin-bottom:0.5rem;">'
+            '<div class="orbital-logo" style="width:70px; height:70px;">'
+            '<div class="orbital-core" style="width:18px; height:18px;"></div>'
+            '<div class="orbital-ring orbital-ring-1" style="width:38px; height:38px;"></div>'
+            '<div class="orbital-ring orbital-ring-2" style="width:52px; height:52px;"></div>'
+            '<div class="orbital-ring orbital-ring-3" style="width:70px; height:70px;"></div>'
+            '<div class="orbital-particle orbital-particle-1"></div>'
+            '<div class="orbital-particle orbital-particle-2"></div>'
+            '<div class="orbital-particle orbital-particle-3"></div>'
+            '</div>'
+            '<p class="splash-title" style="margin:0;">Orbital</p>'
+            '</div>'
+            '<p class="splash-subtitle" style="font-size:1.3rem; margin-top:0;">M&amp;A Simulator &amp; Deal Intelligence</p>'
             '<div class="pill-row">'
             '<span class="feature-pill">Pro Forma Analysis</span>'
             '<span class="feature-pill">Accretion/Dilution</span>'
@@ -4521,8 +4677,19 @@ else:
             '<div class="noise-overlay">&#8203;</div>'
             '<div class="title-glow">&#8203;</div>'
             '<div class="splash-content">'
-            '<p class="splash-title">M&amp;A Profile <span class="splash-accent">Builder</span></p>'
-            '<p class="splash-subtitle">Institutional-grade company research &amp; tear sheet generation</p>'
+            '<div style="display:flex; align-items:center; justify-content:center; gap:1.2rem; margin-bottom:0.5rem;">'
+            '<div class="orbital-logo" style="width:70px; height:70px;">'
+            '<div class="orbital-core" style="width:18px; height:18px;"></div>'
+            '<div class="orbital-ring orbital-ring-1" style="width:38px; height:38px;"></div>'
+            '<div class="orbital-ring orbital-ring-2" style="width:52px; height:52px;"></div>'
+            '<div class="orbital-ring orbital-ring-3" style="width:70px; height:70px;"></div>'
+            '<div class="orbital-particle orbital-particle-1"></div>'
+            '<div class="orbital-particle orbital-particle-2"></div>'
+            '<div class="orbital-particle orbital-particle-3"></div>'
+            '</div>'
+            '<p class="splash-title" style="margin:0;">Orbital</p>'
+            '</div>'
+            '<p class="splash-subtitle" style="font-size:1.3rem; margin-top:0;">Company Intelligence &amp; Tear Sheet Generator</p>'
             '<div class="pill-row">'
             '<span class="feature-pill">Live Market Data</span>'
             '<span class="feature-pill">Wikipedia M&amp;A</span>'
