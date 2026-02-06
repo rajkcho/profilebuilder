@@ -422,6 +422,214 @@ html, body, [class*="css"] {{
     50%      {{ box-shadow: 0 0 20px rgba(6,182,212,0.5), 0 0 40px rgba(6,182,212,0.15); }}
 }}
 
+/* ── Deal Terms & Consideration animations ─────────────── */
+@keyframes dealCardPulse {{
+    0%, 100% {{ box-shadow: 0 0 15px rgba(107,92,231,0.2), inset 0 0 20px rgba(107,92,231,0.05); }}
+    50%      {{ box-shadow: 0 0 30px rgba(107,92,231,0.4), inset 0 0 40px rgba(107,92,231,0.1); }}
+}}
+@keyframes dealIconSpin {{
+    0%   {{ transform: rotate(0deg) scale(1); }}
+    50%  {{ transform: rotate(10deg) scale(1.1); }}
+    100% {{ transform: rotate(0deg) scale(1); }}
+}}
+@keyframes dealRowSlide {{
+    from {{ opacity: 0; transform: translateX(-20px); }}
+    to   {{ opacity: 1; transform: translateX(0); }}
+}}
+@keyframes barFillLeft {{
+    from {{ width: 0; }}
+    to   {{ width: var(--fill-pct); }}
+}}
+@keyframes barFillRight {{
+    from {{ width: 0; }}
+    to   {{ width: var(--fill-pct); }}
+}}
+@keyframes pfRowReveal {{
+    from {{ opacity: 0; transform: translateY(10px); }}
+    to   {{ opacity: 1; transform: translateY(0); }}
+}}
+@keyframes suBarGrow {{
+    from {{ transform: scaleX(0); }}
+    to   {{ transform: scaleX(1); }}
+}}
+@keyframes valueCountUp {{
+    from {{ opacity: 0; transform: scale(0.8); }}
+    to   {{ opacity: 1; transform: scale(1); }}
+}}
+
+/* ── DEAL TERMS CONSIDERATION CARD ─────────────────────── */
+.deal-consideration-card {{
+    background: linear-gradient(145deg, rgba(107,92,231,0.08), rgba(232,99,139,0.04));
+    border: 1px solid rgba(107,92,231,0.25);
+    border-radius: 20px;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+    animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+               dealCardPulse 3s ease-in-out 0.5s infinite;
+}}
+.deal-consideration-card::before {{
+    content: '';
+    position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+    background: radial-gradient(circle at 30% 30%, rgba(107,92,231,0.06) 0%, transparent 50%),
+                radial-gradient(circle at 70% 70%, rgba(232,99,139,0.04) 0%, transparent 50%);
+    animation: nebulaPulse 15s ease-in-out infinite;
+    pointer-events: none;
+}}
+.deal-consideration-card .deal-header {{
+    font-size: 0.7rem; font-weight: 700; color: #9B8AFF;
+    text-transform: uppercase; letter-spacing: 1.5px;
+    margin-bottom: 1rem;
+    display: flex; align-items: center; gap: 0.5rem;
+}}
+.deal-consideration-card .deal-header-icon {{
+    font-size: 1rem;
+    animation: dealIconSpin 3s ease-in-out infinite;
+}}
+.deal-consideration-row {{
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.8rem 1rem;
+    margin: 0.4rem 0;
+    background: rgba(255,255,255,0.03);
+    border-radius: 12px;
+    border-left: 3px solid;
+    animation: dealRowSlide 0.5s ease-out both;
+    transition: all 0.25s ease;
+}}
+.deal-consideration-row:hover {{
+    background: rgba(107,92,231,0.08);
+    transform: translateX(5px);
+}}
+.deal-consideration-row.cash {{ border-left-color: #10B981; }}
+.deal-consideration-row.stock {{ border-left-color: #6B5CE7; }}
+.deal-consideration-row.offer {{ border-left-color: #E8638B; }}
+.deal-consideration-row .deal-label {{
+    font-size: 0.8rem; color: #8A85AD; font-weight: 600;
+    display: flex; align-items: center; gap: 0.4rem;
+}}
+.deal-consideration-row .deal-label .emoji {{ font-size: 1.1rem; }}
+.deal-consideration-row .deal-value {{
+    font-size: 1rem; font-weight: 700; color: #E0DCF5;
+    animation: valueCountUp 0.6s ease-out both;
+}}
+.deal-consideration-row .deal-sub {{
+    font-size: 0.7rem; color: #8A85AD; margin-top: 2px;
+}}
+
+/* ── PRO FORMA FINANCIALS TABLE ────────────────────────── */
+.pf-table-wrapper {{
+    background: linear-gradient(145deg, rgba(107,92,231,0.06), rgba(16,185,129,0.02));
+    border: 1px solid rgba(107,92,231,0.2);
+    border-radius: 20px;
+    padding: 1.5rem;
+    overflow: hidden;
+    animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}}
+.pf-table {{
+    width: 100%; border-collapse: separate; border-spacing: 0;
+}}
+.pf-table th {{
+    background: rgba(107,92,231,0.12);
+    color: #9B8AFF; font-size: 0.75rem;
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 0.8rem 1rem; font-weight: 700;
+    border-bottom: 2px solid rgba(107,92,231,0.25);
+}}
+.pf-table th:first-child {{ border-radius: 12px 0 0 0; }}
+.pf-table th:last-child {{ border-radius: 0 12px 0 0; background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(107,92,231,0.12)); }}
+.pf-table td {{
+    padding: 0.7rem 1rem; font-size: 0.85rem; color: #C8C3E3;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    animation: pfRowReveal 0.4s ease-out both;
+}}
+.pf-table tr:nth-child(1) td {{ animation-delay: 0.1s; }}
+.pf-table tr:nth-child(2) td {{ animation-delay: 0.15s; }}
+.pf-table tr:nth-child(3) td {{ animation-delay: 0.2s; }}
+.pf-table tr:nth-child(4) td {{ animation-delay: 0.25s; }}
+.pf-table tr:nth-child(5) td {{ animation-delay: 0.3s; }}
+.pf-table td:first-child {{
+    font-weight: 700; color: #B8B3D7;
+    border-left: 3px solid rgba(107,92,231,0.3);
+    background: rgba(107,92,231,0.03);
+}}
+.pf-table td:last-child {{
+    font-weight: 700; color: #10B981;
+    background: linear-gradient(90deg, transparent, rgba(16,185,129,0.08));
+}}
+.pf-table tr:hover td {{
+    background: rgba(107,92,231,0.06);
+}}
+.pf-table tr:last-child td {{ border-bottom: none; }}
+.pf-table tr:last-child td:first-child {{ border-radius: 0 0 0 12px; }}
+.pf-table tr:last-child td:last-child {{ border-radius: 0 0 12px 0; }}
+.pf-adj {{ color: #F5A623 !important; font-style: italic; }}
+
+/* ── SOURCES & USES VISUAL ─────────────────────────────── */
+.su-container {{
+    display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;
+    animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}}
+.su-panel {{
+    background: linear-gradient(145deg, rgba(107,92,231,0.05), rgba(0,0,0,0.2));
+    border: 1px solid rgba(107,92,231,0.2);
+    border-radius: 20px;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+}}
+.su-panel::before {{
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    border-radius: 20px 20px 0 0;
+}}
+.su-panel.sources::before {{ background: linear-gradient(90deg, #10B981, #6B5CE7); }}
+.su-panel.uses::before {{ background: linear-gradient(90deg, #E8638B, #F5A623); }}
+.su-panel-header {{
+    font-size: 0.85rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.5px; margin-bottom: 1rem;
+    display: flex; align-items: center; gap: 0.6rem;
+}}
+.su-panel.sources .su-panel-header {{ color: #10B981; }}
+.su-panel.uses .su-panel-header {{ color: #E8638B; }}
+.su-panel-header .su-icon {{ font-size: 1.2rem; }}
+.su-row {{
+    margin: 0.6rem 0;
+    animation: dealRowSlide 0.4s ease-out both;
+}}
+.su-row:nth-child(2) {{ animation-delay: 0.1s; }}
+.su-row:nth-child(3) {{ animation-delay: 0.15s; }}
+.su-row:nth-child(4) {{ animation-delay: 0.2s; }}
+.su-row:nth-child(5) {{ animation-delay: 0.25s; }}
+.su-row-header {{
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 0.3rem;
+}}
+.su-row-label {{ font-size: 0.8rem; color: #B8B3D7; }}
+.su-row-value {{ font-size: 0.9rem; font-weight: 700; color: #E0DCF5; }}
+.su-bar {{
+    height: 8px; border-radius: 4px;
+    background: rgba(255,255,255,0.08);
+    overflow: hidden;
+}}
+.su-bar-fill {{
+    height: 100%; border-radius: 4px;
+    transform-origin: left;
+    animation: suBarGrow 0.8s ease-out both;
+}}
+.su-panel.sources .su-bar-fill {{ background: linear-gradient(90deg, #10B981, #6B5CE7); }}
+.su-panel.uses .su-bar-fill {{ background: linear-gradient(90deg, #E8638B, #F5A623); }}
+.su-row.total {{
+    margin-top: 1rem; padding-top: 1rem;
+    border-top: 2px solid rgba(107,92,231,0.2);
+}}
+.su-row.total .su-row-label {{ font-weight: 700; color: #E0DCF5; }}
+.su-row.total .su-row-value {{ font-size: 1.1rem; }}
+.su-row.total .su-bar {{ height: 12px; }}
+.su-row.total .su-bar-fill {{
+    background: linear-gradient(90deg, #6B5CE7, #9B8AFF);
+    box-shadow: 0 0 15px rgba(107,92,231,0.5);
+}}
+
 /* ── SIDEBAR ─────────────────────────────────────────────── */
 section[data-testid="stSidebar"] {{
     background: linear-gradient(180deg, #0B0E1A 0%, #10132A 50%, #151933 100%);
@@ -3766,22 +3974,33 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     dt4.metric("Implied P/E", f"{pro_forma.implied_pe:.1f}x" if pro_forma.implied_pe else "N/A")
     dt5.metric("Transaction Fees", format_number(pro_forma.transaction_fees, currency_symbol=acq_cs))
 
-    # Deal structure donut
+    # Deal structure donut + enhanced consideration detail
     deal_col1, deal_col2 = st.columns([2, 3])
     with deal_col1:
         _build_deal_structure_donut(merger_assumptions)
     with deal_col2:
+        cash_pct = merger_assumptions.pct_cash
+        stock_pct = 100 - cash_pct
+        premium_pct = ((pro_forma.offer_price_per_share / tgt_cd.current_price) - 1) * 100 if tgt_cd.current_price else 0
         _mhtml(
-            f'<div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); '
-            f'border-radius:14px; padding:1.2rem;">'
-            f'<div style="font-size:0.75rem; font-weight:600; color:#8A85AD; text-transform:uppercase; letter-spacing:1px; margin-bottom:0.5rem;">Consideration Detail</div>'
-            f'<div style="font-size:0.9rem; color:#B8B3D7; line-height:2;">'
-            f'Cash: {format_number(pro_forma.cash_consideration, currency_symbol=acq_cs)} (debt-funded)<br>'
-            f'Stock: {format_number(pro_forma.stock_consideration, currency_symbol=acq_cs)} '
-            f'({pro_forma.new_shares_issued / 1e6:,.1f}M new shares @ {acq_cs}{acq_cd.current_price:,.2f})<br>'
-            f'Offer Price: {acq_cs}{pro_forma.offer_price_per_share:,.2f}/share '
-            f'(vs current {tgt_cs}{tgt_cd.current_price:,.2f})'
-            f'</div></div>'
+            f'<div class="deal-consideration-card">'
+            f'<div class="deal-header"><span class="deal-header-icon">💰</span> Consideration Structure</div>'
+            f'<div class="deal-consideration-row cash" style="animation-delay:0.1s;">'
+            f'<div><div class="deal-label"><span class="emoji">💵</span> Cash Component</div>'
+            f'<div class="deal-sub">Debt-funded • {cash_pct:.0f}% of deal</div></div>'
+            f'<div class="deal-value">{format_number(pro_forma.cash_consideration, currency_symbol=acq_cs)}</div>'
+            f'</div>'
+            f'<div class="deal-consideration-row stock" style="animation-delay:0.2s;">'
+            f'<div><div class="deal-label"><span class="emoji">📈</span> Stock Component</div>'
+            f'<div class="deal-sub">{pro_forma.new_shares_issued / 1e6:,.1f}M shares @ {acq_cs}{acq_cd.current_price:,.2f} • {stock_pct:.0f}% of deal</div></div>'
+            f'<div class="deal-value">{format_number(pro_forma.stock_consideration, currency_symbol=acq_cs)}</div>'
+            f'</div>'
+            f'<div class="deal-consideration-row offer" style="animation-delay:0.3s;">'
+            f'<div><div class="deal-label"><span class="emoji">🎯</span> Offer Price</div>'
+            f'<div class="deal-sub">+{premium_pct:.1f}% premium vs. current {tgt_cs}{tgt_cd.current_price:,.2f}</div></div>'
+            f'<div class="deal-value">{acq_cs}{pro_forma.offer_price_per_share:,.2f}</div>'
+            f'</div>'
+            f'</div>'
         )
 
     _divider()
@@ -3795,39 +4014,66 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     ats = pro_forma.total_synergies * (1 - tax_r)
     ati = pro_forma.incremental_interest * (1 - tax_r)
 
-    pf_data = {
-        "": ["Revenue", "EBITDA", "Net Income", "Shares (M)", "EPS"],
-        acq_cd.ticker: [
-            format_number(pro_forma.acq_revenue, currency_symbol=acq_cs),
-            format_number(pro_forma.acq_ebitda, currency_symbol=acq_cs),
-            format_number(pro_forma.acq_net_income, currency_symbol=acq_cs),
-            f"{pro_forma.acq_shares / 1e6:,.0f}" if pro_forma.acq_shares else "N/A",
-            f"{acq_cs}{pro_forma.acq_eps:.2f}" if pro_forma.acq_eps else "N/A",
-        ],
-        tgt_cd.ticker: [
-            format_number(pro_forma.tgt_revenue, currency_symbol=tgt_cs),
-            format_number(pro_forma.tgt_ebitda, currency_symbol=tgt_cs),
-            format_number(pro_forma.tgt_net_income, currency_symbol=tgt_cs),
-            "—",
-            "—",
-        ],
-        "Adjustments": [
-            format_number(pro_forma.revenue_synergies, currency_symbol=acq_cs),
-            format_number(pro_forma.total_synergies, currency_symbol=acq_cs),
-            format_number(ats - ati, currency_symbol=acq_cs),
-            f"+{pro_forma.new_shares_issued / 1e6:,.0f}" if pro_forma.new_shares_issued else "—",
-            "—",
-        ],
-        "Pro Forma": [
-            format_number(pro_forma.pf_revenue, currency_symbol=acq_cs),
-            format_number(pro_forma.pf_ebitda, currency_symbol=acq_cs),
-            format_number(pro_forma.pf_net_income, currency_symbol=acq_cs),
-            f"{pro_forma.pf_shares_outstanding / 1e6:,.0f}" if pro_forma.pf_shares_outstanding else "N/A",
-            f"{acq_cs}{pro_forma.pf_eps:.2f}" if pro_forma.pf_eps else "N/A",
-        ],
-    }
-    pf_df = pd.DataFrame(pf_data)
-    st.dataframe(pf_df, use_container_width=True, hide_index=True, height=230)
+    # Enhanced visual Pro Forma table
+    pf_rows = [
+        ("📊 Revenue",
+         format_number(pro_forma.acq_revenue, currency_symbol=acq_cs),
+         format_number(pro_forma.tgt_revenue, currency_symbol=tgt_cs),
+         format_number(pro_forma.revenue_synergies, currency_symbol=acq_cs),
+         format_number(pro_forma.pf_revenue, currency_symbol=acq_cs)),
+        ("💹 EBITDA",
+         format_number(pro_forma.acq_ebitda, currency_symbol=acq_cs),
+         format_number(pro_forma.tgt_ebitda, currency_symbol=tgt_cs),
+         format_number(pro_forma.total_synergies, currency_symbol=acq_cs),
+         format_number(pro_forma.pf_ebitda, currency_symbol=acq_cs)),
+        ("💰 Net Income",
+         format_number(pro_forma.acq_net_income, currency_symbol=acq_cs),
+         format_number(pro_forma.tgt_net_income, currency_symbol=tgt_cs),
+         format_number(ats - ati, currency_symbol=acq_cs),
+         format_number(pro_forma.pf_net_income, currency_symbol=acq_cs)),
+        ("📈 Shares (M)",
+         f"{pro_forma.acq_shares / 1e6:,.0f}" if pro_forma.acq_shares else "N/A",
+         "—",
+         f"+{pro_forma.new_shares_issued / 1e6:,.0f}" if pro_forma.new_shares_issued else "—",
+         f"{pro_forma.pf_shares_outstanding / 1e6:,.0f}" if pro_forma.pf_shares_outstanding else "N/A"),
+        ("🎯 EPS",
+         f"{acq_cs}{pro_forma.acq_eps:.2f}" if pro_forma.acq_eps else "N/A",
+         "—",
+         "—",
+         f"{acq_cs}{pro_forma.pf_eps:.2f}" if pro_forma.pf_eps else "N/A"),
+    ]
+
+    pf_table_html = f'''
+    <div class="pf-table-wrapper">
+        <table class="pf-table">
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th>{acq_cd.ticker}</th>
+                    <th>{tgt_cd.ticker}</th>
+                    <th>Adjustments</th>
+                    <th>✨ Pro Forma</th>
+                </tr>
+            </thead>
+            <tbody>
+    '''
+    for metric, acq_val, tgt_val, adj_val, pf_val in pf_rows:
+        adj_class = ' class="pf-adj"' if adj_val not in ["—", "N/A"] else ''
+        pf_table_html += f'''
+                <tr>
+                    <td>{metric}</td>
+                    <td>{acq_val}</td>
+                    <td>{tgt_val}</td>
+                    <td{adj_class}>{adj_val}</td>
+                    <td>{pf_val}</td>
+                </tr>
+        '''
+    pf_table_html += '''
+            </tbody>
+        </table>
+    </div>
+    '''
+    _mhtml(pf_table_html)
 
     _divider()
 
@@ -3904,25 +4150,48 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     # ══════════════════════════════════════════════════════
     _section("Sources & Uses")
 
-    su1, su2 = st.columns(2)
-    with su1:
-        st.markdown('<div style="font-size:0.85rem; font-weight:700; color:#E0DCF5; margin-bottom:0.5rem;">Sources</div>', unsafe_allow_html=True)
-        for k, v in pro_forma.sources.items():
-            weight = "700" if k.startswith("Total") else "400"
-            _mhtml(
-                f'<div style="display:flex; justify-content:space-between; padding:0.3rem 0; '
-                f'border-bottom:1px solid rgba(255,255,255,0.05); font-size:0.85rem; color:#B8B3D7; font-weight:{weight};">'
-                f'<span>{k}</span><span>{format_number(v, currency_symbol=acq_cs)}</span></div>'
-            )
-    with su2:
-        st.markdown('<div style="font-size:0.85rem; font-weight:700; color:#E0DCF5; margin-bottom:0.5rem;">Uses</div>', unsafe_allow_html=True)
-        for k, v in pro_forma.uses.items():
-            weight = "700" if k.startswith("Total") else "400"
-            _mhtml(
-                f'<div style="display:flex; justify-content:space-between; padding:0.3rem 0; '
-                f'border-bottom:1px solid rgba(255,255,255,0.05); font-size:0.85rem; color:#B8B3D7; font-weight:{weight};">'
-                f'<span>{k}</span><span>{format_number(v, currency_symbol=acq_cs)}</span></div>'
-            )
+    # Calculate totals for bar percentages
+    sources_total = sum(v for k, v in pro_forma.sources.items() if not k.startswith("Total") and v)
+    uses_total = sum(v for k, v in pro_forma.uses.items() if not k.startswith("Total") and v)
+    max_total = max(sources_total, uses_total, 1)
+
+    def _build_su_rows(items, total, panel_type):
+        rows_html = ""
+        delay = 0.1
+        for k, v in items.items():
+            is_total = k.startswith("Total")
+            pct = (v / total * 100) if total and v else 0
+            total_class = " total" if is_total else ""
+            rows_html += f'''
+            <div class="su-row{total_class}" style="animation-delay:{delay:.2f}s;">
+                <div class="su-row-header">
+                    <span class="su-row-label">{k}</span>
+                    <span class="su-row-value">{format_number(v, currency_symbol=acq_cs)}</span>
+                </div>
+                <div class="su-bar">
+                    <div class="su-bar-fill" style="width:{pct:.1f}%; animation-delay:{delay + 0.2:.2f}s;"></div>
+                </div>
+            </div>
+            '''
+            delay += 0.08
+        return rows_html
+
+    sources_rows = _build_su_rows(pro_forma.sources, sources_total, "sources")
+    uses_rows = _build_su_rows(pro_forma.uses, uses_total, "uses")
+
+    su_html = f'''
+    <div class="su-container">
+        <div class="su-panel sources">
+            <div class="su-panel-header"><span class="su-icon">💵</span> Sources of Funds</div>
+            {sources_rows}
+        </div>
+        <div class="su-panel uses">
+            <div class="su-panel-header"><span class="su-icon">💸</span> Uses of Funds</div>
+            {uses_rows}
+        </div>
+    </div>
+    '''
+    _mhtml(su_html)
 
     _divider()
 
