@@ -74,7 +74,7 @@ _CHART_LAYOUT_BASE = dict(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     font=dict(family="Inter", size=14, color="#B8B3D7"),
-    title=dict(font=dict(size=18, color="#fff")),
+    title=dict(text=""),  # Explicitly no title (prevents "undefined" rendering)
     hoverlabel=dict(
         bgcolor="rgba(11,14,26,0.98)",
         bordercolor="rgba(107,92,231,0.5)",
