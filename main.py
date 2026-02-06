@@ -2419,6 +2419,15 @@ with st.sidebar:
     )
 
 # ── Main Area ────────────────────────────────────────────────
+# DEBUG: Show current state (remove after debugging)
+with st.expander("DEBUG: Current State", expanded=False):
+    st.text(f"analysis_mode: {analysis_mode}")
+    st.text(f"ticker_input: '{ticker_input}'")
+    st.text(f"generate_btn: {generate_btn}")
+    st.text(f"acquirer_input: '{acquirer_input}'")
+    st.text(f"target_input: '{target_input}'")
+    st.text(f"merger_btn: {merger_btn}")
+
 if analysis_mode == "Company Profile":
     st.markdown(
         '<div class="hero-header">'
@@ -2439,10 +2448,25 @@ else:
     )
 
 if analysis_mode == "Company Profile" and generate_btn and ticker_input:
+    print(f"DEBUG: Entering company profile for {ticker_input}")  # Debug
+
+    # Visible diagnostic banner
+    st.markdown(
+        '<div style="background:#1E3A5F; padding:0.5rem 1rem; border-radius:8px; margin-bottom:1rem; text-align:center;">'
+        f'<span style="color:#10B981;">✓ Company Profile Started</span> — '
+        f'<span style="color:#B8B3D7;">{ticker_input.upper()}</span>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
     # ── Data Fetching (with scanner loading animation) ───
     _scanner_slot = st.empty()
 
-    _scanner_slot.markdown(_render_profile_scanner(ticker_input.upper(), 0), unsafe_allow_html=True)
+    try:
+        _scanner_slot.markdown(_render_profile_scanner(ticker_input.upper(), 0), unsafe_allow_html=True)
+    except Exception:
+        pass  # Scanner rendering is non-critical
+
     try:
         cd = fetch_company_data(ticker_input)
     except Exception as e:
@@ -2450,17 +2474,32 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         st.error(f"Failed to fetch data for **{ticker_input}**: {e}")
         st.stop()
 
-    _scanner_slot.markdown(_render_profile_scanner(ticker_input.upper(), 1), unsafe_allow_html=True)
+    try:
+        _scanner_slot.markdown(_render_profile_scanner(ticker_input.upper(), 1), unsafe_allow_html=True)
+    except Exception:
+        pass
+
     try:
         cd = fetch_peer_data(cd)
     except Exception:
         pass  # Peer data is non-critical
 
-    _scanner_slot.markdown(_render_profile_scanner(ticker_input.upper(), 2), unsafe_allow_html=True)
-    cd = generate_insights(cd)
+    try:
+        _scanner_slot.markdown(_render_profile_scanner(ticker_input.upper(), 2), unsafe_allow_html=True)
+    except Exception:
+        pass
 
-    _scanner_slot.markdown(_render_profile_scanner(ticker_input.upper(), 3), unsafe_allow_html=True)
-    time.sleep(1.2)
+    try:
+        cd = generate_insights(cd)
+    except Exception as e:
+        print(f"Insights generation warning: {e}")  # Non-fatal
+
+    try:
+        _scanner_slot.markdown(_render_profile_scanner(ticker_input.upper(), 3), unsafe_allow_html=True)
+        time.sleep(1.2)
+    except Exception:
+        pass
+
     _scanner_slot.empty()
 
     cs = cd.currency_symbol  # shorthand
@@ -3302,6 +3341,16 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     # ══════════════════════════════════════════════════════
     # MERGER ANALYSIS DASHBOARD
     # ══════════════════════════════════════════════════════
+    print(f"DEBUG: Entering merger analysis for {acquirer_input} + {target_input}")  # Debug
+
+    # Visible diagnostic banner
+    st.markdown(
+        '<div style="background:#1E3A5F; padding:0.5rem 1rem; border-radius:8px; margin-bottom:1rem; text-align:center;">'
+        f'<span style="color:#10B981;">✓ Merger Analysis Started</span> — '
+        f'<span style="color:#B8B3D7;">{acquirer_input.upper()} + {target_input.upper()}</span>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
     # ── Mission Control animated loading ─────────────────
     mission = st.empty()
@@ -3336,7 +3385,14 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
 
     # Phase 3 → compute pro forma + precedent transactions
     mission.markdown(_render_mission_control(acq_label, tgt_label, 3), unsafe_allow_html=True)
-    pro_forma = calculate_pro_forma(acq_cd, tgt_cd, merger_assumptions)
+    try:
+        pro_forma = calculate_pro_forma(acq_cd, tgt_cd, merger_assumptions)
+    except Exception as e:
+        mission.empty()
+        st.error(f"Failed to calculate pro forma: {e}")
+        import traceback
+        st.code(traceback.format_exc())
+        st.stop()
 
     # Fetch precedent transactions
     precedent = None
@@ -3348,11 +3404,20 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     except Exception as e:
         print(f"Precedent transactions fetch failed: {e}")
 
-    pro_forma.football_field = build_football_field(acq_cd, tgt_cd, pro_forma, precedent)
+    try:
+        pro_forma.football_field = build_football_field(acq_cd, tgt_cd, pro_forma, precedent)
+    except Exception as e:
+        st.warning(f"Football field build failed: {e}")
+        pro_forma.football_field = {}
 
     # Phase 4 → generate insights
     mission.markdown(_render_mission_control(acq_label, tgt_label, 4), unsafe_allow_html=True)
-    merger_insights = generate_merger_insights(acq_cd, tgt_cd, pro_forma, merger_assumptions)
+    try:
+        merger_insights = generate_merger_insights(acq_cd, tgt_cd, pro_forma, merger_assumptions)
+    except Exception as e:
+        st.warning(f"Merger insights generation failed: {e}")
+        from ai_insights import MergerInsights
+        merger_insights = MergerInsights()
 
     # Phase 5 → mission complete, rocket launches
     mission.markdown(_render_mission_control(acq_label, tgt_label, 5), unsafe_allow_html=True)
