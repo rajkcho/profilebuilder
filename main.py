@@ -451,7 +451,7 @@ html, body, [class*="css"] {{
 /* ── ORBITAL LOGO COMPONENT ────────────────────────────── */
 .orbital-logo {{
     position: relative;
-    width: 120px; height: 120px;
+    width: 140px; height: 140px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -459,40 +459,41 @@ html, body, [class*="css"] {{
 }}
 .orbital-text {{
     position: absolute;
-    font-size: 1.1rem;
-    font-weight: 800;
-    letter-spacing: 1px;
+    font-size: 1.4rem;
+    font-weight: 900;
+    letter-spacing: 3px;
     color: #fff;
     z-index: 5;
-    text-shadow: 0 0 20px rgba(107,92,231,0.8), 0 0 40px rgba(107,92,231,0.4);
+    text-shadow: 0 0 25px rgba(107,92,231,1), 0 0 50px rgba(107,92,231,0.6), 0 0 80px rgba(107,92,231,0.3);
+    font-family: 'Inter', 'Arial Black', sans-serif;
 }}
 .orbital-ring {{
     position: absolute;
-    border: 2px solid transparent;
+    border: 2.5px solid transparent;
     border-radius: 50%;
 }}
 .orbital-ring-1 {{
-    width: 60px; height: 60px;
+    width: 70px; height: 70px;
     border-top-color: #6B5CE7;
     border-right-color: rgba(107,92,231,0.4);
     border-bottom-color: rgba(107,92,231,0.1);
     animation: orbitRotate 3s linear infinite;
 }}
 .orbital-ring-2 {{
-    width: 85px; height: 85px;
+    width: 100px; height: 100px;
     border-top-color: #E8638B;
     border-right-color: rgba(232,99,139,0.3);
     animation: orbitRotateReverse 5s linear infinite;
 }}
 .orbital-ring-3 {{
-    width: 110px; height: 110px;
+    width: 130px; height: 130px;
     border-top-color: #9B8AFF;
     border-left-color: rgba(155,138,255,0.2);
     animation: orbitRotate 7s linear infinite, ringFlash 4s ease-in-out infinite;
 }}
 .orbital-particle {{
     position: absolute;
-    width: 8px; height: 8px;
+    width: 10px; height: 10px;
     border-radius: 50%;
 }}
 .orbital-particle-1 {{
@@ -505,47 +506,50 @@ html, body, [class*="css"] {{
 .orbital-particle-2 {{
     background: #E8638B;
     color: #E8638B;
-    bottom: 12px; right: 12px;
+    bottom: 14px; right: 14px;
     animation: particleGlow 1.5s ease-in-out infinite 0.5s;
 }}
 .orbital-particle-3 {{
     background: #10B981;
     color: #10B981;
-    bottom: 12px; left: 12px;
+    bottom: 14px; left: 14px;
     animation: particleGlow 1.5s ease-in-out infinite 1s;
 }}
 
 /* Small orbital logo for sidebar */
 .orbital-logo-sm {{
-    width: 50px; height: 50px;
+    width: 70px; height: 70px;
 }}
 .orbital-logo-sm .orbital-text {{
-    font-size: 0.5rem;
-    letter-spacing: 0.5px;
+    font-size: 0.6rem;
+    letter-spacing: 1.5px;
+    font-weight: 900;
 }}
-.orbital-logo-sm .orbital-ring-1 {{ width: 26px; height: 26px; border-width: 1.5px; }}
-.orbital-logo-sm .orbital-ring-2 {{ width: 36px; height: 36px; border-width: 1.5px; }}
-.orbital-logo-sm .orbital-ring-3 {{ width: 48px; height: 48px; border-width: 1.5px; }}
-.orbital-logo-sm .orbital-particle {{ width: 4px; height: 4px; }}
-.orbital-logo-sm .orbital-particle-1 {{ top: 1px; }}
-.orbital-logo-sm .orbital-particle-2 {{ bottom: 4px; right: 4px; }}
-.orbital-logo-sm .orbital-particle-3 {{ bottom: 4px; left: 4px; }}
+.orbital-logo-sm .orbital-ring-1 {{ width: 34px; height: 34px; border-width: 2px; }}
+.orbital-logo-sm .orbital-ring-2 {{ width: 48px; height: 48px; border-width: 2px; }}
+.orbital-logo-sm .orbital-ring-3 {{ width: 64px; height: 64px; border-width: 2px; }}
+.orbital-logo-sm .orbital-particle {{ width: 5px; height: 5px; }}
+.orbital-logo-sm .orbital-particle-1 {{ top: 3px; }}
+.orbital-logo-sm .orbital-particle-2 {{ bottom: 6px; right: 6px; }}
+.orbital-logo-sm .orbital-particle-3 {{ bottom: 6px; left: 6px; }}
 
 /* Large orbital logo for splash */
 .orbital-logo-lg {{
-    width: 160px; height: 160px;
+    width: 200px; height: 200px;
 }}
 .orbital-logo-lg .orbital-text {{
-    font-size: 1.5rem;
-    letter-spacing: 2px;
+    font-size: 1.8rem;
+    letter-spacing: 4px;
+    font-weight: 900;
+    text-shadow: 0 0 30px rgba(107,92,231,1), 0 0 60px rgba(107,92,231,0.7), 0 0 100px rgba(107,92,231,0.4);
 }}
-.orbital-logo-lg .orbital-ring-1 {{ width: 80px; height: 80px; border-width: 2.5px; }}
-.orbital-logo-lg .orbital-ring-2 {{ width: 115px; height: 115px; border-width: 2.5px; }}
-.orbital-logo-lg .orbital-ring-3 {{ width: 150px; height: 150px; border-width: 2.5px; }}
-.orbital-logo-lg .orbital-particle {{ width: 10px; height: 10px; }}
+.orbital-logo-lg .orbital-ring-1 {{ width: 100px; height: 100px; border-width: 3px; }}
+.orbital-logo-lg .orbital-ring-2 {{ width: 145px; height: 145px; border-width: 3px; }}
+.orbital-logo-lg .orbital-ring-3 {{ width: 190px; height: 190px; border-width: 3px; }}
+.orbital-logo-lg .orbital-particle {{ width: 12px; height: 12px; }}
 .orbital-logo-lg .orbital-particle-1 {{ top: 5px; }}
-.orbital-logo-lg .orbital-particle-2 {{ bottom: 16px; right: 16px; }}
-.orbital-logo-lg .orbital-particle-3 {{ bottom: 16px; left: 16px; }}
+.orbital-logo-lg .orbital-particle-2 {{ bottom: 18px; right: 18px; }}
+.orbital-logo-lg .orbital-particle-3 {{ bottom: 18px; left: 18px; }}
 
 /* Orbital brand container */
 .orbital-brand {{
@@ -555,10 +559,11 @@ html, body, [class*="css"] {{
     gap: 0.5rem;
 }}
 .orbital-tagline {{
-    font-size: 0.9rem;
+    font-size: 1rem;
     color: #A8A3C7;
-    font-weight: 400;
-    margin-top: -0.5rem;
+    font-weight: 500;
+    margin-top: -0.3rem;
+    letter-spacing: 0.5px;
 }}
 
 /* ── Deal Terms & Consideration animations ─────────────── */
@@ -3937,7 +3942,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     dl1, dl2, dl3 = st.columns([1, 2, 1])
     with dl2:
         st.download_button(
-            label=f"Download {cd.ticker} Orbital Profile  (8 slides)",
+            label=f"Download {cd.ticker} Orbital Profile  (3 slides)",
             data=pptx_buf,
             file_name=f"{cd.ticker}_Orbital_Profile.pptx",
             mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -4578,7 +4583,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     dl1, dl2, dl3 = st.columns([1, 2, 1])
     with dl2:
         st.download_button(
-            label=f"Download {acq_cd.ticker}+{tgt_cd.ticker} Deal Book  (10 slides)",
+            label=f"Download {acq_cd.ticker}+{tgt_cd.ticker} Deal Book  (3 slides)",
             data=deal_book_buf,
             file_name=f"{acq_cd.ticker}_{tgt_cd.ticker}_Deal_Book.pptx",
             mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
