@@ -73,21 +73,36 @@ _STARS3 = _gen_stars(30)
 _CHART_LAYOUT_BASE = dict(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="Inter"),
+    font=dict(family="Inter", size=14, color="#B8B3D7"),
+    title=dict(font=dict(size=18, color="#fff")),
     hoverlabel=dict(
-        bgcolor="rgba(11,14,26,0.95)",
-        bordercolor="rgba(107,92,231,0.4)",
-        font=dict(size=11, color="#fff", family="Inter"),
+        bgcolor="rgba(11,14,26,0.98)",
+        bordercolor="rgba(107,92,231,0.5)",
+        font=dict(size=14, color="#fff", family="Inter"),
     ),
     hovermode="x unified",
+    dragmode="zoom",  # Enable zoom by default
+    modebar=dict(
+        bgcolor="rgba(0,0,0,0)",
+        color="#6B5CE7",
+        activecolor="#9B8AFF",
+    ),
 )
 
 def _apply_space_grid(fig, show_x_grid=False, show_y_grid=True):
     """Apply purple-tinted dot grid for space-coordinate look."""
+    axis_common = dict(
+        tickfont=dict(size=12, color="#8A85AD"),
+        titlefont=dict(size=14, color="#B8B3D7"),
+    )
     if show_y_grid:
-        fig.update_yaxes(gridcolor="rgba(107,92,231,0.08)", griddash="dot")
+        fig.update_yaxes(gridcolor="rgba(107,92,231,0.1)", griddash="dot", **axis_common)
+    else:
+        fig.update_yaxes(**axis_common)
     if show_x_grid:
-        fig.update_xaxes(gridcolor="rgba(107,92,231,0.08)", griddash="dot")
+        fig.update_xaxes(gridcolor="rgba(107,92,231,0.1)", griddash="dot", **axis_common)
+    else:
+        fig.update_xaxes(**axis_common)
 
 def _glow_line_traces(fig, x, y, color, name, width=2.5, glow_width=8, yaxis=None):
     """Add a neon glow effect: wide transparent underlay + sharp main line."""
@@ -902,21 +917,30 @@ div[data-testid="stMetric"] div[data-testid="stMetricValue"] {{
 
 /* ── PLOTLY CHARTS ──────────────────────────────────────── */
 .stPlotlyChart {{
-    border: 1px solid rgba(107,92,231,0.2);
-    border-radius: 18px;
+    border: 1px solid rgba(107,92,231,0.25);
+    border-radius: 20px;
     overflow: hidden;
-    box-shadow: 0 4px 20px rgba(107,92,231,0.15);
+    box-shadow: 0 8px 32px rgba(107,92,231,0.18);
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    background: rgba(107,92,231,0.03);
+    background: rgba(107,92,231,0.04);
     animation: chartBounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
     transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-    filter: saturate(0.85);
+    filter: saturate(0.9);
+    padding: 0.5rem;
 }}
 .stPlotlyChart:hover {{
-    border-color: rgba(107,92,231,0.5);
-    box-shadow: 0 12px 40px rgba(107,92,231,0.3), 0 0 60px rgba(107,92,231,0.08);
-    transform: translateY(-6px) scale(1.012);
-    filter: saturate(1.1);
+    border-color: rgba(107,92,231,0.6);
+    box-shadow: 0 16px 48px rgba(107,92,231,0.35), 0 0 80px rgba(107,92,231,0.1);
+    transform: translateY(-4px) scale(1.008);
+    filter: saturate(1.15);
+}}
+/* Ensure chart modebar is visible and styled */
+.stPlotlyChart .modebar {{
+    top: 10px !important;
+    right: 10px !important;
+}}
+.stPlotlyChart .modebar-btn {{
+    font-size: 16px !important;
 }}
 
 /* ── RADIO BUTTONS ──────────────────────────────────────── */
@@ -952,9 +976,9 @@ header {{ visibility: hidden; }}
 
 /* ── MERGER CHART WRAPPER ──────────────────────────────── */
 .merger-chart-wrapper {{
-    background: linear-gradient(135deg, rgba(107,92,231,0.05), rgba(232,99,139,0.02));
-    border: 1px solid rgba(107,92,231,0.15);
-    border-radius: 20px; padding: 1.5rem; margin: 0.5rem 0 1rem 0;
+    background: linear-gradient(135deg, rgba(107,92,231,0.06), rgba(232,99,139,0.03));
+    border: 1px solid rgba(107,92,231,0.18);
+    border-radius: 24px; padding: 2rem; margin: 1rem 0 1.5rem 0;
     animation: bounceIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both,
                chartGlow 4s ease-in-out 1s infinite;
 }}
@@ -1002,9 +1026,9 @@ header {{ visibility: hidden; }}
 
 /* ── PROFILE CHART WRAPPER ───────────────────────────── */
 .profile-chart-wrapper {{
-    background: linear-gradient(135deg, rgba(107,92,231,0.04), rgba(6,182,212,0.02));
-    border: 1px solid rgba(107,92,231,0.12);
-    border-radius: 20px; padding: 1.5rem; margin: 0.5rem 0 1rem 0;
+    background: linear-gradient(135deg, rgba(107,92,231,0.05), rgba(6,182,212,0.03));
+    border: 1px solid rgba(107,92,231,0.15);
+    border-radius: 24px; padding: 2rem; margin: 1rem 0 1.5rem 0;
     position: relative; overflow: hidden;
     animation: chartBounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both,
                chartGlow 4s ease-in-out 1s infinite;
@@ -1911,8 +1935,8 @@ def _build_peer_radar_chart(cd):
                              gridcolor="rgba(107,92,231,0.08)"),
             bgcolor="rgba(0,0,0,0)",
         ),
-        showlegend=True, height=400,
-        margin=dict(t=40, b=40, l=60, r=60),
+        showlegend=True, height=520,
+        margin=dict(t=50, b=50, l=70, r=70),
         legend=dict(font=dict(size=11, color="#B8B3D7")),
     )
     st.plotly_chart(fig, use_container_width=True)
@@ -1948,7 +1972,7 @@ def _build_revenue_margin_chart(cd, key="rev_margin"):
             _glow_line_traces(fig, yrs, s.values, color, name, yaxis="y2")
     fig.update_layout(
         **_CHART_LAYOUT_BASE,
-        height=380, margin=dict(t=30, b=30, l=50, r=50),
+        height=500, margin=dict(t=40, b=40, l=60, r=60),
         xaxis=dict(tickfont=dict(size=9, color="#8A85AD"), showgrid=False),
         yaxis=dict(title=dict(text="Revenue", font=dict(size=10, color="#8A85AD")),
                    tickfont=dict(size=9, color="#8A85AD")),
@@ -1992,7 +2016,7 @@ def _build_cashflow_chart(cd, key="cashflow"):
     fig.add_hline(y=0, line_dash="dot", line_color="rgba(255,255,255,0.15)", line_width=1)
     fig.update_layout(
         **_CHART_LAYOUT_BASE,
-        height=380, margin=dict(t=30, b=30, l=50, r=50),
+        height=500, margin=dict(t=40, b=40, l=60, r=60),
         xaxis=dict(tickfont=dict(size=9, color="#8A85AD"), showgrid=False),
         yaxis=dict(title=dict(text="Amount", font=dict(size=10, color="#8A85AD")),
                    tickfont=dict(size=9, color="#8A85AD")),
@@ -2040,7 +2064,7 @@ def _build_balance_sheet_chart(cd, key="balance_sheet"):
             _glow_line_traces(fig, years, s.values, color, name)
     fig.update_layout(
         **_CHART_LAYOUT_BASE,
-        height=380, margin=dict(t=30, b=30, l=50, r=50),
+        height=500, margin=dict(t=40, b=40, l=60, r=60),
         xaxis=dict(tickfont=dict(size=9, color="#8A85AD"), showgrid=False),
         yaxis=dict(tickfont=dict(size=9, color="#8A85AD")),
         legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
@@ -2101,7 +2125,7 @@ def _build_peer_valuation_chart(cd, key="peer_val"):
             )
     fig.update_layout(
         **_CHART_LAYOUT_BASE,
-        height=280, margin=dict(t=30, b=20, l=80, r=80),
+        height=400, margin=dict(t=40, b=30, l=90, r=90),
         xaxis=dict(tickfont=dict(size=9, color="#8A85AD")),
         yaxis=dict(tickfont=dict(size=10, color="#8A85AD"), autorange="reversed"),
         legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
@@ -2157,7 +2181,7 @@ def _build_earnings_surprise_chart(cd, key="earnings_surprise"):
     fig.add_hline(y=0, line_dash="dot", line_color="rgba(255,255,255,0.15)", line_width=1)
     fig.update_layout(
         **_CHART_LAYOUT_BASE,
-        height=280, margin=dict(t=30, b=30, l=50, r=30),
+        height=400, margin=dict(t=40, b=40, l=60, r=40),
         xaxis=dict(tickfont=dict(size=9, color="#8A85AD"), showgrid=False),
         yaxis=dict(title=dict(text="EPS Surprise", font=dict(size=10, color="#8A85AD")),
                    tickfont=dict(size=9, color="#8A85AD")),
@@ -2212,7 +2236,7 @@ def _build_accretion_waterfall(pro_forma, key="accretion_waterfall"):
 
     fig.update_layout(
         **_CHART_LAYOUT_BASE,
-        height=480, margin=dict(t=30, b=30, l=50, r=50),
+        height=600, margin=dict(t=40, b=40, l=60, r=60),
         xaxis=dict(tickfont=dict(size=10, color="#8A85AD"), showgrid=False),
         yaxis=dict(title=dict(text="EPS ($)", font=dict(size=10, color="#8A85AD")),
                    tickfont=dict(size=9, color="#8A85AD"),
@@ -2272,7 +2296,7 @@ def _build_football_field_chart(football_field, currency_symbol="$", key="footba
 
     fig.update_layout(
         **_CHART_LAYOUT_BASE,
-        height=420, margin=dict(t=40, b=30, l=120, r=60),
+        height=550, margin=dict(t=50, b=40, l=130, r=70),
         xaxis=dict(tickfont=dict(size=9, color="#8A85AD")),
         yaxis=dict(tickfont=dict(size=10, color="#8A85AD"), autorange="reversed"),
         barmode="stack",
@@ -2301,7 +2325,7 @@ def _build_deal_structure_donut(assumptions, key="deal_donut"):
     ))
     fig.update_layout(
         **_CHART_LAYOUT_BASE,
-        height=340, margin=dict(t=30, b=30, l=30, r=30),
+        height=450, margin=dict(t=40, b=40, l=40, r=40),
         showlegend=False,
         annotations=[dict(text="Deal<br>Mix", x=0.5, y=0.5, font_size=14,
                          font_color="#E0DCF5", showarrow=False)],
@@ -2349,7 +2373,7 @@ def _build_company_comparison_bars(acq_cd, tgt_cd, key="company_compare"):
         )
     fig.update_layout(
         **_CHART_LAYOUT_BASE,
-        height=380, margin=dict(t=30, b=20, l=100, r=70),
+        height=500, margin=dict(t=40, b=30, l=110, r=80),
         xaxis=dict(tickfont=dict(size=9, color="#8A85AD"), ticksuffix="%"),
         yaxis=dict(tickfont=dict(size=10, color="#8A85AD"), autorange="reversed"),
         legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
@@ -2889,12 +2913,12 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                          annotation_font=dict(size=8, color="#EF4444"))
         fig.update_layout(
             **_CHART_LAYOUT_BASE,
-            height=420,
-            margin=dict(t=10, b=30, l=50, r=50),
-            xaxis=dict(showgrid=False, tickfont=dict(size=9, color="#8A85AD"), rangeslider=dict(visible=False)),
+            height=550,
+            margin=dict(t=20, b=40, l=60, r=60),
+            xaxis=dict(showgrid=False, tickfont=dict(size=12, color="#8A85AD"), rangeslider=dict(visible=False)),
             yaxis=dict(
-                title=dict(text=f"Price ({cs})", font=dict(size=10, color="#8A85AD")),
-                tickfont=dict(size=9, color="#8A85AD"),
+                title=dict(text=f"Price ({cs})", font=dict(size=13, color="#8A85AD")),
+                tickfont=dict(size=12, color="#8A85AD"),
                 tickprefix=cs,
             ),
             showlegend=False,
@@ -3129,13 +3153,13 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 ))
                 fig_rec.update_layout(
                     **_CHART_LAYOUT_BASE,
-                    height=280, margin=dict(t=40, b=20, l=110, r=60),
+                    height=400, margin=dict(t=50, b=30, l=130, r=70),
                     title=dict(text="Analyst Recommendation Distribution",
-                               font=dict(size=13, color="#E0DCF5", family="Inter")),
-                    xaxis=dict(title=dict(text="# Analysts", font=dict(size=10, color="#8A85AD")),
-                               tickfont=dict(size=9, color="#8A85AD")),
-                    yaxis=dict(autorange="reversed", tickfont=dict(size=11, color="#8A85AD")),
-                    bargap=0.35,
+                               font=dict(size=16, color="#E0DCF5", family="Inter")),
+                    xaxis=dict(title=dict(text="# Analysts", font=dict(size=13, color="#8A85AD")),
+                               tickfont=dict(size=12, color="#8A85AD")),
+                    yaxis=dict(autorange="reversed", tickfont=dict(size=13, color="#8A85AD")),
+                    bargap=0.3,
                 )
                 _apply_space_grid(fig_rec, show_x_grid=True)
                 st.markdown('<div class="profile-chart-wrapper">', unsafe_allow_html=True)
@@ -3312,13 +3336,13 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         ))
         fig_earn.update_layout(
             **_CHART_LAYOUT_BASE,
-            height=380, barmode="group",
-            margin=dict(t=30, b=30, l=50, r=30),
-            xaxis=dict(tickfont=dict(size=10, color="#8A85AD"), showgrid=False),
-            yaxis=dict(title=dict(text="EPS", font=dict(size=10, color="#8A85AD")),
-                       tickfont=dict(size=9, color="#8A85AD"),
+            height=500, barmode="group",
+            margin=dict(t=40, b=40, l=60, r=40),
+            xaxis=dict(tickfont=dict(size=12, color="#8A85AD"), showgrid=False),
+            yaxis=dict(title=dict(text="EPS", font=dict(size=13, color="#8A85AD")),
+                       tickfont=dict(size=12, color="#8A85AD"),
                        tickprefix=cd.currency_symbol),
-            legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h",
+            legend=dict(font=dict(size=12, color="#B8B3D7"), orientation="h",
                         yanchor="bottom", y=1.02),
         )
         _apply_space_grid(fig_earn)
