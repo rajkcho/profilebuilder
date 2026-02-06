@@ -3377,11 +3377,13 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         st.stop()
 
     # DEBUG: Show key data immediately after fetch
+    acq_mcap = f"${acq_cd.market_cap:,.0f}" if acq_cd.market_cap else "N/A"
+    tgt_mcap = f"${tgt_cd.market_cap:,.0f}" if tgt_cd.market_cap else "N/A"
     st.markdown(
         f'<div style="background:#0F172A; padding:0.75rem 1rem; border-radius:8px; margin:0.5rem 0; font-size:0.8rem; font-family:monospace;">'
         f'<div style="color:#10B981; font-weight:600;">DEBUG: Data Fetch Results</div>'
-        f'<div style="color:#B8B3D7;">Acquirer ({acq_cd.ticker}): shares={acq_cd.shares_outstanding}, price=${acq_cd.current_price}, mcap=${acq_cd.market_cap:,.0f if acq_cd.market_cap else "N/A"}</div>'
-        f'<div style="color:#B8B3D7;">Target ({tgt_cd.ticker}): shares={tgt_cd.shares_outstanding}, price=${tgt_cd.current_price}, mcap=${tgt_cd.market_cap:,.0f if tgt_cd.market_cap else "N/A"}</div>'
+        f'<div style="color:#B8B3D7;">Acquirer ({acq_cd.ticker}): shares={acq_cd.shares_outstanding}, price=${acq_cd.current_price}, mcap={acq_mcap}</div>'
+        f'<div style="color:#B8B3D7;">Target ({tgt_cd.ticker}): shares={tgt_cd.shares_outstanding}, price=${tgt_cd.current_price}, mcap={tgt_mcap}</div>'
         f'</div>',
         unsafe_allow_html=True,
     )
