@@ -397,6 +397,386 @@ def _render_movers_cards(movers: dict):
     
     st.markdown('</div>', unsafe_allow_html=True)
 
+
+# ══════════════════════════════════════════════════════════════
+# EARNINGS CALENDAR
+# ══════════════════════════════════════════════════════════════
+@st.cache_data(ttl=1800, show_spinner=False)
+def _fetch_earnings_calendar() -> list:
+    """Fetch upcoming earnings for popular tickers."""
+    watchlist_tickers = ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA", "JPM",
+                         "V", "MA", "CRM", "ADBE", "NFLX", "DIS", "PYPL", "SQ", "SHOP",
+                         "RY.TO", "TD.TO", "BNS.TO", "CSU.TO", "BAM.TO"]
+    earnings = []
+    now = datetime.now()
+    
+    for ticker in watchlist_tickers[:15]:  # Limit API calls
+        try:
+            tk = yf.Ticker(ticker)
+            cal = tk.calendar
+            if cal is not None and not (isinstance(cal, pd.DataFrame) and cal.empty):
+                if isinstance(cal, dict):
+                    ed = cal.get("Earnings Date")
+                    if ed:
+                        # ed can be a list of dates or a single date
+                        if isinstance(ed, list) and len(ed) > 0:
+                            earn_date = ed[0]
+                        else:
+                            earn_date = ed
+                        if hasattr(earn_date, 'date'):
+                            earn_date = earn_date.date() if hasattr(earn_date, 'date') else earn_date
+                        earnings.append({
+                            "ticker": ticker,
+                            "date": str(earn_date),
+                            "estimate_eps": cal.get("Earnings Average"),
+                            "revenue_est": cal.get("Revenue Average"),
+                        })
+                elif isinstance(cal, pd.DataFrame):
+                    if "Earnings Date" in cal.columns or "Earnings Date" in cal.index:
+                        try:
+                            ed = cal.loc["Earnings Date"] if "Earnings Date" in cal.index else None
+                            if ed is not None:
+                                earn_date = ed.iloc[0] if hasattr(ed, 'iloc') else ed
+                                earnings.append({
+                                    "ticker": ticker,
+                                    "date": str(earn_date),
+                                    "estimate_eps": None,
+                                    "revenue_est": None,
+                                })
+                        except Exception:
+                            pass
+        except Exception:
+            continue
+    
+    # Sort by date
+    earnings.sort(key=lambda x: x["date"])
+    return earnings
+
+
+def _render_earnings_calendar(earnings: list):
+    """Render an earnings calendar widget TradingView-style."""
+    if not earnings:
+        return
+    
+    st.markdown(
+        '<div style="background:rgba(107,92,231,0.05); border:1px solid rgba(107,92,231,0.15); '
+        'border-radius:16px; padding:1.5rem; margin-top:1rem;">'
+        '<div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">'
+        '<span style="font-size:1.2rem;">📅</span>'
+        '<span style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
+        'letter-spacing:1.5px;">Upcoming Earnings</span>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    
+    # Group by date
+    from itertools import groupby
+    for date_str, group in groupby(earnings[:12], key=lambda x: x["date"]):
+        try:
+            dt = datetime.strptime(date_str[:10], "%Y-%m-%d")
+            date_label = dt.strftime("%b %d, %Y")
+            day_name = dt.strftime("%A")
+        except Exception:
+            date_label = date_str
+            day_name = ""
+        
+        st.markdown(
+            f'<div style="font-size:0.7rem; color:#6B5CE7; font-weight:600; margin-top:0.8rem; '
+            f'margin-bottom:0.3rem; padding-bottom:0.2rem; border-bottom:1px solid rgba(107,92,231,0.15);">'
+            f'{day_name} — {date_label}</div>',
+            unsafe_allow_html=True,
+        )
+        
+        for item in group:
+            eps_str = ""
+            if item.get("estimate_eps"):
+                eps_str = f'<span style="color:#8A85AD; font-size:0.65rem;"> Est EPS: ${item["estimate_eps"]:.2f}</span>'
+            st.markdown(
+                f'<div style="display:flex; justify-content:space-between; align-items:center; '
+                f'padding:0.35rem 0.5rem; border-radius:6px; margin:0.15rem 0; '
+                f'background:rgba(255,255,255,0.02); transition:background 0.2s;">'
+                f'<span style="color:#E0DCF5; font-weight:600; font-size:0.8rem;">{item["ticker"]}</span>'
+                f'{eps_str}'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════
+# NEWS FEED
+# ══════════════════════════════════════════════════════════════
+@st.cache_data(ttl=900, show_spinner=False)
+def _fetch_news_feed(tickers: list = None) -> list:
+    """Fetch recent news for given tickers or market-wide."""
+    if not tickers:
+        tickers = ["AAPL", "MSFT", "NVDA", "GOOGL", "TSLA"]
+    
+    all_news = []
+    seen_titles = set()
+    
+    for ticker in tickers[:5]:
+        try:
+            tk = yf.Ticker(ticker)
+            news = tk.news or []
+            for item in news[:3]:
+                title = item.get("title", "")
+                if title and title not in seen_titles:
+                    seen_titles.add(title)
+                    all_news.append({
+                        "title": title,
+                        "publisher": item.get("publisher", ""),
+                        "link": item.get("link", ""),
+                        "ticker": ticker,
+                        "published": item.get("providerPublishTime", 0),
+                        "type": item.get("type", ""),
+                    })
+        except Exception:
+            continue
+    
+    # Sort by publish time descending
+    all_news.sort(key=lambda x: x.get("published", 0), reverse=True)
+    return all_news[:15]
+
+
+def _render_news_feed(news: list):
+    """Render a news feed widget."""
+    if not news:
+        return
+    
+    st.markdown(
+        '<div style="background:rgba(107,92,231,0.05); border:1px solid rgba(107,92,231,0.15); '
+        'border-radius:16px; padding:1.5rem; margin-top:1rem;">'
+        '<div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">'
+        '<span style="font-size:1.2rem;">📰</span>'
+        '<span style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
+        'letter-spacing:1.5px;">Market News</span>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    
+    for item in news[:10]:
+        # Time ago
+        time_str = ""
+        if item.get("published"):
+            try:
+                delta = datetime.now() - datetime.fromtimestamp(item["published"])
+                if delta.days > 0:
+                    time_str = f'{delta.days}d ago'
+                elif delta.seconds > 3600:
+                    time_str = f'{delta.seconds // 3600}h ago'
+                else:
+                    time_str = f'{delta.seconds // 60}m ago'
+            except Exception:
+                pass
+        
+        link_html = f'href="{item["link"]}" target="_blank"' if item.get("link") else ""
+        
+        st.markdown(
+            f'<a {link_html} style="display:block; padding:0.6rem 0.5rem; border-radius:8px; '
+            f'margin:0.2rem 0; background:rgba(255,255,255,0.02); text-decoration:none; '
+            f'transition:background 0.2s; border-bottom:1px solid rgba(255,255,255,0.03);">'
+            f'<div style="font-size:0.78rem; color:#E0DCF5; font-weight:500; line-height:1.35;">{item["title"]}</div>'
+            f'<div style="display:flex; justify-content:space-between; margin-top:0.25rem;">'
+            f'<span style="font-size:0.65rem; color:#6B5CE7; font-weight:600;">{item["ticker"]}</span>'
+            f'<span style="font-size:0.6rem; color:#8A85AD;">{item.get("publisher", "")} · {time_str}</span>'
+            f'</div>'
+            f'</a>',
+            unsafe_allow_html=True,
+        )
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════
+# WATCHLIST NOTES
+# ══════════════════════════════════════════════════════════════
+def _init_watchlist_notes():
+    """Initialize watchlist notes in session state."""
+    if "watchlist_notes" not in st.session_state:
+        st.session_state.watchlist_notes = {}
+
+
+def _set_watchlist_note(ticker: str, note: str):
+    """Set a note for a watchlist ticker."""
+    _init_watchlist_notes()
+    st.session_state.watchlist_notes[ticker.upper().strip()] = note
+
+
+def _get_watchlist_note(ticker: str) -> str:
+    """Get note for a watchlist ticker."""
+    _init_watchlist_notes()
+    return st.session_state.watchlist_notes.get(ticker.upper().strip(), "")
+
+
+# ══════════════════════════════════════════════════════════════
+# FEAR & GREED INDEX (Simplified Market Sentiment)
+# ══════════════════════════════════════════════════════════════
+@st.cache_data(ttl=1800, show_spinner=False)
+def _calculate_market_sentiment() -> dict:
+    """Calculate a simplified market sentiment score based on market data."""
+    try:
+        spy = yf.Ticker("SPY")
+        hist = spy.history(period="1mo")
+        if hist.empty:
+            return {"score": 50, "label": "Neutral", "color": "#F59E0B"}
+        
+        # Simple sentiment factors
+        current_price = hist["Close"].iloc[-1]
+        sma_20 = hist["Close"].rolling(20).mean().iloc[-1]
+        
+        # Price vs SMA
+        price_signal = (current_price / sma_20 - 1) * 100  # % above/below 20-day SMA
+        
+        # Recent momentum (5-day return)
+        if len(hist) >= 5:
+            momentum = (hist["Close"].iloc[-1] / hist["Close"].iloc[-5] - 1) * 100
+        else:
+            momentum = 0
+        
+        # Volatility (higher = more fearful)
+        volatility = hist["Close"].pct_change().std() * 100
+        vol_signal = max(0, 2 - volatility) * 25  # Lower vol = higher score
+        
+        # Combine signals (0-100 scale)
+        raw_score = 50 + (price_signal * 5) + (momentum * 3) + (vol_signal - 25)
+        score = max(0, min(100, raw_score))
+        
+        if score >= 80:
+            return {"score": round(score), "label": "Extreme Greed", "color": "#10B981"}
+        elif score >= 60:
+            return {"score": round(score), "label": "Greed", "color": "#34D399"}
+        elif score >= 40:
+            return {"score": round(score), "label": "Neutral", "color": "#F59E0B"}
+        elif score >= 20:
+            return {"score": round(score), "label": "Fear", "color": "#F97316"}
+        else:
+            return {"score": round(score), "label": "Extreme Fear", "color": "#EF4444"}
+    except Exception:
+        return {"score": 50, "label": "Neutral", "color": "#F59E0B"}
+
+
+def _render_sentiment_gauge(sentiment: dict):
+    """Render a CNN-style fear & greed gauge."""
+    score = sentiment["score"]
+    label = sentiment["label"]
+    color = sentiment["color"]
+    
+    # SVG gauge
+    angle = (score / 100) * 180 - 90  # -90 to 90 degrees
+    
+    gauge_svg = f'''
+    <div style="background:rgba(107,92,231,0.05); border:1px solid rgba(107,92,231,0.15);
+        border-radius:16px; padding:1.5rem; margin-top:1rem; text-align:center;">
+        <div style="display:flex; align-items:center; justify-content:center; gap:0.5rem; margin-bottom:1rem;">
+            <span style="font-size:1.2rem;">🎯</span>
+            <span style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase;
+            letter-spacing:1.5px;">Market Sentiment</span>
+        </div>
+        <svg viewBox="0 0 200 120" width="200" height="120" style="margin:0 auto; display:block;">
+            <!-- Background arc -->
+            <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="12" stroke-linecap="round"/>
+            <!-- Colored segments -->
+            <path d="M 20 100 A 80 80 0 0 1 52 40" fill="none" stroke="#EF4444" stroke-width="12" stroke-linecap="round" opacity="0.6"/>
+            <path d="M 52 40 A 80 80 0 0 1 100 20" fill="none" stroke="#F97316" stroke-width="12" stroke-linecap="round" opacity="0.6"/>
+            <path d="M 100 20 A 80 80 0 0 1 148 40" fill="none" stroke="#F59E0B" stroke-width="12" stroke-linecap="round" opacity="0.6"/>
+            <path d="M 148 40 A 80 80 0 0 1 180 100" fill="none" stroke="#10B981" stroke-width="12" stroke-linecap="round" opacity="0.6"/>
+            <!-- Needle -->
+            <line x1="100" y1="100" x2="{100 + 60 * np.cos(np.radians(angle + 180))}" y2="{100 + 60 * np.sin(np.radians(angle + 180))}"
+                stroke="{color}" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="100" cy="100" r="5" fill="{color}"/>
+        </svg>
+        <div style="font-size:2rem; font-weight:800; color:{color}; margin-top:0.5rem;">{score}</div>
+        <div style="font-size:0.85rem; font-weight:700; color:{color}; text-transform:uppercase; letter-spacing:1px;">{label}</div>
+        <div style="font-size:0.6rem; color:#8A85AD; margin-top:0.3rem;">Based on SPY momentum, trend & volatility</div>
+    </div>
+    '''
+    st.markdown(gauge_svg, unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════
+# SECTOR HEATMAP (TradingView-inspired)
+# ══════════════════════════════════════════════════════════════
+@st.cache_data(ttl=900, show_spinner=False)
+def _fetch_sector_performance() -> list:
+    """Fetch sector ETF performance for heatmap."""
+    sector_etfs = {
+        "Technology": "XLK",
+        "Healthcare": "XLV",
+        "Financials": "XLF",
+        "Consumer Disc.": "XLY",
+        "Consumer Stpl.": "XLP",
+        "Energy": "XLE",
+        "Industrials": "XLI",
+        "Materials": "XLB",
+        "Utilities": "XLU",
+        "Real Estate": "XLRE",
+        "Comm. Services": "XLC",
+    }
+    
+    results = []
+    for name, etf in sector_etfs.items():
+        try:
+            tk = yf.Ticker(etf)
+            info = tk.info or {}
+            change = info.get("regularMarketChangePercent") or 0
+            results.append({"name": name, "etf": etf, "change_pct": change})
+        except Exception:
+            results.append({"name": name, "etf": etf, "change_pct": 0})
+    
+    return results
+
+
+def _render_sector_heatmap(sectors: list):
+    """Render a TradingView-style sector heatmap."""
+    if not sectors:
+        return
+    
+    st.markdown(
+        '<div style="background:rgba(107,92,231,0.05); border:1px solid rgba(107,92,231,0.15); '
+        'border-radius:16px; padding:1.5rem; margin-top:1rem;">'
+        '<div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">'
+        '<span style="font-size:1.2rem;">🗺️</span>'
+        '<span style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
+        'letter-spacing:1.5px;">Sector Performance</span>'
+        '</div>'
+        '<div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:0.5rem;">',
+        unsafe_allow_html=True,
+    )
+    
+    for sector in sectors:
+        pct = sector["change_pct"]
+        if pct >= 2:
+            bg = "rgba(16,185,129,0.35)"
+        elif pct >= 0.5:
+            bg = "rgba(16,185,129,0.2)"
+        elif pct >= 0:
+            bg = "rgba(16,185,129,0.08)"
+        elif pct >= -0.5:
+            bg = "rgba(239,68,68,0.08)"
+        elif pct >= -2:
+            bg = "rgba(239,68,68,0.2)"
+        else:
+            bg = "rgba(239,68,68,0.35)"
+        
+        color = "#10B981" if pct >= 0 else "#EF4444"
+        arrow = "▲" if pct >= 0 else "▼"
+        
+        st.markdown(
+            f'<div style="background:{bg}; border-radius:10px; padding:0.7rem 0.5rem; text-align:center; '
+            f'border:1px solid rgba(255,255,255,0.05);">'
+            f'<div style="font-size:0.65rem; color:#C4BFE0; font-weight:600; white-space:nowrap; '
+            f'overflow:hidden; text-overflow:ellipsis;">{sector["name"]}</div>'
+            f'<div style="font-size:0.95rem; font-weight:800; color:{color}; margin-top:0.2rem;">'
+            f'{arrow} {pct:+.2f}%</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    
+    st.markdown('</div></div>', unsafe_allow_html=True)
+
+
 @st.cache_data(ttl=600, show_spinner=False)
 def _screen_sector(sector: str, sort_by: str = "market_cap", top_n: int = 10) -> list:
     """Screen stocks in a sector by various criteria."""
@@ -3845,6 +4225,7 @@ with st.sidebar:
     
     if watchlist:
         with st.expander(f"📋 Watchlist ({len(watchlist)})", expanded=False):
+            _init_watchlist_notes()
             for wl_ticker in watchlist:
                 wl_col1, wl_col2 = st.columns([4, 1])
                 with wl_col1:
@@ -3863,6 +4244,14 @@ with st.sidebar:
                     if st.button("✕", key=f"remove_{wl_ticker}", help=f"Remove {wl_ticker}"):
                         _remove_from_watchlist(wl_ticker)
                         st.rerun()
+                # Inline note for this ticker
+                current_note = _get_watchlist_note(wl_ticker)
+                new_note = st.text_input(
+                    "Note", value=current_note, key=f"note_{wl_ticker}",
+                    placeholder="Add a note...", label_visibility="collapsed"
+                )
+                if new_note != current_note:
+                    _set_watchlist_note(wl_ticker, new_note)
     
     st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
 
@@ -6708,3 +7097,37 @@ else:
                 _render_movers_cards(movers)
         except Exception:
             pass  # Top movers is non-critical
+        
+        # Sentiment Gauge + Earnings Calendar (side by side)
+        sent_col, earn_col = st.columns(2)
+        
+        with sent_col:
+            try:
+                sentiment = _calculate_market_sentiment()
+                _render_sentiment_gauge(sentiment)
+            except Exception:
+                pass
+        
+        with earn_col:
+            try:
+                earnings = _fetch_earnings_calendar()
+                _render_earnings_calendar(earnings)
+            except Exception:
+                pass
+        
+        # Sector Heatmap + News Feed (side by side)
+        heatmap_col, news_col = st.columns(2)
+        
+        with heatmap_col:
+            try:
+                sector_perf = _fetch_sector_performance()
+                _render_sector_heatmap(sector_perf)
+            except Exception:
+                pass
+        
+        with news_col:
+            try:
+                news = _fetch_news_feed()
+                _render_news_feed(news)
+            except Exception:
+                pass
