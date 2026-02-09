@@ -4702,7 +4702,7 @@ with st.sidebar:
         '<div style="text-align:center; padding: 0.5rem 0;">'
         '<div style="font-size:0.55rem; font-weight:800; background:linear-gradient(135deg, #6B5CE7, #E8638B); '
         '-webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:2px; margin-bottom:0.3rem;">'
-        'ORBITAL v3.5</div>'
+        'ORBITAL v4.4</div>'
         '<div style="font-size:0.55rem; color:#4B5563; letter-spacing:0.5px; line-height:1.8;">'
         'DATA: YAHOO FINANCE • CHARTS: PLOTLY<br>'
         'AI: OPENAI (OPT.) • LOGOS: CLEARBIT'
@@ -9250,7 +9250,7 @@ st.markdown(
     '<a href="#">Documentation</a>'
     '<a href="#">API</a>'
     '</div>'
-    '<div class="orbital-footer-version">v3.0 · Built with Streamlit · Data from Yahoo Finance & Alpha Vantage</div>'
+    '<div class="orbital-footer-version">v4.4 · Built with Streamlit · Data from Yahoo Finance & Alpha Vantage</div>'
     '</div>',
     unsafe_allow_html=True,
 )

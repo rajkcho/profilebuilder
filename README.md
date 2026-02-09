@@ -100,6 +100,9 @@ ALPHA_VANTAGE_KEY=...      # Earnings data
 Hosted on Streamlit Cloud: [profilebuilder.streamlit.app](https://profilebuilder.streamlit.app)
 
 ## Version History
+- **v4.4** — Percentile ranking, peer comparison bars, key takeaways, ESG scores, comps football field, scrolling market ticker, JSON export
+- **v4.0** — Help tooltips, reverse DCF, Monte Carlo simulation, premium sensitivity, deal scorecard, contribution analysis, goodwill/PPA, synergy NPV
+- **v3.5** — Enhanced M&A (implied multiples, contribution analysis, goodwill waterfall, synergy phase-in), sidebar redesign with emoji mode labels
 - **v3.0** — Technical analysis, options, dividends, health scorecard, correlation matrix, sentiment gauge, sector heatmap, earnings calendar, news feed, watchlist notes, footer, print styles
 - **v2.6** — Design improvements: sparklines, status badges, keyboard shortcuts, metric cards
 - **v2.5** — Market overview with live indices, top movers on splash page
