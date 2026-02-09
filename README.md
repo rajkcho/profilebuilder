@@ -10,7 +10,12 @@ Combines live market data from Yahoo Finance, full financial statements, DCF val
 Enter a ticker symbol and get:
 - **60+ data points** from Yahoo Finance — financials, analyst estimates, ownership, ESG
 - **M&A history** scraped from Wikipedia — acquisitions, dates, values
-- **AI insights** — executive summary, industry analysis, risk factors
+- **AI insights** — executive summary, industry analysis, risk factors, SWOT
+- **Technical analysis** — RSI, MACD, Bollinger Bands with live signals
+- **Ownership overview** — institutional holders, major shareholders
+- **Options overview** — put/call ratio, volume, open interest
+- **Dividend analysis** — yield, payout ratio, history charts, ex-dates
+- **Financial health scorecard** — Piotroski-inspired A-D grading
 - **14-section dashboard** — Yahoo Finance-style UI with interactive charts
 - **8-slide PowerPoint** — professional IB pitch book layout
 - **Excel export** — multi-sheet workbook with all financial data
@@ -24,112 +29,83 @@ Run a full comparable company analysis:
 - **Rule of 40** — SaaS metric for software companies
 - **Exportable comps table** — all peers with key metrics
 
-### 3. DCF Valuation (NEW)
+### 3. DCF Valuation
 Build a discounted cash flow model:
 - **Customizable assumptions** — growth rate, WACC, terminal growth, projection years
 - **Free cash flow projection** — multi-year FCF forecast
 - **Terminal value** — Gordon Growth Model perpetuity calculation
-- **Sensitivity analysis** — growth vs. WACC matrix with color coding
+- **Sensitivity analysis** — 5x5 growth vs. WACC matrix with color coding
 - **Value bridge** — enterprise value to equity value breakdown
 - **Implied share price** — compare to current market price
 
-### 4. Quick Compare (NEW)
+### 4. Quick Compare
 Side-by-side company comparison:
 - **Compare up to 10 companies** simultaneously
 - **Key metrics table** — all valuation and profitability metrics
 - **Radar chart** — visual multi-metric comparison
-- **Price performance** — normalized 1Y price chart (adjustable period)
+- **Correlation matrix** — price correlation heatmap (1Y daily returns)
+- **Price performance** — normalized price chart (adjustable period)
 - **Valuation multiples** — P/E, EV/EBITDA, EV/Revenue comparison
-- **Preset comparisons** — FAANG, Big Tech, Canadian Banks, etc.
+- **Profitability comparison** — margins and ROE grouped bars
+- **Preset comparisons** — FAANG, Big Tech, Canadian Banks, Semis, Healthcare, SaaS
 - **CSV export** — download comparison data
 
 ### 5. Merger Analysis
 Model a hypothetical acquisition:
 - **Pro forma financials** — combined revenue, EBITDA, EPS
-- **Accretion/dilution analysis** — impact on acquirer EPS
-- **Football field valuation** — range of implied values
-- **Sources & uses** — deal financing structure
-- **AI-powered deal assessment** — strategic rationale, risks, verdict
-- **Deal book PowerPoint** — professional M&A presentation
+- **Accretion/dilution analysis** — impact on acquirer EPS with waterfall chart
+- **Football field valuation** — multi-method range analysis
+- **Sources & uses** — classic IB deal structure breakdown
+- **AI deal intelligence** — strategic rationale, risk factors, deal grade
+- **10-slide deal book** — professional PowerPoint export
 
-## New in v2.0
+## Home Dashboard
+The splash page includes:
+- **Market overview** — live indices (S&P 500, DJIA, NASDAQ, Russell 2000, TSX)
+- **Market sentiment gauge** — fear/greed indicator based on SPY momentum
+- **Top movers** — daily gainers and losers
+- **Sector heatmap** — performance across 11 sector ETFs
+- **Earnings calendar** — upcoming earnings for major companies
+- **Market news feed** — recent headlines from Yahoo Finance
+- **Search history** — quick-access buttons for recent lookups
 
-- **Watchlist system** — save favorite tickers with session persistence
-- **Excel export** — multi-sheet workbook with Income Statement, Balance Sheet, Cash Flow, and Peer Data
-- **DCF Valuation module** — full discounted cash flow analysis with sensitivity
-- **Quick Compare mode** — compare up to 10 companies side-by-side
-- **Sector screening** — quick picks by sector with popular tickers
-- **Price performance charts** — normalized historical price comparison
-- **Enhanced visualizations** — radar charts, sensitivity matrices, value bridges
-
-## Quick Start
-
-```bash
-# Clone the repo
-git clone https://github.com/rajkcho/profilebuilder.git
-cd profilebuilder
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the app
-streamlit run main.py
-```
-
-### Enable AI Insights (Optional)
-
-```bash
-export OPENAI_API_KEY="sk-..."
-streamlit run main.py
-```
-
-M&A deal history is scraped from Wikipedia and works without any API key. The OpenAI key enables richer industry analysis and risk factors via GPT-4o-mini.
-
-## Project Structure
-
-```
-ProfileBuilder/
-├── main.py                # Streamlit UI — 5-mode dashboard
-├── data_engine.py         # yfinance data fetching, 60+ fields
-├── comps_analysis.py      # Comparable company analysis engine
-├── merger_analysis.py     # Pro forma merger calculations
-├── ai_insights.py         # LLM-powered insights
-├── pptx_generator.py      # PowerPoint builder
-├── precedent_deals.py     # Precedent transaction analysis
-├── alpha_vantage.py       # Alternative data source
-├── create_template.py     # PPTX template generation
-├── template_inspector.py  # Helper utility
-├── requirements.txt       # Python dependencies
-└── assets/
-    └── template.pptx      # Blank slide template
-```
+## Watchlist
+- Add/remove tickers from any analysis mode
+- Live price and change display in sidebar
+- **Notes per ticker** — jot down investment thesis
+- Persistent within session
 
 ## Tech Stack
+- **Streamlit** — UI framework
+- **Plotly** — interactive charts
+- **yfinance** — market data
+- **OpenAI** (optional) — AI insights
+- **python-pptx** — PowerPoint generation
+- **openpyxl** — Excel export
+- **Alpha Vantage** (optional) — earnings data
 
-- **Streamlit** — Data-dense web UI with tabs, expanders, interactive Plotly charts
-- **python-pptx** — PowerPoint generation with styled tables and native charts
-- **yfinance** — Real-time market data, financial statements, analyst estimates, ownership
-- **openpyxl** — Excel export with multiple sheets
-- **Matplotlib** — Static chart rendering for PPTX slides
-- **Plotly** — Interactive price and analyst charts in the web UI
-- **OpenAI** — Optional AI insights via GPT-4o-mini
-- **NumPy/Pandas** — Financial calculations and data manipulation
-- **ThreadPoolExecutor** — Parallel peer data fetching for fast comps
+## Setup
+```bash
+pip install -r requirements.txt
+streamlit run main.py
+```
 
-## Watchlist Feature
+Optional environment variables:
+```bash
+OPENAI_API_KEY=sk-...      # AI insights
+ALPHA_VANTAGE_KEY=...      # Earnings data
+```
 
-The watchlist persists during your session and appears in the sidebar:
-- Click "Add to Watchlist" from any company profile
-- Quick-view tickers with current prices and changes
-- Remove tickers with one click
+## Deployment
+Hosted on Streamlit Cloud: [profilebuilder.streamlit.app](https://profilebuilder.streamlit.app)
 
-## Export Options
-
-- **PowerPoint** — 8-slide professional tear sheet (Company Profile mode)
-- **Excel** — Multi-sheet workbook with all financial data
-- **CSV** — Quick summary export or comparison table
-- **Deal Book** — 10-slide M&A presentation (Merger Analysis mode)
-
-## License
-
-MIT
+## Version History
+- **v3.0** — Technical analysis, options, dividends, health scorecard, correlation matrix, sentiment gauge, sector heatmap, earnings calendar, news feed, watchlist notes, footer, print styles
+- **v2.6** — Design improvements: sparklines, status badges, keyboard shortcuts, metric cards
+- **v2.5** — Market overview with live indices, top movers on splash page
+- **v2.4** — Market overview on splash page
+- **v2.3** — Search history, market indices, sector screener
+- **v2.2** — Splash pages for each mode, updated README
+- **v2.1** — DCF sensitivity analysis, price performance charts
+- **v2.0** — Watchlist, DCF, Quick Compare, Excel export, Merger Analysis
+- **v1.0** — Company Profile, Comps Analysis, PowerPoint export

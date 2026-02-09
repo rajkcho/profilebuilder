@@ -6,14 +6,20 @@ Generates an 8-slide investment-banker-grade PowerPoint tear sheet.
 
 Run:  streamlit run main.py
 
-v2.0 - Enhanced Features:
-- Watchlist with session persistence
+v3.0 - Full Feature Suite:
+- Watchlist with session persistence & notes
 - Excel/CSV export for all financial data
-- DCF Valuation module
-- Quick Compare mode (side-by-side)
-- Sector screening
-- Keyboard shortcuts
-- Enhanced visualizations
+- DCF Valuation with sensitivity analysis
+- Quick Compare mode with correlation matrix
+- Merger Analysis with deal books
+- Technical Analysis (RSI, MACD, Bollinger Bands)
+- Options overview with put/call ratio
+- Dividend analysis & financial health scorecard
+- Institutional ownership breakdown
+- Market sentiment gauge & sector heatmap
+- Earnings calendar & news feed
+- Search history & keyboard shortcuts
+- Enhanced visualizations & print-friendly styles
 """
 
 import streamlit as st
@@ -2601,6 +2607,75 @@ div[data-testid="stMetric"] div[data-testid="stMetricValue"] {{
 #MainMenu {{ visibility: hidden; }}
 footer {{ visibility: hidden; }}
 header {{ visibility: hidden; }}
+
+/* ── LOADING SKELETON ──────────────────────────────────── */
+@keyframes shimmer {{
+    0% {{ background-position: -200% 0; }}
+    100% {{ background-position: 200% 0; }}
+}}
+.skeleton {{
+    background: linear-gradient(90deg, rgba(107,92,231,0.05) 25%, rgba(107,92,231,0.12) 50%, rgba(107,92,231,0.05) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: 8px;
+}}
+.skeleton-text {{ height: 14px; margin-bottom: 8px; width: 80%; }}
+.skeleton-card {{ height: 100px; margin-bottom: 12px; }}
+.skeleton-chart {{ height: 200px; margin-bottom: 12px; }}
+
+/* ── CARD HOVER EFFECTS ──────────────────────────────── */
+.hover-lift {{
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}}
+.hover-lift:hover {{
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(107,92,231,0.15);
+}}
+
+/* ── CUSTOM FOOTER ──────────────────────────────────── */
+.orbital-footer {{
+    margin-top: 3rem;
+    padding: 2rem 1rem;
+    text-align: center;
+    border-top: 1px solid rgba(107,92,231,0.15);
+}}
+.orbital-footer-brand {{
+    font-size: 1.1rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #6B5CE7 0%, #E8638B 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 2px;
+}}
+.orbital-footer-links {{
+    margin-top: 0.5rem;
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+}}
+.orbital-footer-links a {{
+    color: #8A85AD;
+    text-decoration: none;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: color 0.2s;
+}}
+.orbital-footer-links a:hover {{
+    color: #6B5CE7;
+}}
+.orbital-footer-version {{
+    font-size: 0.6rem;
+    color: #5A567A;
+    margin-top: 0.5rem;
+}}
+
+/* ── PRINT STYLES ──────────────────────────────────── */
+@media print {{
+    .stSidebar, .stToolbar, .orbital-footer, header, #MainMenu {{ display: none !important; }}
+    .main .block-container {{ padding: 0 !important; max-width: 100% !important; }}
+    * {{ color: #333 !important; background: white !important; }}
+}}
 
 /* ── PRICE DISPLAY BAR ──────────────────────────────────── */
 .price-bar {{
@@ -7727,3 +7802,20 @@ else:
                 _render_news_feed(news)
             except Exception:
                 pass
+
+# ══════════════════════════════════════════════════════════════
+# FOOTER
+# ══════════════════════════════════════════════════════════════
+st.markdown(
+    '<div class="orbital-footer">'
+    '<div class="orbital-footer-brand">ORBITAL</div>'
+    '<div style="font-size:0.7rem; color:#8A85AD; margin-top:0.2rem;">M&A Intelligence Platform</div>'
+    '<div class="orbital-footer-links">'
+    '<a href="https://github.com/rajkcho/profilebuilder" target="_blank">GitHub</a>'
+    '<a href="#">Documentation</a>'
+    '<a href="#">API</a>'
+    '</div>'
+    '<div class="orbital-footer-version">v3.0 · Built with Streamlit · Data from Yahoo Finance & Alpha Vantage</div>'
+    '</div>',
+    unsafe_allow_html=True,
+)
