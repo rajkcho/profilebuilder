@@ -5426,6 +5426,74 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     with fin_tab4:
         _display_financial_df(cd.quarterly_income_stmt, "Quarterly Income Statement", quarterly=True)
 
+    # Revenue & Income Growth Trend
+    if cd.income_stmt is not None and not cd.income_stmt.empty:
+        try:
+            is_df = cd.income_stmt
+            rev_row = None
+            ni_row = None
+            for idx_name in is_df.index:
+                if "total revenue" in str(idx_name).lower() or "revenue" == str(idx_name).lower().strip():
+                    rev_row = is_df.loc[idx_name]
+                elif "net income" in str(idx_name).lower():
+                    ni_row = is_df.loc[idx_name]
+            
+            if rev_row is not None and len(rev_row) > 1:
+                fig_growth = go.Figure()
+                
+                years = [c.strftime("%Y") if hasattr(c, "strftime") else str(c) for c in rev_row.index]
+                rev_vals = [float(v) / 1e9 if pd.notna(v) else 0 for v in rev_row.values]
+                
+                fig_growth.add_trace(go.Bar(
+                    x=years, y=rev_vals, name="Revenue",
+                    marker_color="rgba(107,92,231,0.6)",
+                    text=[f"${v:.1f}B" for v in rev_vals],
+                    textposition="outside", textfont=dict(size=9, color="#B8B3D7"),
+                ))
+                
+                if ni_row is not None:
+                    ni_vals = [float(v) / 1e9 if pd.notna(v) else 0 for v in ni_row.values]
+                    fig_growth.add_trace(go.Bar(
+                        x=years, y=ni_vals, name="Net Income",
+                        marker_color="rgba(16,185,129,0.5)",
+                        text=[f"${v:.1f}B" for v in ni_vals],
+                        textposition="outside", textfont=dict(size=9, color="#B8B3D7"),
+                    ))
+                
+                # Add YoY growth rate line for revenue
+                yoy_growth = []
+                for i in range(len(rev_vals)):
+                    if i < len(rev_vals) - 1 and rev_vals[i+1] != 0:
+                        growth = (rev_vals[i] / rev_vals[i+1] - 1) * 100
+                        yoy_growth.append(growth)
+                    else:
+                        yoy_growth.append(None)
+                
+                fig_growth.add_trace(go.Scatter(
+                    x=years, y=yoy_growth, name="YoY Growth %",
+                    mode="lines+markers", yaxis="y2",
+                    line=dict(color="#F59E0B", width=2),
+                    marker=dict(size=8, color="#F59E0B"),
+                ))
+                
+                fig_growth.update_layout(
+                    **_CHART_LAYOUT_BASE, height=350,
+                    margin=dict(t=30, b=30, l=60, r=60),
+                    xaxis=dict(tickfont=dict(size=10, color="#8A85AD"), showgrid=False),
+                    yaxis=dict(tickfont=dict(size=9, color="#8A85AD"), title=dict(text="$ Billions", font=dict(size=10, color="#8A85AD"))),
+                    yaxis2=dict(overlaying="y", side="right", ticksuffix="%", showgrid=False,
+                               tickfont=dict(size=9, color="#F59E0B"),
+                               title=dict(text="YoY Growth", font=dict(size=10, color="#F59E0B"))),
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, font=dict(size=9, color="#B8B3D7")),
+                    barmode="group",
+                )
+                _apply_space_grid(fig_growth)
+                st.plotly_chart(fig_growth, use_container_width=True, key="revenue_growth_trend")
+        except Exception:
+            pass
+
+    _divider()
+
     # ══════════════════════════════════════════════════════
     # 9. ANALYST CONSENSUS
     # ══════════════════════════════════════════════════════
@@ -5476,14 +5544,76 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         if cd.analyst_price_targets:
             pt = cd.analyst_price_targets
             st.markdown("<p style='font-size:0.85rem; font-weight:700; color:#E0DCF5; margin-bottom:0.5rem;'>Price Targets</p>", unsafe_allow_html=True)
+            
+            # Visual price target range
+            pt_low = pt.get('low', 0) or 0
+            pt_mean = pt.get('mean', 0) or 0
+            pt_median = pt.get('median', 0) or 0
+            pt_high = pt.get('high', 0) or 0
+            curr = cd.current_price or 0
+            
+            if pt_low and pt_high and pt_high > pt_low:
+                fig_pt = go.Figure()
+                
+                # Range bar (low to high)
+                fig_pt.add_trace(go.Scatter(
+                    x=[pt_low, pt_high], y=["Target", "Target"],
+                    mode="lines", line=dict(color="rgba(107,92,231,0.4)", width=20),
+                    showlegend=False, hoverinfo="skip",
+                ))
+                
+                # Low marker
+                fig_pt.add_trace(go.Scatter(
+                    x=[pt_low], y=["Target"], mode="markers+text",
+                    marker=dict(size=14, color="#EF4444", symbol="diamond"),
+                    text=[f"{cs}{pt_low:,.0f}"], textposition="bottom center",
+                    textfont=dict(size=10, color="#EF4444"),
+                    name="Low", showlegend=False,
+                ))
+                
+                # Mean marker
+                fig_pt.add_trace(go.Scatter(
+                    x=[pt_mean], y=["Target"], mode="markers+text",
+                    marker=dict(size=18, color="#6B5CE7", symbol="star"),
+                    text=[f"Mean: {cs}{pt_mean:,.0f}"], textposition="top center",
+                    textfont=dict(size=11, color="#6B5CE7", weight="bold" if hasattr(dict, 'weight') else None),
+                    name="Mean Target", showlegend=False,
+                ))
+                
+                # High marker
+                fig_pt.add_trace(go.Scatter(
+                    x=[pt_high], y=["Target"], mode="markers+text",
+                    marker=dict(size=14, color="#10B981", symbol="diamond"),
+                    text=[f"{cs}{pt_high:,.0f}"], textposition="bottom center",
+                    textfont=dict(size=10, color="#10B981"),
+                    name="High", showlegend=False,
+                ))
+                
+                # Current price line
+                fig_pt.add_vline(x=curr, line_dash="dash", line_color="#F59E0B", line_width=2)
+                fig_pt.add_annotation(
+                    x=curr, y="Target", text=f"Current: {cs}{curr:,.0f}",
+                    showarrow=True, arrowhead=2, arrowcolor="#F59E0B",
+                    font=dict(size=10, color="#F59E0B"),
+                    ax=0, ay=-40,
+                )
+                
+                fig_pt.update_layout(
+                    **_CHART_LAYOUT_BASE, height=150,
+                    margin=dict(t=40, b=30, l=20, r=20),
+                    xaxis=dict(tickprefix=cs, tickfont=dict(size=9, color="#8A85AD"), showgrid=False),
+                    yaxis=dict(visible=False),
+                    showlegend=False,
+                )
+                st.plotly_chart(fig_pt, use_container_width=True, key="price_target_range")
+            
+            # Metrics row
             pt1, pt2 = st.columns(2)
-            pt1.metric("Mean", f"{cs}{pt.get('mean', 0):,.2f}" if pt.get("mean") else "N/A")
-            pt2.metric("Median", f"{cs}{pt.get('median', 0):,.2f}" if pt.get("median") else "N/A")
-            pt3, pt4 = st.columns(2)
-            pt3.metric("Low", f"{cs}{pt.get('low', 0):,.2f}" if pt.get("low") else "N/A")
-            pt4.metric("High", f"{cs}{pt.get('high', 0):,.2f}" if pt.get("high") else "N/A")
-            if pt.get("mean") and cd.current_price:
-                upside = (pt["mean"] - cd.current_price) / cd.current_price * 100
+            pt1.metric("Mean", f"{cs}{pt_mean:,.2f}" if pt_mean else "N/A")
+            pt2.metric("Median", f"{cs}{pt_median:,.2f}" if pt_median else "N/A")
+            
+            if pt_mean and curr:
+                upside = (pt_mean - curr) / curr * 100
                 color = "#10B981" if upside >= 0 else "#EF4444"
                 st.markdown(
                     f'<div style="text-align:center; margin-top:0.5rem; padding:0.5rem; '
