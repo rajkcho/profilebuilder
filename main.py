@@ -4779,6 +4779,79 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     k6.metric("Dividend Yield", format_pct(cd.dividend_yield) if cd.dividend_yield else "N/A")
 
     # ══════════════════════════════════════════════════════
+    # 2b. AT A GLANCE CARD
+    # ══════════════════════════════════════════════════════
+    glance_signals = []
+    
+    # Analyst rating
+    rec = cd.analyst_recommendation
+    rec_str = rec.replace("_", " ").title() if rec else "N/A"
+    rec_color = "#10B981" if rec and "buy" in rec.lower() else "#EF4444" if rec and "sell" in rec.lower() else "#F59E0B"
+    
+    # Quick valuation check
+    pe_status = "N/A"
+    pe_color = "#8A85AD"
+    if cd.trailing_pe and cd.trailing_pe > 0:
+        if cd.trailing_pe < 15:
+            pe_status = "Undervalued"
+            pe_color = "#10B981"
+        elif cd.trailing_pe < 25:
+            pe_status = "Fair Value"
+            pe_color = "#F59E0B"
+        else:
+            pe_status = "Premium"
+            pe_color = "#E8638B"
+    
+    # Momentum
+    mom_str = "N/A"
+    mom_color = "#8A85AD"
+    if cd.price_change_pct:
+        if cd.price_change_pct > 2:
+            mom_str = "Strong Bullish"
+            mom_color = "#10B981"
+        elif cd.price_change_pct > 0:
+            mom_str = "Bullish"
+            mom_color = "#34D399"
+        elif cd.price_change_pct > -2:
+            mom_str = "Bearish"
+            mom_color = "#F97316"
+        else:
+            mom_str = "Strong Bearish"
+            mom_color = "#EF4444"
+    
+    st.markdown(
+        f'<div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:0.8rem; margin:1rem 0;">'
+        f'<div style="background:rgba(107,92,231,0.05); border:1px solid rgba(107,92,231,0.1); '
+        f'border-radius:12px; padding:0.8rem; text-align:center;">'
+        f'<div style="font-size:0.6rem; color:#8A85AD; font-weight:600; text-transform:uppercase; letter-spacing:1px;">Analyst Rating</div>'
+        f'<div style="font-size:1rem; font-weight:800; color:{rec_color}; margin-top:0.2rem;">{rec_str}</div>'
+        f'</div>'
+        f'<div style="background:rgba(107,92,231,0.05); border:1px solid rgba(107,92,231,0.1); '
+        f'border-radius:12px; padding:0.8rem; text-align:center;">'
+        f'<div style="font-size:0.6rem; color:#8A85AD; font-weight:600; text-transform:uppercase; letter-spacing:1px;">Valuation</div>'
+        f'<div style="font-size:1rem; font-weight:800; color:{pe_color}; margin-top:0.2rem;">{pe_status}</div>'
+        f'<div style="font-size:0.6rem; color:#8A85AD;">P/E: {cd.trailing_pe:.1f}x</div>'
+        f'</div>' if cd.trailing_pe else
+        f'<div style="background:rgba(107,92,231,0.05); border:1px solid rgba(107,92,231,0.1); '
+        f'border-radius:12px; padding:0.8rem; text-align:center;">'
+        f'<div style="font-size:0.6rem; color:#8A85AD; font-weight:600; text-transform:uppercase;">Valuation</div>'
+        f'<div style="font-size:1rem; font-weight:800; color:#8A85AD; margin-top:0.2rem;">N/A</div></div>'
+        f''
+        f'<div style="background:rgba(107,92,231,0.05); border:1px solid rgba(107,92,231,0.1); '
+        f'border-radius:12px; padding:0.8rem; text-align:center;">'
+        f'<div style="font-size:0.6rem; color:#8A85AD; font-weight:600; text-transform:uppercase; letter-spacing:1px;">Today\'s Momentum</div>'
+        f'<div style="font-size:1rem; font-weight:800; color:{mom_color}; margin-top:0.2rem;">{mom_str}</div>'
+        f'</div>'
+        f'<div style="background:rgba(107,92,231,0.05); border:1px solid rgba(107,92,231,0.1); '
+        f'border-radius:12px; padding:0.8rem; text-align:center;">'
+        f'<div style="font-size:0.6rem; color:#8A85AD; font-weight:600; text-transform:uppercase; letter-spacing:1px;">Sector</div>'
+        f'<div style="font-size:0.85rem; font-weight:700; color:#6B5CE7; margin-top:0.2rem;">{cd.sector or "N/A"}</div>'
+        f'</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    # ══════════════════════════════════════════════════════
     # 3. BUSINESS OVERVIEW
     # ══════════════════════════════════════════════════════
     _section("Business Overview")
@@ -4849,6 +4922,48 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                             title=dict(text="Volume", font=dict(size=10, color="#8A85AD")),
                             tickformat=".2s", tickfont=dict(size=8, color="#8A85AD")),
             )
+        # Moving Average Overlays
+        show_ma = st.checkbox("Show Moving Averages", value=True, key="show_ma")
+        if show_ma and len(plot_hist) > 50:
+            ma_50 = plot_hist["Close"].rolling(50).mean()
+            ma_200 = plot_hist["Close"].rolling(200).mean()
+            
+            fig.add_trace(go.Scatter(
+                x=plot_hist.index, y=ma_50, mode="lines",
+                line=dict(color="#F59E0B", width=1.5, dash="dot"),
+                name="50-day MA", showlegend=True,
+            ))
+            if len(plot_hist) > 200:
+                fig.add_trace(go.Scatter(
+                    x=plot_hist.index, y=ma_200, mode="lines",
+                    line=dict(color="#E8638B", width=1.5, dash="dash"),
+                    name="200-day MA", showlegend=True,
+                ))
+                
+                # Detect Golden/Death Cross
+                if not ma_50.dropna().empty and not ma_200.dropna().empty:
+                    recent_50 = ma_50.dropna().iloc[-1]
+                    recent_200 = ma_200.dropna().iloc[-1]
+                    prev_50 = ma_50.dropna().iloc[-2] if len(ma_50.dropna()) > 1 else recent_50
+                    prev_200 = ma_200.dropna().iloc[-2] if len(ma_200.dropna()) > 1 else recent_200
+                    
+                    if prev_50 <= prev_200 and recent_50 > recent_200:
+                        st.markdown(
+                            '<div style="text-align:center; padding:0.4rem; background:rgba(16,185,129,0.1); '
+                            'border-radius:8px; border:1px solid rgba(16,185,129,0.3); margin-bottom:0.5rem;">'
+                            '<span style="font-size:0.8rem; font-weight:700; color:#10B981;">✨ Golden Cross Detected — Bullish Signal</span>'
+                            '</div>',
+                            unsafe_allow_html=True,
+                        )
+                    elif prev_50 >= prev_200 and recent_50 < recent_200:
+                        st.markdown(
+                            '<div style="text-align:center; padding:0.4rem; background:rgba(239,68,68,0.1); '
+                            'border-radius:8px; border:1px solid rgba(239,68,68,0.3); margin-bottom:0.5rem;">'
+                            '<span style="font-size:0.8rem; font-weight:700; color:#EF4444;">💀 Death Cross Detected — Bearish Signal</span>'
+                            '</div>',
+                            unsafe_allow_html=True,
+                        )
+        
         # 52-week high/low reference lines
         if cd.fifty_two_week_high:
             fig.add_hline(y=cd.fifty_two_week_high, line_dash="dash",
@@ -4870,7 +4985,9 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 tickfont=dict(size=12, color="#8A85AD"),
                 tickprefix=cs,
             ),
-            showlegend=False,
+            showlegend=show_ma if 'show_ma' in dir() else False,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
+                       font=dict(size=9, color="#8A85AD")),
         )
         _apply_space_grid(fig)
         st.markdown('<div class="profile-chart-wrapper">', unsafe_allow_html=True)
