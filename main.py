@@ -4847,15 +4847,36 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     k3.metric("Revenue (TTM)", format_number(cd.revenue.iloc[0], currency_symbol=cs) if cd.revenue is not None and len(cd.revenue) > 0 else "N/A")
     k4.metric("Net Income", format_number(cd.net_income.iloc[0], currency_symbol=cs) if cd.net_income is not None and len(cd.net_income) > 0 else "N/A")
     k5.metric("Free Cash Flow", format_number(cd.free_cashflow_series.iloc[0], currency_symbol=cs) if cd.free_cashflow_series is not None and len(cd.free_cashflow_series) > 0 else "N/A")
-    k6.metric("Dividend Yield", format_pct(cd.dividend_yield) if cd.dividend_yield else "N/A")
+    # dividend_yield: yfinance may return as decimal (0.009) or already as pct-like (0.9)
+    _div_yield = cd.dividend_yield
+    if _div_yield and _div_yield > 0.5:
+        # Already looks like a percentage value, don't multiply by 100 again
+        k6.metric("Dividend Yield", f"{_div_yield:.2f}%")
+    else:
+        k6.metric("Dividend Yield", format_pct(_div_yield) if _div_yield else "N/A")
 
     # ══════════════════════════════════════════════════════
     # 2b. AT A GLANCE CARD
     # ══════════════════════════════════════════════════════
     glance_signals = []
     
-    # Analyst rating
+    # Analyst rating — derive from recommendations_summary if no direct attribute
     rec = getattr(cd, 'analyst_recommendation', None) or getattr(cd, 'recommendation_key', None)
+    if not rec and cd.recommendations_summary is not None and not cd.recommendations_summary.empty:
+        try:
+            row = cd.recommendations_summary.iloc[0]
+            cats = {"strongBuy": 5, "buy": 4, "hold": 3, "sell": 2, "strongSell": 1}
+            weighted = sum(int(row.get(k, 0)) * v for k, v in cats.items())
+            total = sum(int(row.get(k, 0)) for k in cats)
+            if total > 0:
+                avg = weighted / total
+                if avg >= 4.5: rec = "strong_buy"
+                elif avg >= 3.5: rec = "buy"
+                elif avg >= 2.5: rec = "hold"
+                elif avg >= 1.5: rec = "sell"
+                else: rec = "strong_sell"
+        except Exception:
+            pass
     rec_str = rec.replace("_", " ").title() if rec else "N/A"
     rec_color = "#10B981" if rec and "buy" in rec.lower() else "#EF4444" if rec and "sell" in rec.lower() else "#F59E0B"
     
@@ -5799,7 +5820,8 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         div_col1, div_col2, div_col3, div_col4 = st.columns(4)
         
         with div_col1:
-            dy = cd.dividend_yield * 100 if cd.dividend_yield < 1 else cd.dividend_yield
+            # yfinance may return dividendYield as decimal (0.009) or pct-like (0.9)
+            dy = cd.dividend_yield * 100 if cd.dividend_yield < 0.2 else cd.dividend_yield
             dy_color = "#10B981" if dy > 3 else "#F59E0B" if dy > 1 else "#8A85AD"
             st.markdown(
                 f'<div style="text-align:center; padding:0.8rem; background:rgba(107,92,231,0.05); '
@@ -5913,13 +5935,13 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         except (TypeError, ValueError):
             return None
     
-    _ni = _safe_val(cd.net_income)
-    _ocf = _safe_val(cd.operating_cash_flow)
-    _fcf = _safe_val(cd.free_cash_flow)
-    _roa = _safe_val(cd.roa)
-    _cr = _safe_val(cd.current_ratio)
-    _gm = _safe_val(cd.gross_margin)
-    _rg = _safe_val(cd.revenue_growth)
+    _ni = _safe_val(getattr(cd, 'net_income', None))
+    _ocf = _safe_val(getattr(cd, 'operating_cashflow_series', getattr(cd, 'operating_cash_flow', None)))
+    _fcf = _safe_val(getattr(cd, 'free_cashflow_series', getattr(cd, 'free_cash_flow', None)))
+    _roa = _safe_val(getattr(cd, 'return_on_assets', getattr(cd, 'roa', None)))
+    _cr = _safe_val(getattr(cd, 'current_ratio', None))
+    _gm = _safe_val(getattr(cd, 'gross_margins', getattr(cd, 'gross_margin', None)))
+    _rg = _safe_val(getattr(cd, 'revenue_growth', None))
     
     # Calculate a simplified Piotroski-inspired score
     score_items = []
@@ -7036,6 +7058,254 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
             f'<div class="deal-value">{acq_cs}{pro_forma.offer_price_per_share:,.2f}</div>'
             f'</div>'
             f'</div>'
+        )
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # M3b. IMPLIED MULTIPLES AT OFFER PRICE
+    # ══════════════════════════════════════════════════════
+    _section("Implied Multiples at Offer Price", "📐")
+    
+    # Calculate implied multiples
+    offer_equity_value = pro_forma.purchase_price if pro_forma.purchase_price else 0
+    tgt_net_debt = (getattr(tgt_cd, 'total_debt', 0) or 0) - (getattr(tgt_cd, 'total_cash', 0) or 0)
+    offer_ev = offer_equity_value + tgt_net_debt
+    
+    tgt_revenue_val = pro_forma.tgt_revenue or 0
+    tgt_ebitda_val = pro_forma.tgt_ebitda or 0
+    tgt_ni_val = pro_forma.tgt_net_income or 0
+    
+    implied_ev_rev = offer_ev / tgt_revenue_val if tgt_revenue_val > 0 else 0
+    implied_ev_ebitda = offer_ev / tgt_ebitda_val if tgt_ebitda_val > 0 else 0
+    implied_pe = offer_equity_value / tgt_ni_val if tgt_ni_val > 0 else 0
+    
+    # Current multiples
+    curr_ev = tgt_cd.enterprise_value or 0
+    curr_ev_rev = curr_ev / tgt_revenue_val if tgt_revenue_val > 0 else 0
+    curr_ev_ebitda = curr_ev / tgt_ebitda_val if tgt_ebitda_val > 0 else 0
+    curr_pe = tgt_cd.trailing_pe or 0
+    
+    mult_table = (
+        '<table class="pf-table">'
+        '<thead><tr><th>Multiple</th><th>Current</th><th>At Offer Price</th><th>Premium Paid</th></tr></thead>'
+        '<tbody>'
+    )
+    
+    multiples_data = [
+        ("EV / Revenue", curr_ev_rev, implied_ev_rev),
+        ("EV / EBITDA", curr_ev_ebitda, implied_ev_ebitda),
+        ("P / E", curr_pe, implied_pe),
+    ]
+    
+    for name, curr, implied in multiples_data:
+        prem = ((implied / curr - 1) * 100) if curr > 0 and implied > 0 else 0
+        prem_color = "#EF4444" if prem > 50 else "#F59E0B" if prem > 20 else "#10B981"
+        mult_table += (
+            f'<tr>'
+            f'<td style="font-weight:600;">{name}</td>'
+            f'<td>{curr:.1f}x</td>'
+            f'<td style="color:#6B5CE7; font-weight:700;">{implied:.1f}x</td>'
+            f'<td style="color:{prem_color}; font-weight:700;">+{prem:.0f}%</td>'
+            f'</tr>'
+        )
+    
+    mult_table += '</tbody></table>'
+    _mhtml(f'<div class="pf-table-wrapper">{mult_table}</div>')
+    
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # M3c. CONTRIBUTION ANALYSIS
+    # ══════════════════════════════════════════════════════
+    _section("Contribution Analysis", "📊")
+    st.markdown(
+        '<div style="font-size:0.8rem; color:#B8B3D7; margin-bottom:0.8rem;">'
+        'What percentage does each company contribute to the combined entity?</div>',
+        unsafe_allow_html=True,
+    )
+    
+    acq_rev = pro_forma.acq_revenue or 0
+    tgt_rev = pro_forma.tgt_revenue or 0
+    acq_ebitda = pro_forma.acq_ebitda or 0
+    tgt_ebitda = pro_forma.tgt_ebitda or 0
+    acq_ni = pro_forma.acq_net_income or 0
+    tgt_ni = pro_forma.tgt_net_income or 0
+    
+    contrib_metrics = []
+    for label, acq_v, tgt_v in [
+        ("Revenue", acq_rev, tgt_rev),
+        ("EBITDA", acq_ebitda, tgt_ebitda),
+        ("Net Income", acq_ni, tgt_ni),
+        ("Market Cap", acq_cd.market_cap or 0, tgt_cd.market_cap or 0),
+    ]:
+        total = acq_v + tgt_v
+        acq_pct = (acq_v / total * 100) if total > 0 else 0
+        tgt_pct = 100 - acq_pct
+        contrib_metrics.append((label, acq_pct, tgt_pct))
+    
+    # Ownership split
+    acq_own_pct = (pro_forma.acq_shares / pro_forma.pf_shares_outstanding * 100) if pro_forma.pf_shares_outstanding else 0
+    tgt_own_pct = 100 - acq_own_pct
+    contrib_metrics.append(("Pro Forma Ownership", acq_own_pct, tgt_own_pct))
+    
+    contrib_html = '<div style="display:grid; gap:0.8rem;">'
+    for label, acq_pct, tgt_pct in contrib_metrics:
+        contrib_html += (
+            f'<div>'
+            f'<div style="display:flex; justify-content:space-between; margin-bottom:0.2rem;">'
+            f'<span style="font-size:0.72rem; color:#8A85AD; font-weight:600;">{label}</span>'
+            f'<span style="font-size:0.65rem; color:#8A85AD;">'
+            f'{acq_cd.ticker}: {acq_pct:.0f}% | {tgt_cd.ticker}: {tgt_pct:.0f}%</span>'
+            f'</div>'
+            f'<div style="display:flex; height:24px; border-radius:6px; overflow:hidden; '
+            f'border:1px solid rgba(255,255,255,0.05);">'
+            f'<div style="width:{acq_pct}%; background:linear-gradient(90deg, #6B5CE7, #9B8AFF); '
+            f'display:flex; align-items:center; justify-content:center; font-size:0.6rem; color:#fff; font-weight:700;">'
+            f'{acq_pct:.0f}%</div>'
+            f'<div style="width:{tgt_pct}%; background:linear-gradient(90deg, #E8638B, #F5A0B8); '
+            f'display:flex; align-items:center; justify-content:center; font-size:0.6rem; color:#fff; font-weight:700;">'
+            f'{tgt_pct:.0f}%</div>'
+            f'</div></div>'
+        )
+    contrib_html += '</div>'
+    _mhtml(contrib_html)
+    
+    _divider()
+    
+    # ══════════════════════════════════════════════════════
+    # M3d. GOODWILL & PURCHASE PRICE ALLOCATION
+    # ══════════════════════════════════════════════════════
+    _section("Purchase Price Allocation", "🏷️")
+    
+    tgt_book_value = getattr(tgt_cd, 'book_value', None)
+    tgt_total_equity = None
+    if tgt_cd.balance_sheet is not None and not tgt_cd.balance_sheet.empty:
+        for idx_name in tgt_cd.balance_sheet.index:
+            if "stockholder" in str(idx_name).lower() or "total equity" in str(idx_name).lower():
+                try:
+                    tgt_total_equity = float(tgt_cd.balance_sheet.loc[idx_name].iloc[0])
+                except Exception:
+                    pass
+                break
+    
+    if not tgt_total_equity and tgt_book_value and tgt_cd.shares_outstanding:
+        tgt_total_equity = tgt_book_value * tgt_cd.shares_outstanding
+    
+    if tgt_total_equity and offer_equity_value:
+        goodwill = offer_equity_value - tgt_total_equity
+        goodwill_pct = (goodwill / offer_equity_value * 100) if offer_equity_value > 0 else 0
+        
+        ppa_col1, ppa_col2, ppa_col3 = st.columns(3)
+        ppa_col1.metric("Purchase Price", format_number(offer_equity_value, currency_symbol=acq_cs))
+        ppa_col2.metric("Target Book Value", format_number(tgt_total_equity, currency_symbol=acq_cs))
+        ppa_col3.metric("Implied Goodwill", format_number(goodwill, currency_symbol=acq_cs))
+        
+        # Goodwill waterfall
+        fig_gw = go.Figure(go.Waterfall(
+            x=["Book Value", "Intangibles &<br>Goodwill", "Purchase Price"],
+            y=[tgt_total_equity, goodwill, 0],
+            measure=["absolute", "relative", "total"],
+            connector=dict(line=dict(color="rgba(107,92,231,0.3)")),
+            increasing=dict(marker_color="#E8638B"),
+            totals=dict(marker_color="#6B5CE7"),
+            text=[format_number(tgt_total_equity, currency_symbol=acq_cs),
+                  format_number(goodwill, currency_symbol=acq_cs),
+                  format_number(offer_equity_value, currency_symbol=acq_cs)],
+            textposition="outside",
+            textfont=dict(size=10, color="#B8B3D7"),
+        ))
+        fig_gw.update_layout(
+            **_CHART_LAYOUT_BASE, height=300,
+            margin=dict(t=30, b=30, l=50, r=30),
+            yaxis=dict(tickfont=dict(size=9, color="#8A85AD"), visible=False),
+            xaxis=dict(tickfont=dict(size=10, color="#8A85AD")),
+            showlegend=False,
+        )
+        _apply_space_grid(fig_gw)
+        st.plotly_chart(fig_gw, use_container_width=True, key="goodwill_waterfall")
+        
+        st.markdown(
+            f'<div style="text-align:center; font-size:0.75rem; color:#8A85AD;">'
+            f'Goodwill represents {goodwill_pct:.0f}% of total purchase price</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.info("Insufficient balance sheet data for purchase price allocation.")
+    
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # M3e. SYNERGY NPV ANALYSIS
+    # ══════════════════════════════════════════════════════
+    _section("Synergy Value Analysis", "⚡")
+    
+    total_syn = pro_forma.total_synergies or 0
+    cost_syn_val = pro_forma.cost_synergies or 0
+    rev_syn_val = pro_forma.revenue_synergies or 0
+    tax_rate = merger_assumptions.tax_rate / 100
+    wacc = merger_assumptions.cost_of_debt / 100  # Using cost of debt as proxy
+    
+    # Assume synergies phase in over 3 years (33%, 66%, 100%)
+    phase_in = [0.33, 0.66, 1.0, 1.0, 1.0]
+    syn_pv = 0
+    syn_timeline = []
+    for yr, pct in enumerate(phase_in, 1):
+        yr_syn = total_syn * pct * (1 - tax_rate)
+        pv = yr_syn / (1 + wacc) ** yr
+        syn_pv += pv
+        syn_timeline.append({"year": yr, "synergy": yr_syn, "pv": pv, "phase_pct": pct * 100})
+    
+    syn_col1, syn_col2, syn_col3, syn_col4 = st.columns(4)
+    syn_col1.metric("Cost Synergies (Annual)", format_number(cost_syn_val, currency_symbol=acq_cs))
+    syn_col2.metric("Revenue Synergies (Annual)", format_number(rev_syn_val, currency_symbol=acq_cs))
+    syn_col3.metric("Total AT Synergies", format_number(total_syn * (1 - tax_rate), currency_symbol=acq_cs))
+    syn_col4.metric("NPV of Synergies (5Y)", format_number(syn_pv, currency_symbol=acq_cs))
+    
+    # Synergy phase-in chart
+    fig_syn = go.Figure()
+    fig_syn.add_trace(go.Bar(
+        x=[f"Year {s['year']}" for s in syn_timeline],
+        y=[s["synergy"] for s in syn_timeline],
+        name="AT Synergies",
+        marker_color="rgba(16,185,129,0.6)",
+        text=[f"{s['phase_pct']:.0f}%" for s in syn_timeline],
+        textposition="outside",
+        textfont=dict(size=10, color="#10B981"),
+    ))
+    fig_syn.add_trace(go.Scatter(
+        x=[f"Year {s['year']}" for s in syn_timeline],
+        y=[s["pv"] for s in syn_timeline],
+        mode="lines+markers",
+        name="PV of Synergies",
+        line=dict(color="#6B5CE7", width=2),
+        marker=dict(size=8, color="#6B5CE7"),
+    ))
+    fig_syn.update_layout(
+        **_CHART_LAYOUT_BASE, height=300,
+        margin=dict(t=20, b=30, l=50, r=30),
+        yaxis=dict(tickfont=dict(size=9, color="#8A85AD")),
+        xaxis=dict(tickfont=dict(size=10, color="#8A85AD"), showgrid=False),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, font=dict(size=9, color="#B8B3D7")),
+        barmode="group",
+    )
+    _apply_space_grid(fig_syn)
+    st.plotly_chart(fig_syn, use_container_width=True, key="synergy_phasing")
+    
+    # Premium paid vs synergy value
+    if syn_pv > 0 and offer_equity_value > 0:
+        premium_paid = offer_equity_value - (tgt_cd.market_cap or 0)
+        syn_coverage = (syn_pv / premium_paid * 100) if premium_paid > 0 else 0
+        cov_color = "#10B981" if syn_coverage > 100 else "#F59E0B" if syn_coverage > 60 else "#EF4444"
+        st.markdown(
+            f'<div style="text-align:center; padding:0.8rem; background:rgba(107,92,231,0.05); '
+            f'border-radius:12px; margin-top:0.5rem;">'
+            f'<span style="font-size:0.7rem; color:#8A85AD;">Premium Paid: {format_number(premium_paid, currency_symbol=acq_cs)} | '
+            f'Synergy NPV covers </span>'
+            f'<span style="font-size:1.2rem; font-weight:800; color:{cov_color};">{syn_coverage:.0f}%</span>'
+            f'<span style="font-size:0.7rem; color:#8A85AD;"> of premium</span>'
+            f'</div>',
+            unsafe_allow_html=True,
         )
 
     _divider()
