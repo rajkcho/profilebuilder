@@ -4807,6 +4807,233 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     _divider()
 
     # ══════════════════════════════════════════════════════
+    # 4b. TECHNICAL ANALYSIS
+    # ══════════════════════════════════════════════════════
+    _section("Technical Analysis")
+    
+    ta_hist = cd.hist_1y if cd.hist_1y is not None and not cd.hist_1y.empty else hist
+    if ta_hist is not None and not ta_hist.empty and len(ta_hist) > 20:
+        ta_tab1, ta_tab2, ta_tab3 = st.tabs(["RSI", "MACD", "Bollinger Bands"])
+        
+        close = ta_hist["Close"]
+        
+        # RSI
+        with ta_tab1:
+            delta = close.diff()
+            gain = delta.where(delta > 0, 0).rolling(14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
+            rs = gain / loss
+            rsi = 100 - (100 / (1 + rs))
+            
+            fig_rsi = go.Figure()
+            fig_rsi.add_trace(go.Scatter(
+                x=ta_hist.index, y=rsi, mode="lines",
+                line=dict(color="#6B5CE7", width=2), name="RSI (14)"
+            ))
+            fig_rsi.add_hline(y=70, line_dash="dash", line_color="rgba(239,68,68,0.5)", line_width=1,
+                             annotation_text="Overbought (70)", annotation_font=dict(size=9, color="#EF4444"))
+            fig_rsi.add_hline(y=30, line_dash="dash", line_color="rgba(16,185,129,0.5)", line_width=1,
+                             annotation_text="Oversold (30)", annotation_font=dict(size=9, color="#10B981"))
+            fig_rsi.add_hrect(y0=70, y1=100, fillcolor="rgba(239,68,68,0.05)", line_width=0)
+            fig_rsi.add_hrect(y0=0, y1=30, fillcolor="rgba(16,185,129,0.05)", line_width=0)
+            fig_rsi.update_layout(
+                **_CHART_LAYOUT_BASE, height=300,
+                margin=dict(t=20, b=30, l=50, r=30),
+                yaxis=dict(range=[0, 100], tickfont=dict(size=10, color="#8A85AD"),
+                          title=dict(text="RSI", font=dict(size=11, color="#8A85AD"))),
+                xaxis=dict(showgrid=False, tickfont=dict(size=10, color="#8A85AD")),
+                showlegend=False,
+            )
+            _apply_space_grid(fig_rsi)
+            
+            # Current RSI value
+            current_rsi = rsi.dropna().iloc[-1] if not rsi.dropna().empty else 50
+            rsi_color = "#EF4444" if current_rsi > 70 else "#10B981" if current_rsi < 30 else "#F59E0B"
+            rsi_label = "Overbought" if current_rsi > 70 else "Oversold" if current_rsi < 30 else "Neutral"
+            st.markdown(
+                f'<div style="text-align:center; margin-bottom:0.5rem;">'
+                f'<span style="font-size:1.5rem; font-weight:800; color:{rsi_color};">{current_rsi:.1f}</span>'
+                f'<span style="font-size:0.8rem; color:{rsi_color}; margin-left:0.5rem;">{rsi_label}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            st.plotly_chart(fig_rsi, use_container_width=True, key="rsi_chart")
+        
+        # MACD
+        with ta_tab2:
+            ema_12 = close.ewm(span=12, adjust=False).mean()
+            ema_26 = close.ewm(span=26, adjust=False).mean()
+            macd_line = ema_12 - ema_26
+            signal_line = macd_line.ewm(span=9, adjust=False).mean()
+            macd_hist = macd_line - signal_line
+            
+            fig_macd = go.Figure()
+            # Histogram bars
+            colors = ["#10B981" if v >= 0 else "#EF4444" for v in macd_hist.values]
+            fig_macd.add_trace(go.Bar(
+                x=ta_hist.index, y=macd_hist, name="Histogram",
+                marker_color=colors, opacity=0.5
+            ))
+            fig_macd.add_trace(go.Scatter(
+                x=ta_hist.index, y=macd_line, mode="lines",
+                line=dict(color="#6B5CE7", width=2), name="MACD"
+            ))
+            fig_macd.add_trace(go.Scatter(
+                x=ta_hist.index, y=signal_line, mode="lines",
+                line=dict(color="#E8638B", width=1.5), name="Signal"
+            ))
+            fig_macd.update_layout(
+                **_CHART_LAYOUT_BASE, height=300,
+                margin=dict(t=20, b=30, l=50, r=30),
+                yaxis=dict(tickfont=dict(size=10, color="#8A85AD"),
+                          title=dict(text="MACD", font=dict(size=11, color="#8A85AD"))),
+                xaxis=dict(showgrid=False, tickfont=dict(size=10, color="#8A85AD")),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
+                           font=dict(size=9, color="#8A85AD")),
+            )
+            _apply_space_grid(fig_macd)
+            
+            # Signal
+            current_macd = macd_line.iloc[-1]
+            current_signal = signal_line.iloc[-1]
+            macd_verdict = "Bullish" if current_macd > current_signal else "Bearish"
+            mv_color = "#10B981" if current_macd > current_signal else "#EF4444"
+            st.markdown(
+                f'<div style="text-align:center; margin-bottom:0.5rem;">'
+                f'<span style="font-size:0.85rem; font-weight:700; color:{mv_color};">Signal: {macd_verdict}</span>'
+                f'<span style="font-size:0.7rem; color:#8A85AD; margin-left:0.5rem;">'
+                f'MACD: {current_macd:.3f} | Signal: {current_signal:.3f}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            st.plotly_chart(fig_macd, use_container_width=True, key="macd_chart")
+        
+        # Bollinger Bands
+        with ta_tab3:
+            sma_20 = close.rolling(20).mean()
+            std_20 = close.rolling(20).std()
+            upper_band = sma_20 + (std_20 * 2)
+            lower_band = sma_20 - (std_20 * 2)
+            
+            fig_bb = go.Figure()
+            fig_bb.add_trace(go.Scatter(
+                x=ta_hist.index, y=upper_band, mode="lines",
+                line=dict(color="rgba(107,92,231,0.4)", width=1), name="Upper Band",
+            ))
+            fig_bb.add_trace(go.Scatter(
+                x=ta_hist.index, y=lower_band, mode="lines",
+                line=dict(color="rgba(107,92,231,0.4)", width=1), name="Lower Band",
+                fill="tonexty", fillcolor="rgba(107,92,231,0.05)",
+            ))
+            fig_bb.add_trace(go.Scatter(
+                x=ta_hist.index, y=sma_20, mode="lines",
+                line=dict(color="#F59E0B", width=1.5, dash="dash"), name="SMA 20",
+            ))
+            fig_bb.add_trace(go.Scatter(
+                x=ta_hist.index, y=close, mode="lines",
+                line=dict(color="#E0DCF5", width=2), name="Price",
+            ))
+            fig_bb.update_layout(
+                **_CHART_LAYOUT_BASE, height=400,
+                margin=dict(t=20, b=30, l=50, r=30),
+                yaxis=dict(tickfont=dict(size=10, color="#8A85AD"), tickprefix=cs,
+                          title=dict(text=f"Price ({cs})", font=dict(size=11, color="#8A85AD"))),
+                xaxis=dict(showgrid=False, tickfont=dict(size=10, color="#8A85AD")),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
+                           font=dict(size=9, color="#8A85AD")),
+            )
+            _apply_space_grid(fig_bb)
+            
+            # Band position
+            if not sma_20.dropna().empty and not upper_band.dropna().empty and not lower_band.dropna().empty:
+                curr_price = close.iloc[-1]
+                curr_upper = upper_band.dropna().iloc[-1]
+                curr_lower = lower_band.dropna().iloc[-1]
+                band_width = curr_upper - curr_lower
+                band_pct = ((curr_price - curr_lower) / band_width * 100) if band_width > 0 else 50
+                bp_color = "#EF4444" if band_pct > 80 else "#10B981" if band_pct < 20 else "#F59E0B"
+                st.markdown(
+                    f'<div style="text-align:center; margin-bottom:0.5rem;">'
+                    f'<span style="font-size:0.85rem; font-weight:700; color:{bp_color};">'
+                    f'Band Position: {band_pct:.0f}%</span>'
+                    f'<span style="font-size:0.7rem; color:#8A85AD; margin-left:0.5rem;">'
+                    f'(0%=Lower, 100%=Upper)</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            st.plotly_chart(fig_bb, use_container_width=True, key="bb_chart")
+    else:
+        st.info("Insufficient data for technical analysis.")
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # 4c. INSTITUTIONAL & INSIDER SUMMARY
+    # ══════════════════════════════════════════════════════
+    _section("Ownership Overview")
+    
+    own_col1, own_col2 = st.columns(2)
+    
+    with own_col1:
+        # Institutional holders
+        try:
+            tk_own = yf.Ticker(cd.ticker)
+            inst_holders = tk_own.institutional_holders
+            if inst_holders is not None and not inst_holders.empty:
+                st.markdown(
+                    '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; margin-bottom:0.5rem;">'
+                    '🏛️ Top Institutional Holders</div>',
+                    unsafe_allow_html=True,
+                )
+                for _, row in inst_holders.head(8).iterrows():
+                    holder = row.get("Holder", "Unknown")
+                    shares = row.get("Shares", 0)
+                    value = row.get("Value", 0)
+                    pct = row.get("% Out", row.get("pctHeld", 0))
+                    pct_str = f"{pct:.2%}" if isinstance(pct, float) and pct < 1 else f"{pct}"
+                    st.markdown(
+                        f'<div style="display:flex; justify-content:space-between; padding:0.3rem 0; '
+                        f'border-bottom:1px solid rgba(255,255,255,0.04); font-size:0.75rem;">'
+                        f'<span style="color:#E0DCF5; flex:2;">{holder}</span>'
+                        f'<span style="color:#8A85AD; flex:1; text-align:right;">{shares:,.0f}</span>'
+                        f'<span style="color:#6B5CE7; flex:0.5; text-align:right; font-weight:600;">{pct_str}</span>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.info("No institutional holder data available.")
+        except Exception:
+            st.info("Could not fetch institutional holders.")
+    
+    with own_col2:
+        # Major holders summary
+        try:
+            major = tk_own.major_holders
+            if major is not None and not major.empty:
+                st.markdown(
+                    '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; margin-bottom:0.5rem;">'
+                    '📊 Ownership Breakdown</div>',
+                    unsafe_allow_html=True,
+                )
+                for _, row in major.iterrows():
+                    val = row.iloc[0] if len(row) > 0 else ""
+                    label = row.iloc[1] if len(row) > 1 else ""
+                    st.markdown(
+                        f'<div style="display:flex; justify-content:space-between; padding:0.4rem 0; '
+                        f'border-bottom:1px solid rgba(255,255,255,0.04);">'
+                        f'<span style="color:#8A85AD; font-size:0.75rem;">{label}</span>'
+                        f'<span style="color:#E0DCF5; font-weight:700; font-size:0.85rem;">{val}</span>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.info("No major holder data available.")
+        except Exception:
+            st.info("Could not fetch major holders.")
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
     # 5. VALUATION DASHBOARD
     # ══════════════════════════════════════════════════════
     _section("Valuation Dashboard")
@@ -5077,6 +5304,96 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         st.dataframe(cd.earnings_dates.head(8), use_container_width=True)
     else:
         st.info("Earnings data not available.")
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # 10b. OPTIONS OVERVIEW
+    # ══════════════════════════════════════════════════════
+    _section("Options Overview")
+    try:
+        tk_opt = yf.Ticker(cd.ticker)
+        exp_dates = tk_opt.options
+        if exp_dates and len(exp_dates) > 0:
+            # Show nearest expiry options summary
+            nearest_exp = exp_dates[0]
+            opt_chain = tk_opt.option_chain(nearest_exp)
+            
+            opt_col1, opt_col2 = st.columns(2)
+            
+            with opt_col1:
+                calls = opt_chain.calls
+                if not calls.empty:
+                    total_call_vol = calls["volume"].sum() if "volume" in calls.columns else 0
+                    total_call_oi = calls["openInterest"].sum() if "openInterest" in calls.columns else 0
+                    st.markdown(
+                        f'<div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.2); '
+                        f'border-radius:12px; padding:1rem;">'
+                        f'<div style="font-size:0.75rem; font-weight:700; color:#10B981; text-transform:uppercase; '
+                        f'letter-spacing:1px; margin-bottom:0.5rem;">📈 Calls</div>'
+                        f'<div style="display:flex; justify-content:space-between; padding:0.2rem 0;">'
+                        f'<span style="color:#8A85AD; font-size:0.75rem;">Volume</span>'
+                        f'<span style="color:#E0DCF5; font-weight:700;">{total_call_vol:,.0f}</span></div>'
+                        f'<div style="display:flex; justify-content:space-between; padding:0.2rem 0;">'
+                        f'<span style="color:#8A85AD; font-size:0.75rem;">Open Interest</span>'
+                        f'<span style="color:#E0DCF5; font-weight:700;">{total_call_oi:,.0f}</span></div>'
+                        f'<div style="display:flex; justify-content:space-between; padding:0.2rem 0;">'
+                        f'<span style="color:#8A85AD; font-size:0.75rem;">Contracts</span>'
+                        f'<span style="color:#E0DCF5; font-weight:700;">{len(calls)}</span></div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+            
+            with opt_col2:
+                puts = opt_chain.puts
+                if not puts.empty:
+                    total_put_vol = puts["volume"].sum() if "volume" in puts.columns else 0
+                    total_put_oi = puts["openInterest"].sum() if "openInterest" in puts.columns else 0
+                    st.markdown(
+                        f'<div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); '
+                        f'border-radius:12px; padding:1rem;">'
+                        f'<div style="font-size:0.75rem; font-weight:700; color:#EF4444; text-transform:uppercase; '
+                        f'letter-spacing:1px; margin-bottom:0.5rem;">📉 Puts</div>'
+                        f'<div style="display:flex; justify-content:space-between; padding:0.2rem 0;">'
+                        f'<span style="color:#8A85AD; font-size:0.75rem;">Volume</span>'
+                        f'<span style="color:#E0DCF5; font-weight:700;">{total_put_vol:,.0f}</span></div>'
+                        f'<div style="display:flex; justify-content:space-between; padding:0.2rem 0;">'
+                        f'<span style="color:#8A85AD; font-size:0.75rem;">Open Interest</span>'
+                        f'<span style="color:#E0DCF5; font-weight:700;">{total_put_oi:,.0f}</span></div>'
+                        f'<div style="display:flex; justify-content:space-between; padding:0.2rem 0;">'
+                        f'<span style="color:#8A85AD; font-size:0.75rem;">Contracts</span>'
+                        f'<span style="color:#E0DCF5; font-weight:700;">{len(puts)}</span></div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+            
+            # Put/Call Ratio
+            if total_call_vol and total_call_vol > 0:
+                pcr = total_put_vol / total_call_vol
+                pcr_color = "#EF4444" if pcr > 1.2 else "#10B981" if pcr < 0.7 else "#F59E0B"
+                pcr_label = "Bearish Sentiment" if pcr > 1.2 else "Bullish Sentiment" if pcr < 0.7 else "Neutral"
+                st.markdown(
+                    f'<div style="text-align:center; margin-top:0.8rem; padding:0.6rem; '
+                    f'background:rgba(107,92,231,0.05); border-radius:10px;">'
+                    f'<span style="font-size:0.7rem; color:#8A85AD; font-weight:600;">PUT/CALL RATIO</span><br>'
+                    f'<span style="font-size:1.5rem; font-weight:800; color:{pcr_color};">{pcr:.2f}</span>'
+                    f'<span style="font-size:0.75rem; color:{pcr_color}; margin-left:0.5rem;">{pcr_label}</span>'
+                    f'<div style="font-size:0.6rem; color:#8A85AD; margin-top:0.2rem;">Expiry: {nearest_exp}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            
+            # Available expiration dates
+            st.markdown(
+                f'<div style="font-size:0.7rem; color:#8A85AD; margin-top:0.5rem; text-align:center;">'
+                f'{len(exp_dates)} expiration dates available: {", ".join(exp_dates[:6])}'
+                f'{"..." if len(exp_dates) > 6 else ""}</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.info("Options data not available for this ticker.")
+    except Exception:
+        st.info("Options data not available for this ticker.")
 
     _divider()
 
