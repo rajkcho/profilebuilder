@@ -4345,12 +4345,15 @@ with st.sidebar:
         'letter-spacing:1.5px; margin-bottom:0.3rem;">Analysis Mode</div>',
         unsafe_allow_html=True,
     )
-    analysis_mode = st.radio(
+    _mode_options = ["📊 Company Profile", "📈 Comps Analysis", "💹 DCF Valuation", "⚖️ Quick Compare", "🤝 Merger Analysis"]
+    _mode_selection = st.radio(
         "Mode", 
-        ["Company Profile", "Comps Analysis", "DCF Valuation", "Quick Compare", "Merger Analysis"], 
+        _mode_options, 
         horizontal=False, 
         label_visibility="collapsed"
     )
+    # Strip emoji prefix for internal use
+    analysis_mode = _mode_selection.split(" ", 1)[1] if " " in _mode_selection else _mode_selection
 
     st.markdown('<div style="height:0.8rem;"></div>', unsafe_allow_html=True)
     
@@ -4669,14 +4672,22 @@ with st.sidebar:
         st.markdown('<div style="height:0.8rem;"></div>', unsafe_allow_html=True)
         merger_btn = st.button("🚀 Analyze Deal", type="primary", use_container_width=True)
 
-    # Footer
+    # Sidebar Footer
     st.markdown('<div class="sb-divider" style="margin-top:1.5rem;"></div>', unsafe_allow_html=True)
     st.markdown(
-        '<div style="text-align:center; padding: 0.3rem 0;">'
-        '<div style="font-size:0.6rem; color:#4B5563; letter-spacing:0.5px; line-height:1.9;">'
+        '<div style="text-align:center; padding: 0.5rem 0;">'
+        '<div style="font-size:0.55rem; font-weight:800; background:linear-gradient(135deg, #6B5CE7, #E8638B); '
+        '-webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:2px; margin-bottom:0.3rem;">'
+        'ORBITAL v3.5</div>'
+        '<div style="font-size:0.55rem; color:#4B5563; letter-spacing:0.5px; line-height:1.8;">'
         'DATA: YAHOO FINANCE • CHARTS: PLOTLY<br>'
         'AI: OPENAI (OPT.) • LOGOS: CLEARBIT'
-        '</div></div>',
+        '</div>'
+        '<div style="margin-top:0.4rem;">'
+        '<a href="https://github.com/rajkcho/profilebuilder" target="_blank" '
+        'style="font-size:0.55rem; color:#6B5CE7; text-decoration:none; font-weight:600;">GitHub ↗</a>'
+        '</div>'
+        '</div>',
         unsafe_allow_html=True,
     )
 
