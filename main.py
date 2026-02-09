@@ -5398,6 +5398,228 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     _divider()
 
     # ══════════════════════════════════════════════════════
+    # 10c. DIVIDEND ANALYSIS
+    # ══════════════════════════════════════════════════════
+    if cd.dividend_yield and cd.dividend_yield > 0:
+        _section("Dividend Analysis")
+        
+        div_col1, div_col2, div_col3, div_col4 = st.columns(4)
+        
+        with div_col1:
+            dy = cd.dividend_yield * 100 if cd.dividend_yield < 1 else cd.dividend_yield
+            dy_color = "#10B981" if dy > 3 else "#F59E0B" if dy > 1 else "#8A85AD"
+            st.markdown(
+                f'<div style="text-align:center; padding:0.8rem; background:rgba(107,92,231,0.05); '
+                f'border-radius:12px; border:1px solid rgba(107,92,231,0.1);">'
+                f'<div style="font-size:0.65rem; color:#8A85AD; font-weight:600; text-transform:uppercase;">Dividend Yield</div>'
+                f'<div style="font-size:1.4rem; font-weight:800; color:{dy_color};">{dy:.2f}%</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        
+        with div_col2:
+            try:
+                tk_div = yf.Ticker(cd.ticker)
+                info_div = tk_div.info or {}
+                payout = info_div.get("payoutRatio", 0)
+                payout_pct = payout * 100 if payout and payout < 5 else payout or 0
+                po_color = "#EF4444" if payout_pct > 80 else "#10B981" if payout_pct < 60 else "#F59E0B"
+                st.markdown(
+                    f'<div style="text-align:center; padding:0.8rem; background:rgba(107,92,231,0.05); '
+                    f'border-radius:12px; border:1px solid rgba(107,92,231,0.1);">'
+                    f'<div style="font-size:0.65rem; color:#8A85AD; font-weight:600; text-transform:uppercase;">Payout Ratio</div>'
+                    f'<div style="font-size:1.4rem; font-weight:800; color:{po_color};">{payout_pct:.0f}%</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            except Exception:
+                st.markdown(
+                    '<div style="text-align:center; padding:0.8rem; background:rgba(107,92,231,0.05); '
+                    'border-radius:12px;"><div style="color:#8A85AD;">Payout N/A</div></div>',
+                    unsafe_allow_html=True,
+                )
+        
+        with div_col3:
+            try:
+                fwd_div = info_div.get("dividendRate", 0) or 0
+                st.markdown(
+                    f'<div style="text-align:center; padding:0.8rem; background:rgba(107,92,231,0.05); '
+                    f'border-radius:12px; border:1px solid rgba(107,92,231,0.1);">'
+                    f'<div style="font-size:0.65rem; color:#8A85AD; font-weight:600; text-transform:uppercase;">Annual Dividend</div>'
+                    f'<div style="font-size:1.4rem; font-weight:800; color:#E0DCF5;">{cs}{fwd_div:.2f}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            except Exception:
+                pass
+        
+        with div_col4:
+            try:
+                ex_date = info_div.get("exDividendDate")
+                if ex_date:
+                    from datetime import date as date_type
+                    ex_dt = datetime.fromtimestamp(ex_date) if isinstance(ex_date, (int, float)) else ex_date
+                    ex_str = ex_dt.strftime("%b %d, %Y") if hasattr(ex_dt, 'strftime') else str(ex_dt)
+                else:
+                    ex_str = "N/A"
+                st.markdown(
+                    f'<div style="text-align:center; padding:0.8rem; background:rgba(107,92,231,0.05); '
+                    f'border-radius:12px; border:1px solid rgba(107,92,231,0.1);">'
+                    f'<div style="font-size:0.65rem; color:#8A85AD; font-weight:600; text-transform:uppercase;">Ex-Dividend Date</div>'
+                    f'<div style="font-size:0.95rem; font-weight:700; color:#E0DCF5; margin-top:0.2rem;">{ex_str}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            except Exception:
+                pass
+        
+        # Dividend history chart
+        try:
+            divs = tk_div.dividends
+            if divs is not None and not divs.empty:
+                # Last 5 years
+                divs_recent = divs.last("5Y") if hasattr(divs, "last") else divs.tail(20)
+                if len(divs_recent) > 2:
+                    fig_div = go.Figure()
+                    fig_div.add_trace(go.Bar(
+                        x=divs_recent.index, y=divs_recent.values,
+                        marker_color="rgba(107,92,231,0.6)",
+                        name="Dividend",
+                    ))
+                    fig_div.update_layout(
+                        **_CHART_LAYOUT_BASE, height=250,
+                        margin=dict(t=20, b=30, l=50, r=30),
+                        yaxis=dict(tickprefix=cs, tickfont=dict(size=10, color="#8A85AD"),
+                                  title=dict(text="Dividend/Share", font=dict(size=11, color="#8A85AD"))),
+                        xaxis=dict(showgrid=False, tickfont=dict(size=10, color="#8A85AD")),
+                        showlegend=False,
+                    )
+                    _apply_space_grid(fig_div)
+                    st.plotly_chart(fig_div, use_container_width=True, key="dividend_history_chart")
+        except Exception:
+            pass
+        
+        _divider()
+
+    # ══════════════════════════════════════════════════════
+    # 10d. FINANCIAL HEALTH SCORECARD
+    # ══════════════════════════════════════════════════════
+    _section("Financial Health Scorecard")
+    
+    # Calculate a simplified Piotroski-inspired score
+    score_items = []
+    total_score = 0
+    
+    # 1. Profitability: Net Income > 0
+    if cd.net_income and cd.net_income > 0:
+        score_items.append(("Net Income Positive", True, "Profitability"))
+        total_score += 1
+    else:
+        score_items.append(("Net Income Positive", False, "Profitability"))
+    
+    # 2. ROA > 0
+    if cd.roa and cd.roa > 0:
+        score_items.append(("ROA Positive", True, "Profitability"))
+        total_score += 1
+    else:
+        score_items.append(("ROA Positive", False, "Profitability"))
+    
+    # 3. Operating Cash Flow > 0
+    if cd.operating_cash_flow and cd.operating_cash_flow > 0:
+        score_items.append(("Operating Cash Flow Positive", True, "Profitability"))
+        total_score += 1
+    else:
+        score_items.append(("Operating Cash Flow Positive", False, "Profitability"))
+    
+    # 4. Cash Flow > Net Income (quality of earnings)
+    if cd.operating_cash_flow and cd.net_income and cd.operating_cash_flow > cd.net_income:
+        score_items.append(("Cash Flow > Net Income", True, "Profitability"))
+        total_score += 1
+    else:
+        score_items.append(("Cash Flow > Net Income", False, "Profitability"))
+    
+    # 5. Current Ratio > 1
+    if cd.current_ratio and cd.current_ratio > 1:
+        score_items.append(("Current Ratio > 1", True, "Leverage"))
+        total_score += 1
+    else:
+        score_items.append(("Current Ratio > 1", False, "Leverage"))
+    
+    # 6. Gross Margin Positive
+    if cd.gross_margin and cd.gross_margin > 0:
+        score_items.append(("Gross Margin Positive", True, "Efficiency"))
+        total_score += 1
+    else:
+        score_items.append(("Gross Margin Positive", False, "Efficiency"))
+    
+    # 7. Revenue Growth
+    if cd.revenue_growth and cd.revenue_growth > 0:
+        score_items.append(("Revenue Growing", True, "Efficiency"))
+        total_score += 1
+    else:
+        score_items.append(("Revenue Growing", False, "Efficiency"))
+    
+    # 8. Positive Free Cash Flow
+    if cd.free_cash_flow and cd.free_cash_flow > 0:
+        score_items.append(("Free Cash Flow Positive", True, "Profitability"))
+        total_score += 1
+    else:
+        score_items.append(("Free Cash Flow Positive", False, "Profitability"))
+    
+    max_score = len(score_items) if score_items else 8
+    score_pct = (total_score / max_score * 100) if max_score > 0 else 0
+    
+    if score_pct >= 75:
+        grade = "A"
+        grade_color = "#10B981"
+        grade_label = "Strong"
+    elif score_pct >= 50:
+        grade = "B"
+        grade_color = "#34D399"
+        grade_label = "Good"
+    elif score_pct >= 25:
+        grade = "C"
+        grade_color = "#F59E0B"
+        grade_label = "Fair"
+    else:
+        grade = "D"
+        grade_color = "#EF4444"
+        grade_label = "Weak"
+    
+    # Score display
+    sc_col1, sc_col2 = st.columns([1, 2])
+    
+    with sc_col1:
+        st.markdown(
+            f'<div style="text-align:center; padding:1.5rem; background:rgba(107,92,231,0.05); '
+            f'border-radius:16px; border:1px solid rgba(107,92,231,0.15);">'
+            f'<div style="font-size:3rem; font-weight:900; color:{grade_color};">{grade}</div>'
+            f'<div style="font-size:0.85rem; font-weight:700; color:{grade_color};">{grade_label}</div>'
+            f'<div style="font-size:0.7rem; color:#8A85AD; margin-top:0.3rem;">{total_score}/{max_score} criteria met</div>'
+            f'<div style="margin-top:0.8rem; background:rgba(255,255,255,0.05); border-radius:8px; '
+            f'height:8px; overflow:hidden;">'
+            f'<div style="width:{score_pct}%; height:100%; background:{grade_color}; border-radius:8px;"></div>'
+            f'</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    
+    with sc_col2:
+        for item_name, passed, category in score_items:
+            icon = "✅" if passed else "❌"
+            st.markdown(
+                f'<div style="display:flex; align-items:center; gap:0.5rem; padding:0.25rem 0; '
+                f'border-bottom:1px solid rgba(255,255,255,0.03);">'
+                f'<span style="font-size:0.8rem;">{icon}</span>'
+                f'<span style="color:#E0DCF5; font-size:0.78rem; flex:1;">{item_name}</span>'
+                f'<span style="color:#8A85AD; font-size:0.65rem; font-weight:600;">{category}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+    
+    _divider()
+
+    # ══════════════════════════════════════════════════════
     # 11. M&A HISTORY
     # ══════════════════════════════════════════════════════
     _section("M&A History")
@@ -7075,6 +7297,63 @@ elif analysis_mode == "Quick Compare" and compare_btn and compare_tickers:
         )
         
         st.plotly_chart(fig3, use_container_width=True, key="val_comparison")
+        
+        _divider()
+        
+        # Correlation Matrix
+        if len(companies) >= 3:
+            _section("Price Correlation Matrix", "🔗")
+            
+            st.markdown(
+                '<div style="font-size:0.75rem; color:#8A85AD; margin-bottom:0.5rem;">'
+                'Shows how closely stock prices move together (1Y daily returns)</div>',
+                unsafe_allow_html=True,
+            )
+            
+            try:
+                corr_data = {}
+                for c in companies:
+                    try:
+                        tk_c = yf.Ticker(c.ticker)
+                        h = tk_c.history(period="1y")
+                        if not h.empty:
+                            corr_data[c.ticker] = h["Close"].pct_change().dropna()
+                    except Exception:
+                        pass
+                
+                if len(corr_data) >= 3:
+                    corr_df = pd.DataFrame(corr_data)
+                    corr_matrix = corr_df.corr()
+                    
+                    fig_corr = go.Figure(data=go.Heatmap(
+                        z=corr_matrix.values,
+                        x=corr_matrix.columns,
+                        y=corr_matrix.index,
+                        colorscale=[
+                            [0, "#EF4444"],
+                            [0.5, "#1a1625"],
+                            [1, "#10B981"]
+                        ],
+                        zmin=-1, zmax=1,
+                        text=np.round(corr_matrix.values, 2),
+                        texttemplate="%{text}",
+                        textfont=dict(size=12, color="#E0DCF5"),
+                        hovertemplate="%{x} vs %{y}: %{z:.3f}<extra></extra>",
+                    ))
+                    
+                    fig_corr.update_layout(
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        font=dict(family="Inter", color="#B8B3D7"),
+                        height=400,
+                        margin=dict(t=20, b=40, l=60, r=30),
+                        xaxis=dict(tickfont=dict(size=11, color="#8A85AD")),
+                        yaxis=dict(tickfont=dict(size=11, color="#8A85AD")),
+                    )
+                    
+                    st.plotly_chart(fig_corr, use_container_width=True, key="corr_matrix")
+            except Exception:
+                st.info("Could not generate correlation matrix.")
 
 else:
     # ══════════════════════════════════════════════════════
