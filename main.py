@@ -4793,7 +4793,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     glance_signals = []
     
     # Analyst rating
-    rec = cd.analyst_recommendation
+    rec = getattr(cd, 'analyst_recommendation', None) or getattr(cd, 'recommendation_key', None)
     rec_str = rec.replace("_", " ").title() if rec else "N/A"
     rec_color = "#10B981" if rec and "buy" in rec.lower() else "#EF4444" if rec and "sell" in rec.lower() else "#F59E0B"
     
