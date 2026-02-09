@@ -6608,6 +6608,47 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             mime="text/csv",
             use_container_width=True,
         )
+        
+        # JSON Export
+        try:
+            json_export = {
+                "ticker": cd.ticker,
+                "name": cd.name,
+                "sector": cd.sector,
+                "industry": cd.industry,
+                "market_cap": cd.market_cap,
+                "enterprise_value": cd.enterprise_value,
+                "current_price": cd.current_price,
+                "currency": cd.currency_code,
+                "trailing_pe": cd.trailing_pe,
+                "forward_pe": cd.forward_pe,
+                "ev_to_ebitda": cd.ev_to_ebitda,
+                "ev_to_revenue": cd.ev_to_revenue,
+                "price_to_book": cd.price_to_book,
+                "gross_margins": cd.gross_margins,
+                "operating_margins": cd.operating_margins,
+                "profit_margins": cd.profit_margins,
+                "return_on_equity": cd.return_on_equity,
+                "return_on_assets": getattr(cd, 'return_on_assets', None),
+                "revenue_growth": cd.revenue_growth,
+                "dividend_yield": cd.dividend_yield,
+                "beta": cd.beta,
+                "52w_high": cd.fifty_two_week_high,
+                "52w_low": cd.fifty_two_week_low,
+                "analyst_price_targets": cd.analyst_price_targets,
+                "employees": cd.full_time_employees,
+                "export_date": datetime.now().isoformat(),
+            }
+            json_str = json.dumps(json_export, indent=2, default=str)
+            st.download_button(
+                label=f"🔗 Export as JSON (API-Ready)",
+                data=json_str,
+                file_name=f"{cd.ticker}_data.json",
+                mime="application/json",
+                use_container_width=True,
+            )
+        except Exception:
+            pass
     
     # Add to Watchlist
     _divider()
@@ -7639,6 +7680,36 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         f'<div style="font-size:1.1rem; font-weight:700; color:#E0DCF5;">{format_number(pro_forma.goodwill, currency_symbol=acq_cs)}</div></div>'
         f'</div>'
     )
+
+    # Debt Paydown Visualization
+    try:
+        if pro_forma.cash_consideration and pro_forma.pf_ebitda and pro_forma.pf_ebitda > 0:
+            new_debt = pro_forma.cash_consideration
+            annual_fcf = pro_forma.pf_ebitda * 0.4  # Assume 40% of EBITDA available for debt paydown
+            
+            if annual_fcf > 0:
+                years_data = []
+                remaining = new_debt
+                for yr in range(1, 11):
+                    remaining = max(0, remaining - annual_fcf)
+                    years_data.append({"year": yr, "remaining": remaining})
+                    if remaining == 0:
+                        break
+                
+                payoff_years = next((d["year"] for d in years_data if d["remaining"] == 0), 10)
+                py_color = "#10B981" if payoff_years <= 4 else "#F59E0B" if payoff_years <= 7 else "#EF4444"
+                
+                st.markdown(
+                    f'<div style="text-align:center; padding:0.5rem; margin-top:0.5rem;">'
+                    f'<span style="font-size:0.75rem; color:#8A85AD;">Est. Debt Paydown: </span>'
+                    f'<span style="font-size:1.1rem; font-weight:800; color:{py_color};">'
+                    f'~{payoff_years} years</span>'
+                    f'<span style="font-size:0.65rem; color:#8A85AD;"> (assuming 40% EBITDA allocation)</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+    except Exception:
+        pass
 
     _divider()
 
