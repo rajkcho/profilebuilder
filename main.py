@@ -5695,6 +5695,109 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     _divider()
 
     # ══════════════════════════════════════════════════════
+    # 10e. RISK METRICS
+    # ══════════════════════════════════════════════════════
+    _section("Risk Metrics")
+    
+    risk_col1, risk_col2, risk_col3, risk_col4 = st.columns(4)
+    
+    with risk_col1:
+        beta_val = cd.beta or 0
+        beta_color = "#EF4444" if beta_val > 1.5 else "#F59E0B" if beta_val > 1 else "#10B981"
+        beta_label = "High" if beta_val > 1.5 else "Moderate" if beta_val > 1 else "Low"
+        st.markdown(
+            f'<div style="text-align:center; padding:0.8rem; background:rgba(107,92,231,0.05); '
+            f'border-radius:12px; border:1px solid rgba(107,92,231,0.1);">'
+            f'<div style="font-size:0.65rem; color:#8A85AD; font-weight:600; text-transform:uppercase;">Beta</div>'
+            f'<div style="font-size:1.4rem; font-weight:800; color:{beta_color};">{beta_val:.2f}</div>'
+            f'<div style="font-size:0.6rem; color:{beta_color};">{beta_label} Volatility</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    
+    # Calculate Sharpe, Max Drawdown, Volatility from 1Y data
+    try:
+        risk_hist = cd.hist_1y if cd.hist_1y is not None and not cd.hist_1y.empty else None
+        if risk_hist is not None and len(risk_hist) > 20:
+            returns = risk_hist["Close"].pct_change().dropna()
+            
+            # Annualized volatility
+            ann_vol = returns.std() * np.sqrt(252) * 100
+            vol_color = "#EF4444" if ann_vol > 40 else "#F59E0B" if ann_vol > 25 else "#10B981"
+            
+            with risk_col2:
+                st.markdown(
+                    f'<div style="text-align:center; padding:0.8rem; background:rgba(107,92,231,0.05); '
+                    f'border-radius:12px; border:1px solid rgba(107,92,231,0.1);">'
+                    f'<div style="font-size:0.65rem; color:#8A85AD; font-weight:600; text-transform:uppercase;">Volatility (1Y)</div>'
+                    f'<div style="font-size:1.4rem; font-weight:800; color:{vol_color};">{ann_vol:.1f}%</div>'
+                    f'<div style="font-size:0.6rem; color:#8A85AD;">Annualized</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            
+            # Sharpe ratio (assume 5% risk-free rate)
+            ann_return = returns.mean() * 252 * 100
+            sharpe = (ann_return - 5) / ann_vol if ann_vol > 0 else 0
+            sharpe_color = "#10B981" if sharpe > 1 else "#F59E0B" if sharpe > 0.5 else "#EF4444"
+            
+            with risk_col3:
+                st.markdown(
+                    f'<div style="text-align:center; padding:0.8rem; background:rgba(107,92,231,0.05); '
+                    f'border-radius:12px; border:1px solid rgba(107,92,231,0.1);">'
+                    f'<div style="font-size:0.65rem; color:#8A85AD; font-weight:600; text-transform:uppercase;">Sharpe Ratio</div>'
+                    f'<div style="font-size:1.4rem; font-weight:800; color:{sharpe_color};">{sharpe:.2f}</div>'
+                    f'<div style="font-size:0.6rem; color:#8A85AD;">Rf=5%</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            
+            # Max Drawdown
+            cum_returns = (1 + returns).cumprod()
+            running_max = cum_returns.cummax()
+            drawdown = (cum_returns / running_max - 1) * 100
+            max_dd = drawdown.min()
+            dd_color = "#EF4444" if max_dd < -30 else "#F59E0B" if max_dd < -15 else "#10B981"
+            
+            with risk_col4:
+                st.markdown(
+                    f'<div style="text-align:center; padding:0.8rem; background:rgba(107,92,231,0.05); '
+                    f'border-radius:12px; border:1px solid rgba(107,92,231,0.1);">'
+                    f'<div style="font-size:0.65rem; color:#8A85AD; font-weight:600; text-transform:uppercase;">Max Drawdown</div>'
+                    f'<div style="font-size:1.4rem; font-weight:800; color:{dd_color};">{max_dd:.1f}%</div>'
+                    f'<div style="font-size:0.6rem; color:#8A85AD;">1Y Period</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            
+            # Drawdown chart
+            fig_dd = go.Figure()
+            fig_dd.add_trace(go.Scatter(
+                x=drawdown.index, y=drawdown.values,
+                mode="lines", fill="tozeroy",
+                line=dict(color="#EF4444", width=1.5),
+                fillcolor="rgba(239,68,68,0.1)",
+                name="Drawdown",
+            ))
+            fig_dd.update_layout(
+                **_CHART_LAYOUT_BASE, height=200,
+                margin=dict(t=10, b=25, l=50, r=30),
+                yaxis=dict(ticksuffix="%", tickfont=dict(size=9, color="#8A85AD"),
+                          title=dict(text="Drawdown", font=dict(size=10, color="#8A85AD"))),
+                xaxis=dict(showgrid=False, tickfont=dict(size=9, color="#8A85AD")),
+                showlegend=False,
+            )
+            _apply_space_grid(fig_dd)
+            st.plotly_chart(fig_dd, use_container_width=True, key="drawdown_chart")
+        else:
+            with risk_col2:
+                st.info("Insufficient data")
+    except Exception:
+        pass
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
     # 11. M&A HISTORY
     # ══════════════════════════════════════════════════════
     _section("M&A History")
