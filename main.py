@@ -291,6 +291,172 @@ def _build_dcf_chart(dcf_result: dict, currency_symbol: str = "$", key: str = "d
     
     st.plotly_chart(fig, use_container_width=True, key=key)
 
+def _build_dcf_sensitivity(cd, base_dcf: dict, key: str = "dcf_sensitivity"):
+    """Build a sensitivity analysis table for DCF valuation."""
+    if "error" in base_dcf:
+        return
+    
+    # Growth rate sensitivities (columns)
+    growth_rates = [0.03, 0.05, 0.08, 0.10, 0.12]
+    # Discount rate sensitivities (rows)
+    discount_rates = [0.08, 0.09, 0.10, 0.11, 0.12]
+    
+    sensitivity_data = []
+    for dr in discount_rates:
+        row = {"WACC": f"{dr*100:.0f}%"}
+        for gr in growth_rates:
+            result = _calculate_dcf(
+                cd,
+                growth_rate=gr,
+                terminal_growth=base_dcf["terminal_growth"],
+                discount_rate=dr,
+                projection_years=base_dcf["projection_years"]
+            )
+            if "error" not in result:
+                row[f"{gr*100:.0f}% Growth"] = f"${result['implied_share_price']:,.2f}"
+            else:
+                row[f"{gr*100:.0f}% Growth"] = "N/A"
+        sensitivity_data.append(row)
+    
+    sens_df = pd.DataFrame(sensitivity_data)
+    sens_df = sens_df.set_index("WACC")
+    
+    # Style the dataframe - highlight cells above/below current price
+    current_price = base_dcf["current_price"]
+    
+    def color_cells(val):
+        if val == "N/A":
+            return "background-color: rgba(138,133,173,0.1)"
+        try:
+            price = float(val.replace("$", "").replace(",", ""))
+            if price > current_price * 1.1:
+                return "background-color: rgba(16,185,129,0.2); color: #10B981"
+            elif price < current_price * 0.9:
+                return "background-color: rgba(239,68,68,0.2); color: #EF4444"
+            else:
+                return "background-color: rgba(245,166,35,0.15); color: #F5A623"
+        except:
+            return ""
+    
+    styled_df = sens_df.style.applymap(color_cells)
+    
+    st.dataframe(styled_df, use_container_width=True, height=250)
+    
+    st.markdown(
+        '<div style="font-size:0.7rem; color:#8A85AD; margin-top:0.5rem;">'
+        '🟢 Green: >10% upside | 🟡 Yellow: ±10% of current | 🔴 Red: >10% downside'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+def _build_terminal_value_sensitivity(cd, base_dcf: dict, key: str = "tv_sensitivity"):
+    """Build terminal growth vs WACC sensitivity chart."""
+    if "error" in base_dcf:
+        return
+    
+    terminal_rates = [0.015, 0.020, 0.025, 0.030, 0.035]
+    discount_rates = [0.08, 0.10, 0.12]
+    
+    fig = go.Figure()
+    colors = ["#6B5CE7", "#E8638B", "#10B981"]
+    
+    for i, dr in enumerate(discount_rates):
+        prices = []
+        for tr in terminal_rates:
+            result = _calculate_dcf(
+                cd,
+                growth_rate=base_dcf["growth_rate"],
+                terminal_growth=tr,
+                discount_rate=dr,
+                projection_years=base_dcf["projection_years"]
+            )
+            if "error" not in result:
+                prices.append(result["implied_share_price"])
+            else:
+                prices.append(0)
+        
+        fig.add_trace(go.Scatter(
+            x=[f"{r*100:.1f}%" for r in terminal_rates],
+            y=prices,
+            mode="lines+markers",
+            name=f"WACC {dr*100:.0f}%",
+            line=dict(color=colors[i], width=3),
+            marker=dict(size=8),
+        ))
+    
+    # Add current price reference line
+    fig.add_hline(
+        y=base_dcf["current_price"],
+        line_dash="dash",
+        line_color="rgba(255,255,255,0.3)",
+        annotation_text=f"Current: ${base_dcf['current_price']:,.2f}",
+        annotation_position="right",
+    )
+    
+    fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Inter", size=14, color="#B8B3D7"),
+        height=350,
+        margin=dict(t=40, b=40, l=60, r=80),
+        xaxis=dict(title="Terminal Growth Rate", tickfont=dict(size=10, color="#8A85AD")),
+        yaxis=dict(title="Implied Share Price", tickfont=dict(size=9, color="#8A85AD"), 
+                  gridcolor="rgba(107,92,231,0.1)", griddash="dot", tickprefix="$"),
+        legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
+    )
+    
+    st.plotly_chart(fig, use_container_width=True, key=key)
+
+# ══════════════════════════════════════════════════════════════
+# STOCK PRICE PERFORMANCE CHART
+# ══════════════════════════════════════════════════════════════
+def _build_price_performance_chart(tickers: list, period: str = "1y", key: str = "price_perf"):
+    """Build a normalized price performance chart for multiple tickers."""
+    if not tickers:
+        return
+    
+    fig = go.Figure()
+    colors = ["#6B5CE7", "#E8638B", "#10B981", "#F5A623", "#3B82F6", 
+              "#8B5CF6", "#EC4899", "#14B8A6", "#F59E0B", "#6366F1"]
+    
+    for i, ticker in enumerate(tickers[:10]):
+        try:
+            tk = yf.Ticker(ticker)
+            hist = tk.history(period=period)
+            if hist.empty:
+                continue
+            
+            # Normalize to 100 at start
+            normalized = (hist["Close"] / hist["Close"].iloc[0]) * 100
+            
+            fig.add_trace(go.Scatter(
+                x=hist.index,
+                y=normalized,
+                mode="lines",
+                name=ticker,
+                line=dict(color=colors[i % len(colors)], width=2),
+            ))
+        except Exception:
+            continue
+    
+    # Add 100 reference line
+    fig.add_hline(y=100, line_dash="dot", line_color="rgba(255,255,255,0.2)")
+    
+    fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Inter", size=14, color="#B8B3D7"),
+        height=400,
+        margin=dict(t=40, b=40, l=60, r=60),
+        xaxis=dict(tickfont=dict(size=9, color="#8A85AD"), showgrid=False),
+        yaxis=dict(title="Indexed (100 = Start)", tickfont=dict(size=9, color="#8A85AD"), 
+                  gridcolor="rgba(107,92,231,0.1)", griddash="dot"),
+        legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
+        hovermode="x unified",
+    )
+    
+    st.plotly_chart(fig, use_container_width=True, key=key)
+
 # ══════════════════════════════════════════════════════════════
 # QUICK COMPARE - Side-by-side company comparison
 # ══════════════════════════════════════════════════════════════
@@ -5602,6 +5768,42 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
             f'</div>',
             unsafe_allow_html=True,
         )
+        
+        _divider()
+        
+        # Sensitivity Analysis
+        _section("Sensitivity Analysis", "📐")
+        st.markdown(
+            '<div style="font-size:0.85rem; color:#B8B3D7; margin-bottom:1rem;">'
+            'How does the implied share price change with different growth and discount rate assumptions?'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        
+        sens_col1, sens_col2 = st.columns(2)
+        
+        with sens_col1:
+            st.markdown("**Growth Rate vs. WACC Matrix**")
+            _build_dcf_sensitivity(dcf_cd, dcf_result, key="dcf_sens_matrix")
+        
+        with sens_col2:
+            st.markdown("**Terminal Growth Impact**")
+            _build_terminal_value_sensitivity(dcf_cd, dcf_result, key="dcf_tv_sens")
+        
+        _divider()
+        
+        # DCF Disclaimer
+        st.markdown(
+            '<div style="background:rgba(245,166,35,0.1); border:1px solid rgba(245,166,35,0.3); '
+            'border-radius:12px; padding:1rem; margin-top:1rem;">'
+            '<div style="font-size:0.75rem; font-weight:700; color:#F5A623; margin-bottom:0.3rem;">⚠️ DCF Disclaimer</div>'
+            '<div style="font-size:0.8rem; color:#B8B3D7; line-height:1.6;">'
+            'This DCF model uses simplified assumptions and historical data. Actual valuations depend on many factors '
+            'including future growth trajectories, capital structure changes, and market conditions. '
+            'This tool is for educational and research purposes only — not investment advice.'
+            '</div></div>',
+            unsafe_allow_html=True,
+        )
 
 # ══════════════════════════════════════════════════════════════
 # QUICK COMPARE MODE
@@ -5732,6 +5934,67 @@ elif analysis_mode == "Quick Compare" and compare_btn and compare_tickers:
         )
         
         st.plotly_chart(fig2, use_container_width=True, key="prof_comparison")
+        
+        _divider()
+        
+        # Price Performance
+        _section("Price Performance (1 Year)", "📉")
+        
+        perf_period = st.selectbox(
+            "Select Period",
+            ["1mo", "3mo", "6mo", "1y", "2y", "5y"],
+            index=3,
+            label_visibility="collapsed",
+            key="perf_period"
+        )
+        
+        _build_price_performance_chart([c.ticker for c in companies], period=perf_period, key="price_perf_chart")
+        
+        _divider()
+        
+        # Valuation Multiples Comparison
+        _section("Valuation Multiples", "💹")
+        
+        val_metrics = ["P/E", "EV/EBITDA", "EV/Revenue", "P/B"]
+        val_data = []
+        for c in companies:
+            val_data.append({
+                "Company": c.ticker,
+                "P/E": c.trailing_pe if c.trailing_pe and c.trailing_pe > 0 else 0,
+                "EV/EBITDA": c.ev_to_ebitda if c.ev_to_ebitda and c.ev_to_ebitda > 0 else 0,
+                "EV/Revenue": c.ev_to_revenue if c.ev_to_revenue and c.ev_to_revenue > 0 else 0,
+                "P/B": c.price_to_book if c.price_to_book and c.price_to_book > 0 else 0,
+            })
+        
+        val_df = pd.DataFrame(val_data)
+        
+        fig3 = go.Figure()
+        colors_val = ["#6B5CE7", "#E8638B", "#10B981", "#F5A623"]
+        for i, metric in enumerate(val_metrics):
+            fig3.add_trace(go.Bar(
+                x=val_df["Company"],
+                y=val_df[metric],
+                name=metric,
+                marker=dict(color=colors_val[i], line=dict(color="rgba(255,255,255,0.15)", width=1)),
+                text=[f"{v:.1f}x" if v > 0 else "N/A" for v in val_df[metric]],
+                textposition="outside",
+                textfont=dict(size=9, color="#B8B3D7"),
+            ))
+        
+        fig3.update_layout(
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(family="Inter", size=14, color="#B8B3D7"),
+            height=400,
+            margin=dict(t=40, b=40, l=60, r=60),
+            xaxis=dict(tickfont=dict(size=11, color="#8A85AD"), showgrid=False),
+            yaxis=dict(tickfont=dict(size=9, color="#8A85AD"), gridcolor="rgba(107,92,231,0.1)", 
+                      griddash="dot", ticksuffix="x"),
+            legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
+            barmode="group",
+        )
+        
+        st.plotly_chart(fig3, use_container_width=True, key="val_comparison")
 
 else:
     # ══════════════════════════════════════════════════════
