@@ -4985,6 +4985,67 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     )
 
     # ══════════════════════════════════════════════════════
+    # 2c. KEY TAKEAWAYS (auto-generated)
+    # ══════════════════════════════════════════════════════
+    try:
+        takeaways = []
+        
+        # Market cap context
+        if cd.market_cap:
+            if cd.market_cap >= 200e9:
+                takeaways.append(f"**Mega-cap** company (${cd.market_cap/1e12:.1f}T) in {cd.sector}")
+            elif cd.market_cap >= 10e9:
+                takeaways.append(f"**Large-cap** company (${cd.market_cap/1e9:.0f}B) in {cd.sector}")
+            elif cd.market_cap >= 2e9:
+                takeaways.append(f"**Mid-cap** company (${cd.market_cap/1e9:.1f}B) in {cd.sector}")
+            else:
+                takeaways.append(f"**Small-cap** company (${cd.market_cap/1e9:.1f}B) in {cd.sector}")
+        
+        # Valuation
+        if cd.trailing_pe and cd.trailing_pe > 0:
+            if cd.trailing_pe > 30:
+                takeaways.append(f"Trading at a **premium valuation** ({cd.trailing_pe:.0f}x P/E)")
+            elif cd.trailing_pe < 15:
+                takeaways.append(f"Trading at an **attractive valuation** ({cd.trailing_pe:.0f}x P/E)")
+        
+        # Growth
+        if cd.revenue_growth:
+            if cd.revenue_growth > 20:
+                takeaways.append(f"**High-growth** — revenue up {cd.revenue_growth:.0f}% YoY")
+            elif cd.revenue_growth > 0:
+                takeaways.append(f"Revenue growing at {cd.revenue_growth:.0f}% YoY")
+            else:
+                takeaways.append(f"Revenue declined {cd.revenue_growth:.0f}% YoY")
+        
+        # Profitability
+        if cd.profit_margins:
+            pm = cd.profit_margins * 100
+            if pm > 20:
+                takeaways.append(f"**Highly profitable** — {pm:.0f}% net margin")
+            elif pm > 0:
+                takeaways.append(f"Profitable with {pm:.0f}% net margin")
+            else:
+                takeaways.append(f"Currently unprofitable ({pm:.0f}% net margin)")
+        
+        # Analyst
+        if rec:
+            takeaways.append(f"Analyst consensus: **{rec_str}**")
+        
+        if takeaways:
+            bullets = "".join(f'<div style="padding:0.2rem 0; font-size:0.82rem; color:#B8B3D7; line-height:1.6;">• {t}</div>' for t in takeaways[:4])
+            st.markdown(
+                f'<div style="background:rgba(107,92,231,0.04); border:1px solid rgba(107,92,231,0.12); '
+                f'border-radius:12px; padding:1rem 1.2rem; margin:0.5rem 0 1rem 0;">'
+                f'<div style="font-size:0.65rem; font-weight:700; color:#6B5CE7; text-transform:uppercase; '
+                f'letter-spacing:1.5px; margin-bottom:0.4rem;">Key Takeaways</div>'
+                f'{bullets}'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+    except Exception:
+        pass
+
+    # ══════════════════════════════════════════════════════
     # 3. BUSINESS OVERVIEW
     # ══════════════════════════════════════════════════════
     _section("Business Overview")
