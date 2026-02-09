@@ -8072,7 +8072,78 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
         
         _divider()
         
-        # DCF Disclaimer
+        # Reverse DCF
+        _section("Reverse DCF — Implied Growth Rate", "🔄")
+        st.markdown(
+            '<div style="font-size:0.85rem; color:#B8B3D7; margin-bottom:1rem;">'
+            'What FCF growth rate does the market currently imply at the current share price?'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        
+        try:
+            target_price = dcf_result["current_price"]
+            shares = dcf_result.get("shares_outstanding", 1)
+            target_equity = target_price * shares
+            net_debt = dcf_result["net_debt"]
+            target_ev = target_equity + net_debt
+            base_fcf = dcf_result["base_fcf"]
+            wacc = dcf_result["discount_rate"]
+            tg = dcf_result["terminal_growth"]
+            years = dcf_result["projection_years"]
+            
+            # Binary search for implied growth rate
+            low_g, high_g = -0.10, 0.40
+            implied_growth = None
+            for _ in range(50):  # Binary search iterations
+                mid_g = (low_g + high_g) / 2
+                fcf = base_fcf
+                pv_sum = 0
+                for yr in range(1, years + 1):
+                    fcf = fcf * (1 + mid_g)
+                    pv_sum += fcf / (1 + wacc) ** yr
+                
+                if wacc > tg:
+                    tv = (fcf * (1 + tg)) / (wacc - tg)
+                    pv_tv = tv / (1 + wacc) ** years
+                else:
+                    pv_tv = 0
+                
+                calc_ev = pv_sum + pv_tv
+                
+                if calc_ev < target_ev:
+                    low_g = mid_g
+                else:
+                    high_g = mid_g
+                
+                if abs(calc_ev - target_ev) / target_ev < 0.001:
+                    implied_growth = mid_g
+                    break
+            
+            if implied_growth is None:
+                implied_growth = (low_g + high_g) / 2
+            
+            ig_pct = implied_growth * 100
+            model_g_pct = dcf_result["growth_rate"] * 100
+            
+            ig_color = "#10B981" if ig_pct < model_g_pct else "#EF4444"
+            verdict = "Market expects LESS growth than your model → potentially undervalued" if ig_pct < model_g_pct else "Market expects MORE growth than your model → potentially overvalued"
+            
+            rdcf_c1, rdcf_c2, rdcf_c3 = st.columns(3)
+            rdcf_c1.metric("Your Growth Assumption", f"{model_g_pct:.1f}%")
+            rdcf_c2.metric("Market-Implied Growth", f"{ig_pct:.1f}%")
+            rdcf_c3.metric("Difference", f"{ig_pct - model_g_pct:+.1f}%")
+            
+            st.markdown(
+                f'<div style="text-align:center; padding:0.6rem; background:rgba(107,92,231,0.05); '
+                f'border-radius:10px; margin-top:0.5rem;">'
+                f'<span style="font-size:0.8rem; color:{ig_color}; font-weight:600;">{verdict}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        except Exception:
+            st.info("Could not calculate reverse DCF.")
+        
         _divider()
         
         # Monte Carlo Simulation
