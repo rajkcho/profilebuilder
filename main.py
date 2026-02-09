@@ -5899,61 +5899,83 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     # ══════════════════════════════════════════════════════
     _section("Financial Health Scorecard")
     
+    # Helper to safely extract scalar from Series or scalar
+    def _safe_val(v):
+        if v is None:
+            return None
+        if hasattr(v, 'iloc'):
+            try:
+                return float(v.iloc[0]) if len(v) > 0 else None
+            except Exception:
+                return None
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+    
+    _ni = _safe_val(cd.net_income)
+    _ocf = _safe_val(cd.operating_cash_flow)
+    _fcf = _safe_val(cd.free_cash_flow)
+    _roa = _safe_val(cd.roa)
+    _cr = _safe_val(cd.current_ratio)
+    _gm = _safe_val(cd.gross_margin)
+    _rg = _safe_val(cd.revenue_growth)
+    
     # Calculate a simplified Piotroski-inspired score
     score_items = []
     total_score = 0
     
     # 1. Profitability: Net Income > 0
-    if cd.net_income and cd.net_income > 0:
+    if _ni is not None and _ni > 0:
         score_items.append(("Net Income Positive", True, "Profitability"))
         total_score += 1
     else:
         score_items.append(("Net Income Positive", False, "Profitability"))
     
     # 2. ROA > 0
-    if cd.roa and cd.roa > 0:
+    if _roa is not None and _roa > 0:
         score_items.append(("ROA Positive", True, "Profitability"))
         total_score += 1
     else:
         score_items.append(("ROA Positive", False, "Profitability"))
     
     # 3. Operating Cash Flow > 0
-    if cd.operating_cash_flow and cd.operating_cash_flow > 0:
+    if _ocf is not None and _ocf > 0:
         score_items.append(("Operating Cash Flow Positive", True, "Profitability"))
         total_score += 1
     else:
         score_items.append(("Operating Cash Flow Positive", False, "Profitability"))
     
     # 4. Cash Flow > Net Income (quality of earnings)
-    if cd.operating_cash_flow and cd.net_income and cd.operating_cash_flow > cd.net_income:
+    if _ocf is not None and _ni is not None and _ocf > _ni:
         score_items.append(("Cash Flow > Net Income", True, "Profitability"))
         total_score += 1
     else:
         score_items.append(("Cash Flow > Net Income", False, "Profitability"))
     
     # 5. Current Ratio > 1
-    if cd.current_ratio and cd.current_ratio > 1:
+    if _cr is not None and _cr > 1:
         score_items.append(("Current Ratio > 1", True, "Leverage"))
         total_score += 1
     else:
         score_items.append(("Current Ratio > 1", False, "Leverage"))
     
     # 6. Gross Margin Positive
-    if cd.gross_margin and cd.gross_margin > 0:
+    if _gm is not None and _gm > 0:
         score_items.append(("Gross Margin Positive", True, "Efficiency"))
         total_score += 1
     else:
         score_items.append(("Gross Margin Positive", False, "Efficiency"))
     
     # 7. Revenue Growth
-    if cd.revenue_growth and cd.revenue_growth > 0:
+    if _rg is not None and _rg > 0:
         score_items.append(("Revenue Growing", True, "Efficiency"))
         total_score += 1
     else:
         score_items.append(("Revenue Growing", False, "Efficiency"))
     
     # 8. Positive Free Cash Flow
-    if cd.free_cash_flow and cd.free_cash_flow > 0:
+    if _fcf is not None and _fcf > 0:
         score_items.append(("Free Cash Flow Positive", True, "Profitability"))
         total_score += 1
     else:
