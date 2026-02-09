@@ -6000,7 +6000,150 @@ else:
     # ══════════════════════════════════════════════════════
     # SPLASH / LANDING PAGE — Immersive space experience
     # ══════════════════════════════════════════════════════
-    if analysis_mode == "Merger Analysis":
+    
+    # DCF Valuation Splash
+    if analysis_mode == "DCF Valuation":
+        st.markdown(
+            '<div class="splash-hero">'
+            '<div class="star-layer-1">&#8203;</div>'
+            '<div class="star-layer-2">&#8203;</div>'
+            '<div class="star-layer-3">&#8203;</div>'
+            '<div class="nebula-overlay">&#8203;</div>'
+            '<div class="orb orb-1">&#8203;</div>'
+            '<div class="orb orb-2">&#8203;</div>'
+            '<div class="orb orb-3">&#8203;</div>'
+            '<div class="orb orb-4">&#8203;</div>'
+            '<div class="orb orb-5">&#8203;</div>'
+            '<div class="shooting-star shooting-star-1">&#8203;</div>'
+            '<div class="shooting-star shooting-star-2">&#8203;</div>'
+            '<div class="noise-overlay">&#8203;</div>'
+            '<div class="title-glow">&#8203;</div>'
+            '<div class="splash-content">'
+            '<div class="orbital-logo orbital-logo-lg">'
+            '<span class="orbital-text">ORBITAL</span>'
+            '<div class="orbital-ring orbital-ring-1"></div>'
+            '<div class="orbital-ring orbital-ring-2"></div>'
+            '<div class="orbital-ring orbital-ring-3"></div>'
+            '<div class="orbital-particle orbital-particle-1"></div>'
+            '<div class="orbital-particle orbital-particle-2"></div>'
+            '<div class="orbital-particle orbital-particle-3"></div>'
+            '</div>'
+            '<p class="splash-subtitle" style="font-size:1.4rem; margin-top:1rem;">DCF Valuation Engine</p>'
+            '<div class="pill-row">'
+            '<span class="feature-pill">Free Cash Flow Projection</span>'
+            '<span class="feature-pill">Terminal Value</span>'
+            '<span class="feature-pill">Sensitivity Analysis</span>'
+            '<span class="feature-pill">WACC Modeling</span>'
+            '</div>'
+            '<div class="splash-stats">'
+            '<div class="splash-stat"><div class="splash-stat-value">5-10</div><div class="splash-stat-label">Projection Years</div></div>'
+            '<div class="splash-stat"><div class="splash-stat-value">25</div><div class="splash-stat-label">Sensitivity Scenarios</div></div>'
+            '<div class="splash-stat"><div class="splash-stat-value">∞</div><div class="splash-stat-label">Terminal Value</div></div>'
+            '</div>'
+            '</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        
+        st.markdown(
+            '<div class="space-section">'
+            '<div class="space-section-title">How It Works</div>'
+            '<div class="step-grid">'
+            '<div class="step-card"><div class="step-num">1</div><div class="step-label">Enter Ticker</div><div class="step-detail">Company with positive free cash flow</div></div>'
+            '<div class="step-card"><div class="step-num">2</div><div class="step-label">Set Assumptions</div><div class="step-detail">Growth rate, WACC, terminal growth</div></div>'
+            '<div class="step-card"><div class="step-num">3</div><div class="step-label">Calculate DCF</div><div class="step-detail">Project FCF &amp; discount to present value</div></div>'
+            '<div class="step-card"><div class="step-num">4</div><div class="step-label">Sensitivity</div><div class="step-detail">Test different scenarios</div></div>'
+            '</div>'
+            '<div class="space-section-title">Model Features</div>'
+            '<div class="feature-grid">'
+            '<div class="feature-card"><div class="feature-icon">&#128200;</div><div class="feature-title">FCF Projection</div><div class="feature-desc">Project free cash flows based on growth assumptions</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#128202;</div><div class="feature-title">Terminal Value</div><div class="feature-desc">Gordon Growth Model for perpetuity value</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#127919;</div><div class="feature-title">Present Value</div><div class="feature-desc">Discount future cash flows at WACC</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#128176;</div><div class="feature-title">Equity Bridge</div><div class="feature-desc">Enterprise value to equity value</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#128161;</div><div class="feature-title">Implied Price</div><div class="feature-desc">Per-share intrinsic value estimate</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#9888;</div><div class="feature-title">Sensitivity Matrix</div><div class="feature-desc">Growth vs. WACC scenario analysis</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#127942;</div><div class="feature-title">Upside/Downside</div><div class="feature-desc">Compare to current market price</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#128196;</div><div class="feature-title">Visual Charts</div><div class="feature-desc">Interactive valuation visualizations</div></div>'
+            '</div>'
+            '<p style="font-size:0.72rem; color:#8A85AD; margin-top:2rem; text-align:center;">'
+            'Enter a ticker and set your DCF assumptions in the sidebar<br>'
+            'Works best for companies with positive, predictable free cash flow'
+            '</p>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+    
+    # Quick Compare Splash
+    elif analysis_mode == "Quick Compare":
+        st.markdown(
+            '<div class="splash-hero">'
+            '<div class="star-layer-1">&#8203;</div>'
+            '<div class="star-layer-2">&#8203;</div>'
+            '<div class="star-layer-3">&#8203;</div>'
+            '<div class="nebula-overlay">&#8203;</div>'
+            '<div class="orb orb-1">&#8203;</div>'
+            '<div class="orb orb-2">&#8203;</div>'
+            '<div class="orb orb-3">&#8203;</div>'
+            '<div class="orb orb-4">&#8203;</div>'
+            '<div class="orb orb-5">&#8203;</div>'
+            '<div class="shooting-star shooting-star-1">&#8203;</div>'
+            '<div class="shooting-star shooting-star-2">&#8203;</div>'
+            '<div class="noise-overlay">&#8203;</div>'
+            '<div class="title-glow">&#8203;</div>'
+            '<div class="splash-content">'
+            '<div class="orbital-logo orbital-logo-lg">'
+            '<span class="orbital-text">ORBITAL</span>'
+            '<div class="orbital-ring orbital-ring-1"></div>'
+            '<div class="orbital-ring orbital-ring-2"></div>'
+            '<div class="orbital-ring orbital-ring-3"></div>'
+            '<div class="orbital-particle orbital-particle-1"></div>'
+            '<div class="orbital-particle orbital-particle-2"></div>'
+            '<div class="orbital-particle orbital-particle-3"></div>'
+            '</div>'
+            '<p class="splash-subtitle" style="font-size:1.4rem; margin-top:1rem;">Company Comparison Tool</p>'
+            '<div class="pill-row">'
+            '<span class="feature-pill">Side-by-Side Analysis</span>'
+            '<span class="feature-pill">Multiple Metrics</span>'
+            '<span class="feature-pill">Price Performance</span>'
+            '<span class="feature-pill">Radar Charts</span>'
+            '</div>'
+            '<div class="splash-stats">'
+            '<div class="splash-stat"><div class="splash-stat-value">10</div><div class="splash-stat-label">Max Companies</div></div>'
+            '<div class="splash-stat"><div class="splash-stat-value">15+</div><div class="splash-stat-label">Comparison Metrics</div></div>'
+            '<div class="splash-stat"><div class="splash-stat-value">6</div><div class="splash-stat-label">Preset Groups</div></div>'
+            '</div>'
+            '</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        
+        st.markdown(
+            '<div class="space-section">'
+            '<div class="space-section-title">How It Works</div>'
+            '<div class="step-grid">'
+            '<div class="step-card"><div class="step-num">1</div><div class="step-label">Enter Tickers</div><div class="step-detail">Comma-separated list or load preset</div></div>'
+            '<div class="step-card"><div class="step-num">2</div><div class="step-label">Compare</div><div class="step-detail">Side-by-side metrics comparison</div></div>'
+            '<div class="step-card"><div class="step-num">3</div><div class="step-label">Visualize</div><div class="step-detail">Radar charts, bar charts, price performance</div></div>'
+            '<div class="step-card"><div class="step-num">4</div><div class="step-label">Export</div><div class="step-detail">Download comparison as CSV</div></div>'
+            '</div>'
+            '<div class="space-section-title">Preset Comparisons</div>'
+            '<div class="feature-grid">'
+            '<div class="feature-card"><div class="feature-icon">&#128187;</div><div class="feature-title">FAANG</div><div class="feature-desc">META, AAPL, AMZN, NFLX, GOOGL</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#127760;</div><div class="feature-title">Big Tech</div><div class="feature-desc">AAPL, MSFT, GOOGL, AMZN, META, NVDA</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#127464;</div><div class="feature-title">Canadian Banks</div><div class="feature-desc">RY.TO, TD.TO, BNS.TO, BMO.TO, CM.TO</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#128187;</div><div class="feature-title">Software/SaaS</div><div class="feature-desc">CRM, ADBE, NOW, WDAY, TEAM</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#9889;</div><div class="feature-title">Semiconductors</div><div class="feature-desc">NVDA, AMD, INTC, QCOM, AVGO</div></div>'
+            '<div class="feature-card"><div class="feature-icon">&#128138;</div><div class="feature-title">Healthcare Giants</div><div class="feature-desc">JNJ, UNH, PFE, ABBV, MRK</div></div>'
+            '</div>'
+            '<p style="font-size:0.72rem; color:#8A85AD; margin-top:2rem; text-align:center;">'
+            'Enter multiple tickers separated by commas or select a preset in the sidebar<br>'
+            'Compare up to 10 companies at once'
+            '</p>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+    
+    elif analysis_mode == "Merger Analysis":
         # Merger-specific splash
         st.markdown(
             '<div class="splash-hero">'
