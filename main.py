@@ -26,6 +26,7 @@ from data_engine import (
 from ai_insights import generate_insights, generate_merger_insights
 from pptx_generator import generate_presentation, generate_deal_book
 from merger_analysis import MergerAssumptions, calculate_pro_forma, build_football_field
+from comps_analysis import run_comps_analysis, generate_comps_table, format_comps_for_display, CompsAnalysis
 import yfinance as yf
 
 # ── Quick Ticker Lookup (for sidebar previews) ───────────────
@@ -2917,7 +2918,7 @@ with st.sidebar:
     st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
 
     # Mode Toggle
-    analysis_mode = st.radio("Mode", ["Company Profile", "Merger Analysis"], horizontal=True, label_visibility="collapsed")
+    analysis_mode = st.radio("Mode", ["Company Profile", "Comps Analysis", "Merger Analysis"], horizontal=True, label_visibility="collapsed")
 
     st.markdown('<div style="height:0.8rem;"></div>', unsafe_allow_html=True)
 
@@ -2941,7 +2942,50 @@ with st.sidebar:
         st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
         generate_btn = st.button("🚀 Generate Profile", type="primary", use_container_width=True)
 
-        # Merger-specific variables (unused in this mode)
+        # Unused variables in this mode
+        acquirer_input = ""
+        target_input = ""
+        merger_btn = False
+        merger_assumptions = MergerAssumptions()
+        comps_ticker_input = ""
+        comps_btn = False
+        max_peers = 10
+        include_saas = False
+
+    elif analysis_mode == "Comps Analysis":
+        # ── Comps Analysis Mode ──
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">📊</span> TARGET COMPANY</div>',
+            unsafe_allow_html=True,
+        )
+
+        comps_ticker_input = st.text_input(
+            "Stock Ticker", value="", max_chars=10,
+            placeholder="Enter ticker (e.g. AAPL)",
+            label_visibility="collapsed",
+            key="comps_ticker"
+        ).strip().upper()
+
+        if comps_ticker_input:
+            _render_company_card(comps_ticker_input)
+
+        st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
+        
+        # Comps settings
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">⚙️</span> SETTINGS</div>',
+            unsafe_allow_html=True,
+        )
+        
+        max_peers = st.slider("Number of Peers", 5, 20, 10, 1)
+        include_saas = st.checkbox("Include SaaS/Software peers", value=False)
+        
+        st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
+        comps_btn = st.button("🔍 Run Comps Analysis", type="primary", use_container_width=True)
+
+        # Set unused variables for this mode
+        ticker_input = ""
+        generate_btn = False
         acquirer_input = ""
         target_input = ""
         merger_btn = False
@@ -2951,6 +2995,10 @@ with st.sidebar:
         # ── Merger Analysis Mode ──
         ticker_input = ""
         generate_btn = False
+        comps_ticker_input = ""
+        comps_btn = False
+        max_peers = 10
+        include_saas = False
 
         # Acquirer
         st.markdown(
@@ -3956,6 +4004,259 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         )
 
 elif analysis_mode == "Company Profile" and generate_btn and not ticker_input:
+    st.warning("Please enter a ticker symbol in the sidebar.")
+
+elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
+    # ══════════════════════════════════════════════════════
+    # COMPARABLE COMPANY ANALYSIS
+    # ══════════════════════════════════════════════════════
+    
+    # Loading animation
+    progress_placeholder = st.empty()
+    status_placeholder = st.empty()
+    
+    def update_progress(pct, msg):
+        progress_placeholder.progress(pct, text=msg)
+    
+    with st.spinner(f"Running comps analysis for {comps_ticker_input}..."):
+        comps_analysis = run_comps_analysis(
+            ticker=comps_ticker_input,
+            max_peers=max_peers,
+            include_saas=include_saas,
+            progress_callback=update_progress
+        )
+    
+    progress_placeholder.empty()
+    status_placeholder.empty()
+    
+    if not comps_analysis.target_comps or not comps_analysis.target_comps.valid:
+        st.error(f"Could not fetch data for {comps_ticker_input}. Please check the ticker and try again.")
+    elif not comps_analysis.peers:
+        st.warning(f"No comparable companies found for {comps_ticker_input}.")
+    else:
+        tc = comps_analysis.target_comps
+        
+        # Header
+        st.markdown(
+            f'<div style="text-align:center; padding:1.5rem 0;">'
+            f'<div style="font-size:2.5rem; font-weight:800; color:#E0DCF5; margin-bottom:0.3rem;">'
+            f'{tc.name}</div>'
+            f'<div style="font-size:1rem; color:#8A85AD;">'
+            f'{tc.sector} · {tc.industry}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        
+        # Key metrics cards
+        col1, col2, col3, col4 = st.columns(4)
+        
+        def format_num(x, prefix="$", suffix=""):
+            if x is None or x == 0:
+                return "—"
+            if abs(x) >= 1e12:
+                return f"{prefix}{x/1e12:.1f}T{suffix}"
+            if abs(x) >= 1e9:
+                return f"{prefix}{x/1e9:.1f}B{suffix}"
+            if abs(x) >= 1e6:
+                return f"{prefix}{x/1e6:.0f}M{suffix}"
+            return f"{prefix}{x:,.0f}{suffix}"
+        
+        def format_mult(x):
+            if x is None or x == 0:
+                return "—"
+            return f"{x:.1f}x"
+        
+        with col1:
+            st.markdown(
+                f'<div style="background:rgba(107,92,231,0.1); border:1px solid rgba(107,92,231,0.3); '
+                f'border-radius:12px; padding:1rem; text-align:center;">'
+                f'<div style="font-size:0.75rem; color:#8A85AD; text-transform:uppercase;">Market Cap</div>'
+                f'<div style="font-size:1.5rem; font-weight:700; color:#E0DCF5;">{format_num(tc.market_cap)}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        
+        with col2:
+            st.markdown(
+                f'<div style="background:rgba(232,99,139,0.1); border:1px solid rgba(232,99,139,0.3); '
+                f'border-radius:12px; padding:1rem; text-align:center;">'
+                f'<div style="font-size:0.75rem; color:#8A85AD; text-transform:uppercase;">EV/EBITDA</div>'
+                f'<div style="font-size:1.5rem; font-weight:700; color:#E0DCF5;">{format_mult(tc.ev_ebitda)}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        
+        with col3:
+            st.markdown(
+                f'<div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); '
+                f'border-radius:12px; padding:1rem; text-align:center;">'
+                f'<div style="font-size:0.75rem; color:#8A85AD; text-transform:uppercase;">EV/Revenue</div>'
+                f'<div style="font-size:1.5rem; font-weight:700; color:#E0DCF5;">{format_mult(tc.ev_revenue)}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        
+        with col4:
+            st.markdown(
+                f'<div style="background:rgba(245,166,35,0.1); border:1px solid rgba(245,166,35,0.3); '
+                f'border-radius:12px; padding:1rem; text-align:center;">'
+                f'<div style="font-size:0.75rem; color:#8A85AD; text-transform:uppercase;">P/E Ratio</div>'
+                f'<div style="font-size:1.5rem; font-weight:700; color:#E0DCF5;">{format_mult(tc.pe_ratio)}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        
+        st.markdown('<div style="height:1.5rem;"></div>', unsafe_allow_html=True)
+        
+        # Peer Median Comparison
+        st.markdown(
+            '<div style="font-size:1.2rem; font-weight:700; color:#E0DCF5; margin-bottom:1rem;">'
+            '📊 Valuation vs Peer Median</div>',
+            unsafe_allow_html=True,
+        )
+        
+        comp_col1, comp_col2, comp_col3 = st.columns(3)
+        
+        with comp_col1:
+            target_val = tc.ev_ebitda or 0
+            median_val = comps_analysis.median_ev_ebitda or 0
+            if median_val > 0:
+                diff_pct = ((target_val - median_val) / median_val) * 100
+                diff_color = "#10B981" if diff_pct < 0 else "#EF4444"
+                diff_text = f"{diff_pct:+.1f}%"
+            else:
+                diff_color = "#8A85AD"
+                diff_text = "—"
+            st.markdown(
+                f'<div style="background:rgba(255,255,255,0.03); border-radius:12px; padding:1rem;">'
+                f'<div style="font-size:0.8rem; color:#8A85AD;">EV/EBITDA vs Median</div>'
+                f'<div style="font-size:1.3rem; font-weight:700; color:{diff_color};">{diff_text}</div>'
+                f'<div style="font-size:0.7rem; color:#6B6B80;">Target: {format_mult(target_val)} · Median: {format_mult(median_val)}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        
+        with comp_col2:
+            target_val = tc.ev_revenue or 0
+            median_val = comps_analysis.median_ev_revenue or 0
+            if median_val > 0:
+                diff_pct = ((target_val - median_val) / median_val) * 100
+                diff_color = "#10B981" if diff_pct < 0 else "#EF4444"
+                diff_text = f"{diff_pct:+.1f}%"
+            else:
+                diff_color = "#8A85AD"
+                diff_text = "—"
+            st.markdown(
+                f'<div style="background:rgba(255,255,255,0.03); border-radius:12px; padding:1rem;">'
+                f'<div style="font-size:0.8rem; color:#8A85AD;">EV/Revenue vs Median</div>'
+                f'<div style="font-size:1.3rem; font-weight:700; color:{diff_color};">{diff_text}</div>'
+                f'<div style="font-size:0.7rem; color:#6B6B80;">Target: {format_mult(target_val)} · Median: {format_mult(median_val)}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        
+        with comp_col3:
+            target_val = tc.pe_ratio or 0
+            median_val = comps_analysis.median_pe or 0
+            if median_val > 0:
+                diff_pct = ((target_val - median_val) / median_val) * 100
+                diff_color = "#10B981" if diff_pct < 0 else "#EF4444"
+                diff_text = f"{diff_pct:+.1f}%"
+            else:
+                diff_color = "#8A85AD"
+                diff_text = "—"
+            st.markdown(
+                f'<div style="background:rgba(255,255,255,0.03); border-radius:12px; padding:1rem;">'
+                f'<div style="font-size:0.8rem; color:#8A85AD;">P/E vs Median</div>'
+                f'<div style="font-size:1.3rem; font-weight:700; color:{diff_color};">{diff_text}</div>'
+                f'<div style="font-size:0.7rem; color:#6B6B80;">Target: {format_mult(target_val)} · Median: {format_mult(median_val)}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        
+        st.markdown('<div style="height:1.5rem;"></div>', unsafe_allow_html=True)
+        
+        # Implied Valuation
+        if comps_analysis.implied_ev_from_ebitda or comps_analysis.implied_ev_from_revenue:
+            st.markdown(
+                '<div style="font-size:1.2rem; font-weight:700; color:#E0DCF5; margin-bottom:1rem;">'
+                '💰 Implied Enterprise Value (at Peer Median Multiples)</div>',
+                unsafe_allow_html=True,
+            )
+            
+            iv_col1, iv_col2, iv_col3 = st.columns(3)
+            
+            with iv_col1:
+                st.markdown(
+                    f'<div style="background:rgba(107,92,231,0.1); border:1px solid rgba(107,92,231,0.3); '
+                    f'border-radius:12px; padding:1rem; text-align:center;">'
+                    f'<div style="font-size:0.75rem; color:#8A85AD;">Current EV</div>'
+                    f'<div style="font-size:1.3rem; font-weight:700; color:#E0DCF5;">{format_num(tc.enterprise_value)}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            
+            with iv_col2:
+                st.markdown(
+                    f'<div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); '
+                    f'border-radius:12px; padding:1rem; text-align:center;">'
+                    f'<div style="font-size:0.75rem; color:#8A85AD;">Implied EV (EBITDA)</div>'
+                    f'<div style="font-size:1.3rem; font-weight:700; color:#E0DCF5;">{format_num(comps_analysis.implied_ev_from_ebitda)}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            
+            with iv_col3:
+                st.markdown(
+                    f'<div style="background:rgba(245,166,35,0.1); border:1px solid rgba(245,166,35,0.3); '
+                    f'border-radius:12px; padding:1rem; text-align:center;">'
+                    f'<div style="font-size:0.75rem; color:#8A85AD;">Implied EV (Revenue)</div>'
+                    f'<div style="font-size:1.3rem; font-weight:700; color:#E0DCF5;">{format_num(comps_analysis.implied_ev_from_revenue)}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+        
+        st.markdown('<div style="height:1.5rem;"></div>', unsafe_allow_html=True)
+        
+        # Full Comps Table
+        st.markdown(
+            '<div style="font-size:1.2rem; font-weight:700; color:#E0DCF5; margin-bottom:1rem;">'
+            f'📋 Comparable Companies ({len(comps_analysis.peers)} peers)</div>',
+            unsafe_allow_html=True,
+        )
+        
+        comps_df = generate_comps_table(comps_analysis)
+        display_df = format_comps_for_display(comps_df)
+        
+        # Style the dataframe
+        st.dataframe(
+            display_df,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Company": st.column_config.TextColumn("Company", width="medium"),
+                "Ticker": st.column_config.TextColumn("Ticker", width="small"),
+                "Market Cap": st.column_config.TextColumn("Mkt Cap", width="small"),
+                "EV": st.column_config.TextColumn("EV", width="small"),
+                "Revenue": st.column_config.TextColumn("Revenue", width="small"),
+                "EBITDA": st.column_config.TextColumn("EBITDA", width="small"),
+                "EV/Rev": st.column_config.TextColumn("EV/Rev", width="small"),
+                "EV/EBITDA": st.column_config.TextColumn("EV/EBITDA", width="small"),
+                "P/E": st.column_config.TextColumn("P/E", width="small"),
+                "Rev Growth": st.column_config.TextColumn("Growth", width="small"),
+                "EBITDA Margin": st.column_config.TextColumn("Margin", width="small"),
+                "Rule of 40": st.column_config.TextColumn("Ro40", width="small"),
+            }
+        )
+        
+        st.markdown(
+            '<div style="font-size:0.7rem; color:#6B6B80; margin-top:0.5rem;">'
+            'Note: Peers selected based on sector, industry, and market cap proximity. '
+            'Multiples based on LTM financials from Yahoo Finance.</div>',
+            unsafe_allow_html=True,
+        )
+
+elif analysis_mode == "Comps Analysis" and comps_btn and not comps_ticker_input:
     st.warning("Please enter a ticker symbol in the sidebar.")
 
 elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and target_input:
