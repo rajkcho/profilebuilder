@@ -6449,3 +6449,36 @@ else:
             '</div>',
             unsafe_allow_html=True,
         )
+        
+        # Market Overview Section
+        st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
+        
+        # Fetch and display market indices
+        try:
+            indices = _fetch_market_indices()
+            if indices:
+                st.markdown(
+                    '<div style="background:rgba(107,92,231,0.05); border-radius:16px; padding:1.5rem; '
+                    'border:1px solid rgba(107,92,231,0.15);">'
+                    '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
+                    'letter-spacing:1.5px; margin-bottom:1rem; text-align:center;">📊 Market Overview</div>',
+                    unsafe_allow_html=True,
+                )
+                
+                idx_cols = st.columns(len(indices))
+                for i, idx in enumerate(indices):
+                    with idx_cols[i]:
+                        color = "#10B981" if idx["change_pct"] >= 0 else "#EF4444"
+                        arrow = "▲" if idx["change_pct"] >= 0 else "▼"
+                        st.markdown(
+                            f'<div style="text-align:center;">'
+                            f'<div style="font-size:0.7rem; color:#8A85AD; font-weight:600;">{idx["name"]}</div>'
+                            f'<div style="font-size:1.1rem; font-weight:700; color:#E0DCF5;">{idx["price"]:,.2f}</div>'
+                            f'<div style="font-size:0.8rem; color:{color};">{arrow} {idx["change_pct"]:+.2f}%</div>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
+                
+                st.markdown('</div>', unsafe_allow_html=True)
+        except Exception:
+            pass  # Market overview is non-critical
