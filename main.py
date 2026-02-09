@@ -4877,8 +4877,14 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         try:
             row = cd.recommendations_summary.iloc[0]
             cats = {"strongBuy": 5, "buy": 4, "hold": 3, "sell": 2, "strongSell": 1}
-            weighted = sum(int(row.get(k, 0)) * v for k, v in cats.items())
-            total = sum(int(row.get(k, 0)) for k in cats)
+            def _get_rec_val(row, k):
+                try:
+                    v = row.get(k, 0) if hasattr(row, 'get') else row[k] if k in row.index else 0
+                    return int(v) if pd.notna(v) else 0
+                except Exception:
+                    return 0
+            weighted = sum(_get_rec_val(row, k) * v for k, v in cats.items())
+            total = sum(_get_rec_val(row, k) for k in cats)
             if total > 0:
                 avg = weighted / total
                 if avg >= 4.5: rec = "strong_buy"
@@ -5600,7 +5606,13 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 row = cd.recommendations_summary.iloc[0]
                 cats = ["Strong Buy", "Buy", "Hold", "Sell", "Strong Sell"]
                 keys = ["strongBuy", "buy", "hold", "sell", "strongSell"]
-                vals = [int(row.get(k, 0)) for k in keys]
+                vals = []
+                for k in keys:
+                    try:
+                        v = row.get(k, 0) if hasattr(row, 'get') else row[k] if k in row.index else 0
+                        vals.append(int(v) if pd.notna(v) else 0)
+                    except Exception:
+                        vals.append(0)
                 colors = ["#10B981", "#34D399", "#F59E0B", "#EF4444", "#991B1B"]
                 total = sum(vals)
 
@@ -7711,6 +7723,93 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         if not matched_tag and line:
             line = line.replace("$", "&#36;")
             st.markdown(f"<div style='font-size:0.88rem; color:#B8B3D7; line-height:1.7; padding:0.2rem 0;'>&bull; {line}</div>", unsafe_allow_html=True)
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # M11b. QUANTITATIVE DEAL SCORECARD
+    # ══════════════════════════════════════════════════════
+    _section("Deal Scorecard", "📋")
+    
+    # Compute quantitative deal metrics
+    deal_scores = []
+    
+    # 1. Accretion/Dilution
+    if pro_forma.accretion_dilution_pct:
+        ad = pro_forma.accretion_dilution_pct
+        if ad > 5: deal_scores.append(("EPS Accretion", 10, "#10B981", f"+{ad:.1f}%"))
+        elif ad > 0: deal_scores.append(("EPS Accretion", 7, "#34D399", f"+{ad:.1f}%"))
+        elif ad > -5: deal_scores.append(("EPS Accretion", 4, "#F59E0B", f"{ad:.1f}%"))
+        else: deal_scores.append(("EPS Accretion", 2, "#EF4444", f"{ad:.1f}%"))
+    
+    # 2. Premium reasonableness
+    prem = merger_assumptions.offer_premium_pct
+    if prem < 20: deal_scores.append(("Premium", 9, "#10B981", f"{prem:.0f}%"))
+    elif prem < 35: deal_scores.append(("Premium", 7, "#34D399", f"{prem:.0f}%"))
+    elif prem < 50: deal_scores.append(("Premium", 5, "#F59E0B", f"{prem:.0f}%"))
+    else: deal_scores.append(("Premium", 2, "#EF4444", f"{prem:.0f}%"))
+    
+    # 3. Synergy coverage of premium
+    if 'syn_pv' in dir() and 'premium_paid' in dir() and premium_paid > 0:
+        syn_cov = syn_pv / premium_paid * 100
+        if syn_cov > 100: deal_scores.append(("Synergy Coverage", 10, "#10B981", f"{syn_cov:.0f}%"))
+        elif syn_cov > 60: deal_scores.append(("Synergy Coverage", 7, "#34D399", f"{syn_cov:.0f}%"))
+        elif syn_cov > 30: deal_scores.append(("Synergy Coverage", 4, "#F59E0B", f"{syn_cov:.0f}%"))
+        else: deal_scores.append(("Synergy Coverage", 2, "#EF4444", f"{syn_cov:.0f}%"))
+    
+    # 4. Strategic fit (same sector?)
+    same_sector = (acq_cd.sector or "").lower() == (tgt_cd.sector or "").lower()
+    if same_sector:
+        deal_scores.append(("Strategic Fit", 8, "#10B981", "Same Sector"))
+    else:
+        deal_scores.append(("Strategic Fit", 5, "#F59E0B", "Cross-Sector"))
+    
+    # 5. Size ratio (target should be <50% of acquirer for clean integration)
+    if acq_cd.market_cap and tgt_cd.market_cap:
+        size_ratio = tgt_cd.market_cap / acq_cd.market_cap * 100
+        if size_ratio < 15: deal_scores.append(("Size Ratio", 9, "#10B981", f"{size_ratio:.0f}%"))
+        elif size_ratio < 30: deal_scores.append(("Size Ratio", 7, "#34D399", f"{size_ratio:.0f}%"))
+        elif size_ratio < 50: deal_scores.append(("Size Ratio", 5, "#F59E0B", f"{size_ratio:.0f}%"))
+        else: deal_scores.append(("Size Ratio", 3, "#EF4444", f"{size_ratio:.0f}%"))
+    
+    # 6. Financing mix (balanced is better)
+    cash_pct_score = merger_assumptions.pct_cash
+    if 30 <= cash_pct_score <= 70: deal_scores.append(("Financing Mix", 8, "#10B981", f"{cash_pct_score}% Cash"))
+    elif 20 <= cash_pct_score <= 80: deal_scores.append(("Financing Mix", 6, "#F59E0B", f"{cash_pct_score}% Cash"))
+    else: deal_scores.append(("Financing Mix", 4, "#EF4444", f"{cash_pct_score}% Cash"))
+    
+    if deal_scores:
+        avg_score = sum(s[1] for s in deal_scores) / len(deal_scores)
+        overall_color = "#10B981" if avg_score >= 7 else "#F59E0B" if avg_score >= 5 else "#EF4444"
+        overall_label = "Strong" if avg_score >= 7 else "Moderate" if avg_score >= 5 else "Weak"
+        
+        # Overall score
+        sc_left, sc_right = st.columns([1, 3])
+        with sc_left:
+            st.markdown(
+                f'<div style="text-align:center; padding:1.5rem; background:rgba(107,92,231,0.05); '
+                f'border-radius:16px; border:1px solid rgba(107,92,231,0.15);">'
+                f'<div style="font-size:2.5rem; font-weight:900; color:{overall_color};">{avg_score:.1f}</div>'
+                f'<div style="font-size:0.75rem; font-weight:700; color:{overall_color};">{overall_label}</div>'
+                f'<div style="font-size:0.6rem; color:#8A85AD; margin-top:0.2rem;">out of 10</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        
+        with sc_right:
+            for name, score, color, detail in deal_scores:
+                bar_width = score * 10
+                st.markdown(
+                    f'<div style="display:flex; align-items:center; gap:0.5rem; padding:0.3rem 0; '
+                    f'border-bottom:1px solid rgba(255,255,255,0.03);">'
+                    f'<span style="color:#8A85AD; font-size:0.72rem; width:120px; flex-shrink:0;">{name}</span>'
+                    f'<div style="flex:1; background:rgba(255,255,255,0.05); border-radius:4px; height:16px; overflow:hidden;">'
+                    f'<div style="width:{bar_width}%; height:100%; background:{color}; border-radius:4px; '
+                    f'transition:width 0.5s ease;"></div></div>'
+                    f'<span style="color:{color}; font-size:0.72rem; font-weight:700; width:80px; text-align:right;">{detail}</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
 
     _divider()
 
