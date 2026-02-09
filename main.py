@@ -225,6 +225,126 @@ def _fetch_top_movers() -> dict:
     
     return {"gainers": gainers, "losers": losers}
 
+# ══════════════════════════════════════════════════════════════
+# SPARKLINE - Mini inline charts
+# ══════════════════════════════════════════════════════════════
+def _render_sparkline_svg(values: list, color: str = "#6B5CE7", width: int = 80, height: int = 24) -> str:
+    """Generate an SVG sparkline from a list of values."""
+    if not values or len(values) < 2:
+        return ""
+    
+    # Normalize values to fit in the height
+    min_val = min(values)
+    max_val = max(values)
+    range_val = max_val - min_val if max_val != min_val else 1
+    
+    # Calculate points
+    step = width / (len(values) - 1)
+    points = []
+    for i, v in enumerate(values):
+        x = i * step
+        y = height - ((v - min_val) / range_val * (height - 4) + 2)  # 2px padding
+        points.append(f"{x:.1f},{y:.1f}")
+    
+    path = " ".join(points)
+    
+    # Determine if trend is up or down
+    trend_color = "#10B981" if values[-1] > values[0] else "#EF4444" if values[-1] < values[0] else color
+    
+    return (
+        f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" '
+        f'style="display:inline-block; vertical-align:middle;">'
+        f'<polyline fill="none" stroke="{trend_color}" stroke-width="2" '
+        f'stroke-linecap="round" stroke-linejoin="round" points="{path}" '
+        f'style="animation: sparklinePulse 2s ease-in-out infinite;"/>'
+        f'<circle cx="{(len(values)-1)*step:.1f}" cy="{height - ((values[-1] - min_val) / range_val * (height - 4) + 2):.1f}" '
+        f'r="3" fill="{trend_color}"/>'
+        f'</svg>'
+    )
+
+# ══════════════════════════════════════════════════════════════
+# STATUS BADGES - Colored status indicators
+# ══════════════════════════════════════════════════════════════
+def _render_status_badge(text: str, status: str = "neutral") -> str:
+    """Render a colored status badge."""
+    colors = {
+        "positive": ("#10B981", "rgba(16,185,129,0.15)"),
+        "negative": ("#EF4444", "rgba(239,68,68,0.15)"),
+        "warning": ("#F5A623", "rgba(245,166,35,0.15)"),
+        "neutral": ("#8A85AD", "rgba(138,133,173,0.15)"),
+        "info": ("#6B5CE7", "rgba(107,92,231,0.15)"),
+    }
+    text_color, bg_color = colors.get(status, colors["neutral"])
+    
+    return (
+        f'<span style="display:inline-block; padding:0.25rem 0.6rem; border-radius:12px; '
+        f'font-size:0.7rem; font-weight:600; letter-spacing:0.5px; '
+        f'color:{text_color}; background:{bg_color}; '
+        f'animation: badgePop 0.3s ease-out;">{text}</span>'
+    )
+
+# ══════════════════════════════════════════════════════════════
+# KEYBOARD SHORTCUTS OVERLAY
+# ══════════════════════════════════════════════════════════════
+def _render_keyboard_shortcuts():
+    """Render keyboard shortcuts help section."""
+    shortcuts = [
+        ("⌘/Ctrl + K", "Quick search"),
+        ("⌘/Ctrl + B", "Toggle sidebar"),
+        ("⌘/Ctrl + D", "Download PPTX"),
+        ("⌘/Ctrl + E", "Export Excel"),
+        ("⌘/Ctrl + W", "Add to watchlist"),
+        ("?", "Show shortcuts"),
+    ]
+    
+    st.markdown(
+        '<div style="background:rgba(107,92,231,0.05); border:1px solid rgba(107,92,231,0.15); '
+        'border-radius:12px; padding:1rem; margin:1rem 0;">'
+        '<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
+        'letter-spacing:1px; margin-bottom:0.8rem;">⌨️ Keyboard Shortcuts</div>',
+        unsafe_allow_html=True,
+    )
+    
+    for key, desc in shortcuts:
+        st.markdown(
+            f'<div style="display:flex; justify-content:space-between; padding:0.3rem 0; '
+            f'border-bottom:1px solid rgba(255,255,255,0.05);">'
+            f'<kbd style="background:rgba(0,0,0,0.3); padding:0.2rem 0.5rem; border-radius:4px; '
+            f'font-family:monospace; font-size:0.75rem; color:#E0DCF5;">{key}</kbd>'
+            f'<span style="color:#B8B3D7; font-size:0.8rem;">{desc}</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════
+# METRIC CARD WITH SPARKLINE
+# ══════════════════════════════════════════════════════════════
+def _render_metric_with_sparkline(label: str, value: str, sparkline_data: list = None, 
+                                   delta: str = None, delta_color: str = None):
+    """Render a metric card with optional sparkline."""
+    sparkline_html = ""
+    if sparkline_data and len(sparkline_data) >= 2:
+        sparkline_html = _render_sparkline_svg(sparkline_data)
+    
+    delta_html = ""
+    if delta:
+        d_color = delta_color or ("#10B981" if delta.startswith("+") else "#EF4444")
+        delta_html = f'<span style="color:{d_color}; font-size:0.75rem; margin-left:0.5rem;">{delta}</span>'
+    
+    st.markdown(
+        f'<div style="background:rgba(255,255,255,0.04); border:1px solid rgba(107,92,231,0.15); '
+        f'border-radius:12px; padding:1rem; position:relative; overflow:hidden;">'
+        f'<div style="font-size:0.7rem; font-weight:600; color:#8A85AD; text-transform:uppercase; '
+        f'letter-spacing:0.5px; margin-bottom:0.3rem;">{label}</div>'
+        f'<div style="display:flex; align-items:center; justify-content:space-between;">'
+        f'<div style="font-size:1.3rem; font-weight:700; color:#E0DCF5;">{value}{delta_html}</div>'
+        f'{sparkline_html}'
+        f'</div></div>',
+        unsafe_allow_html=True,
+    )
+
 def _render_movers_cards(movers: dict):
     """Render top gainers and losers cards."""
     if not movers or (not movers.get("gainers") and not movers.get("losers")):
@@ -1118,6 +1238,19 @@ html, body, [class*="css"] {{
 @keyframes countUp {{
     from {{ opacity: 0; transform: translateY(8px); }}
     to {{ opacity: 1; transform: translateY(0); }}
+}}
+@keyframes sparklinePulse {{
+    0%, 100% {{ stroke-opacity: 0.8; }}
+    50% {{ stroke-opacity: 1; }}
+}}
+@keyframes numberGrow {{
+    from {{ transform: scale(0.5); opacity: 0; }}
+    to {{ transform: scale(1); opacity: 1; }}
+}}
+@keyframes badgePop {{
+    0% {{ transform: scale(0); }}
+    70% {{ transform: scale(1.1); }}
+    100% {{ transform: scale(1); }}
 }}
 @keyframes borderShimmer {{
     0% {{ background-position: 0% 0%; }}
