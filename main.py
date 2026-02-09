@@ -5523,6 +5523,57 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 )
             st.markdown(f"<div style='font-size:0.7rem; color:#8A85AD; margin-top:0.5rem;'>Industry: {cd.industry}</div>", unsafe_allow_html=True)
 
+        # Percentile Ranking
+        try:
+            st.markdown(
+                '<div style="font-size:0.85rem; font-weight:700; color:#E0DCF5; margin:1rem 0 0.5rem 0;">'
+                '📊 Percentile Ranking vs Peers</div>',
+                unsafe_allow_html=True,
+            )
+            
+            ranking_metrics = [
+                ("Market Cap", cd.market_cap, "market_cap", False),
+                ("P/E Ratio", cd.trailing_pe, "trailing_pe", True),  # Lower is better
+                ("EV/EBITDA", cd.ev_to_ebitda, "ev_to_ebitda", True),
+                ("Gross Margin", cd.gross_margins, "gross_margins", False),
+                ("Op Margin", cd.operating_margins, "operating_margins", False),
+                ("ROE", cd.return_on_equity, "return_on_equity", False),
+                ("Rev Growth", cd.revenue_growth, "revenue_growth", False),
+            ]
+            
+            rank_html = '<div style="display:grid; gap:0.5rem;">'
+            for label, company_val, key, lower_better in ranking_metrics:
+                if company_val is None:
+                    continue
+                peer_vals = [p.get(key) for p in cd.peer_data if p.get(key) is not None]
+                if not peer_vals:
+                    continue
+                
+                all_vals = sorted(peer_vals + [company_val], reverse=not lower_better)
+                rank = all_vals.index(company_val) + 1
+                pctile = (1 - (rank - 1) / len(all_vals)) * 100
+                
+                bar_color = "#10B981" if pctile >= 70 else "#F59E0B" if pctile >= 40 else "#EF4444"
+                
+                rank_html += (
+                    f'<div style="display:flex; align-items:center; gap:0.5rem;">'
+                    f'<span style="font-size:0.7rem; color:#8A85AD; width:80px; flex-shrink:0;">{label}</span>'
+                    f'<div style="flex:1; background:rgba(255,255,255,0.05); border-radius:4px; height:14px; overflow:hidden;">'
+                    f'<div style="width:{pctile}%; height:100%; background:{bar_color}; border-radius:4px;"></div></div>'
+                    f'<span style="font-size:0.65rem; color:{bar_color}; font-weight:700; width:40px; text-align:right;">'
+                    f'{pctile:.0f}%</span>'
+                    f'</div>'
+                )
+            
+            rank_html += '</div>'
+            st.markdown(rank_html, unsafe_allow_html=True)
+            st.markdown(
+                '<div style="font-size:0.6rem; color:#5A567A; margin-top:0.3rem;">Higher = better ranking among peers</div>',
+                unsafe_allow_html=True,
+            )
+        except Exception:
+            pass
+
     # ══════════════════════════════════════════════════════
     # 7. KEY STATISTICS
     # ══════════════════════════════════════════════════════
