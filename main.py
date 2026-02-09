@@ -3643,6 +3643,19 @@ def _divider():
     st.markdown('<div class="gradient-divider"></div>', unsafe_allow_html=True)
 
 
+from contextlib import contextmanager
+@contextmanager
+def _safe_section(name=""):
+    """Wrap a section in try/except to prevent one section from crashing the whole profile."""
+    try:
+        yield
+    except Exception as e:
+        st.warning(f"⚠️ {name} section encountered an error: {str(e)[:100]}")
+        import traceback
+        with st.expander("Show error details", expanded=False):
+            st.code(traceback.format_exc())
+
+
 # ── HELPER: Peer radar chart ────────────────────────────────
 def _build_peer_radar_chart(cd):
     """Build a Plotly radar chart comparing target vs peer median."""
@@ -7421,6 +7434,73 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     _mhtml('<div class="merger-chart-wrapper">')
     _build_accretion_waterfall(pro_forma)
     _mhtml('</div>')
+
+    # Premium Sensitivity on Accretion/Dilution
+    try:
+        _section("Premium Sensitivity", "🎚️")
+        st.markdown(
+            '<div style="font-size:0.8rem; color:#B8B3D7; margin-bottom:0.8rem;">'
+            'How does the offer premium affect EPS accretion/dilution?</div>',
+            unsafe_allow_html=True,
+        )
+        
+        premiums = [10, 15, 20, 25, 30, 35, 40, 50, 60]
+        ad_results = []
+        for p in premiums:
+            test_assumptions = MergerAssumptions(
+                offer_premium_pct=p,
+                pct_cash=merger_assumptions.pct_cash,
+                pct_stock=merger_assumptions.pct_stock,
+                cost_synergies_pct=merger_assumptions.cost_synergies_pct,
+                revenue_synergies_pct=merger_assumptions.revenue_synergies_pct,
+                transaction_fees_pct=merger_assumptions.transaction_fees_pct,
+                tax_rate=merger_assumptions.tax_rate,
+                cost_of_debt=merger_assumptions.cost_of_debt,
+            )
+            try:
+                test_pf = calculate_pro_forma(acq_cd, tgt_cd, test_assumptions)
+                ad_results.append({"premium": p, "ad_pct": test_pf.accretion_dilution_pct or 0})
+            except Exception:
+                ad_results.append({"premium": p, "ad_pct": 0})
+        
+        if ad_results:
+            fig_prem = go.Figure()
+            colors = ["#10B981" if r["ad_pct"] >= 0 else "#EF4444" for r in ad_results]
+            fig_prem.add_trace(go.Bar(
+                x=[f"{r['premium']}%" for r in ad_results],
+                y=[r["ad_pct"] for r in ad_results],
+                marker_color=colors,
+                text=[f"{r['ad_pct']:+.1f}%" for r in ad_results],
+                textposition="outside",
+                textfont=dict(size=9, color="#B8B3D7"),
+            ))
+            # Highlight current premium
+            curr_idx = None
+            for i, r in enumerate(ad_results):
+                if r["premium"] == merger_assumptions.offer_premium_pct:
+                    curr_idx = i
+                    break
+            if curr_idx is not None:
+                fig_prem.add_annotation(
+                    x=f"{merger_assumptions.offer_premium_pct}%", y=ad_results[curr_idx]["ad_pct"],
+                    text="Current", showarrow=True, arrowhead=2, arrowcolor="#F59E0B",
+                    font=dict(size=10, color="#F59E0B"), ax=0, ay=-30,
+                )
+            
+            fig_prem.add_hline(y=0, line_dash="dash", line_color="rgba(255,255,255,0.2)", line_width=1)
+            fig_prem.update_layout(
+                **_CHART_LAYOUT_BASE, height=300,
+                margin=dict(t=30, b=30, l=50, r=30),
+                xaxis=dict(title=dict(text="Offer Premium", font=dict(size=11, color="#8A85AD")),
+                          tickfont=dict(size=10, color="#8A85AD"), showgrid=False),
+                yaxis=dict(title=dict(text="EPS Accretion/Dilution %", font=dict(size=11, color="#8A85AD")),
+                          ticksuffix="%", tickfont=dict(size=9, color="#8A85AD")),
+                showlegend=False,
+            )
+            _apply_space_grid(fig_prem)
+            st.plotly_chart(fig_prem, use_container_width=True, key="premium_sensitivity")
+    except Exception:
+        pass  # Premium sensitivity is non-critical
 
     _divider()
 
