@@ -4532,16 +4532,20 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
         
-        dcf_growth_rate = st.slider("FCF Growth Rate (%)", 0, 30, 8, 1) / 100
-        dcf_terminal_growth = st.slider("Terminal Growth (%)", 0.0, 4.0, 2.5, 0.5) / 100
-        dcf_years = st.slider("Projection Years", 3, 10, 5, 1)
+        dcf_growth_rate = st.slider("FCF Growth Rate (%)", 0, 30, 8, 1, 
+                                     help="Expected annual free cash flow growth rate") / 100
+        dcf_terminal_growth = st.slider("Terminal Growth (%)", 0.0, 4.0, 2.5, 0.5,
+                                        help="Long-term perpetuity growth rate (typically GDP growth ~2-3%)") / 100
+        dcf_years = st.slider("Projection Years", 3, 10, 5, 1,
+                              help="Number of years to project FCF before terminal value")
         
         st.markdown(
             '<div class="sb-section"><span class="sb-section-icon">🎯</span> DISCOUNT RATE</div>',
             unsafe_allow_html=True,
         )
         
-        dcf_discount_rate = st.slider("WACC / Discount Rate (%)", 5, 20, 10, 1) / 100
+        dcf_discount_rate = st.slider("WACC / Discount Rate (%)", 5, 20, 10, 1,
+                                      help="Weighted average cost of capital — higher = more conservative") / 100
         
         st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
         dcf_btn = st.button("💹 Calculate DCF", type="primary", use_container_width=True)
@@ -4639,8 +4643,10 @@ with st.sidebar:
             '<div class="sb-section"><span class="sb-section-icon">💰</span> DEAL STRUCTURE</div>',
             unsafe_allow_html=True,
         )
-        offer_premium = st.slider("Offer Premium (%)", 0, 100, 30, 5)
-        pct_cash = st.slider("Cash Consideration (%)", 0, 100, 50, 5)
+        offer_premium = st.slider("Offer Premium (%)", 0, 100, 30, 5,
+                                  help="Premium over current market price. Typical M&A premiums: 20-40%")
+        pct_cash = st.slider("Cash Consideration (%)", 0, 100, 50, 5,
+                             help="% of deal funded by cash (remainder is stock)")
         pct_stock = 100 - pct_cash
         st.markdown(
             f'<div class="sb-split-bar">'
@@ -4659,17 +4665,22 @@ with st.sidebar:
             '<div class="sb-section"><span class="sb-section-icon">⚡</span> SYNERGIES</div>',
             unsafe_allow_html=True,
         )
-        cost_syn = st.slider("Cost Synergies (% of Target SG&A)", 0, 30, 10, 1)
-        rev_syn = st.slider("Revenue Synergies (% of Target Rev)", 0, 10, 2, 1)
+        cost_syn = st.slider("Cost Synergies (% of Target SG&A)", 0, 30, 10, 1,
+                             help="Expected cost savings from eliminating redundancies. 10-15% is typical")
+        rev_syn = st.slider("Revenue Synergies (% of Target Rev)", 0, 10, 2, 1,
+                            help="Expected revenue uplift from cross-selling, market access. Usually conservative (1-3%)")
 
         # ── Section: Financing & Fees ──
         st.markdown(
             '<div class="sb-section"><span class="sb-section-icon">🏦</span> FINANCING &amp; FEES</div>',
             unsafe_allow_html=True,
         )
-        txn_fees = st.slider("Transaction Fees (%)", 0.5, 5.0, 2.0, 0.5)
-        adv_cost_of_debt = st.slider("Cost of Debt (%)", 2.0, 10.0, 5.0, 0.5)
-        adv_tax_rate = st.slider("Tax Rate (%)", 10, 40, 25, 1)
+        txn_fees = st.slider("Transaction Fees (%)", 0.5, 5.0, 2.0, 0.5,
+                             help="Advisory, legal, and other transaction costs. Typical: 1-3%")
+        adv_cost_of_debt = st.slider("Cost of Debt (%)", 2.0, 10.0, 5.0, 0.5,
+                                     help="Interest rate on new debt to fund the acquisition")
+        adv_tax_rate = st.slider("Tax Rate (%)", 10, 40, 25, 1,
+                                 help="Corporate tax rate for calculating after-tax synergies and interest")
 
         merger_assumptions = MergerAssumptions(
             offer_premium_pct=offer_premium,
