@@ -203,7 +203,11 @@ def _company_slide_1(prs, cd: CompanyData):
     # Left column: Company Description
     _gs_section_title(slide, "Company Overview", Inches(1.0))
 
-    desc = cd.description[:600] + "..." if cd.description and len(cd.description) > 600 else (cd.description or "Company description not available.")
+    _raw_desc = getattr(cd, 'description', None) or getattr(cd, 'long_business_summary', None) or ""
+    if hasattr(_raw_desc, 'iloc'):
+        _raw_desc = str(_raw_desc.iloc[0]) if len(_raw_desc) > 0 else ""
+    _raw_desc = str(_raw_desc) if _raw_desc else ""
+    desc = (_raw_desc[:600] + "...") if len(_raw_desc) > 600 else (_raw_desc or "Company description not available.")
     _add_textbox(slide, Inches(0.5), Inches(1.4), Inches(5.8), Inches(2.0),
                  desc, font_size=9, color=DARK_GRAY)
 
