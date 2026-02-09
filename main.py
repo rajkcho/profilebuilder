@@ -2089,28 +2089,33 @@ section[data-testid="stSidebar"] .stRadio > label {{
     display: none !important;
 }}
 section[data-testid="stSidebar"] .stRadio > div {{
-    flex-direction: row !important;
-    gap: 0 !important;
-    background: rgba(107,92,231,0.1);
+    flex-direction: column !important;
+    gap: 4px !important;
+    background: rgba(107,92,231,0.06);
     border-radius: 14px;
-    padding: 4px;
-    border: 1px solid rgba(107,92,231,0.2);
+    padding: 6px;
+    border: 1px solid rgba(107,92,231,0.15);
 }}
 section[data-testid="stSidebar"] .stRadio > div > label {{
-    flex: 1 !important;
     margin: 0 !important;
-    padding: 0.6rem 0.8rem !important;
+    padding: 0.55rem 0.8rem !important;
     border-radius: 10px !important;
     font-weight: 600 !important;
-    font-size: 0.8rem !important;
-    text-align: center !important;
-    transition: all 0.3s ease !important;
+    font-size: 0.78rem !important;
+    text-align: left !important;
+    transition: all 0.2s ease !important;
     cursor: pointer !important;
     background: transparent !important;
+    border: 1px solid transparent !important;
+}}
+section[data-testid="stSidebar"] .stRadio > div > label:hover {{
+    background: rgba(107,92,231,0.08) !important;
+    border-color: rgba(107,92,231,0.2) !important;
 }}
 section[data-testid="stSidebar"] .stRadio > div > label[data-checked="true"] {{
     background: linear-gradient(135deg, #6B5CE7 0%, #9B8AFF 100%) !important;
     box-shadow: 0 4px 15px rgba(107,92,231,0.4) !important;
+    border-color: transparent !important;
 }}
 section[data-testid="stSidebar"] .stRadio > div > label[data-checked="true"] span,
 section[data-testid="stSidebar"] .stRadio > div > label[data-checked="true"] p {{
@@ -2154,6 +2159,58 @@ section[data-testid="stSidebar"] .stButton > button {{
 section[data-testid="stSidebar"] .stButton > button:hover {{
     transform: translateY(-2px);
     box-shadow: 0 8px 30px rgba(107,92,231,0.5);
+}}
+/* ── SIDEBAR SELECTBOX ──────────────────────────────── */
+section[data-testid="stSidebar"] .stSelectbox > div > div {{
+    background: rgba(107,92,231,0.08) !important;
+    border: 1px solid rgba(107,92,231,0.25) !important;
+    border-radius: 10px !important;
+    color: #E0DCF5 !important;
+    font-size: 0.82rem !important;
+}}
+section[data-testid="stSidebar"] .stSelectbox > div > div:hover {{
+    border-color: rgba(107,92,231,0.5) !important;
+}}
+section[data-testid="stSidebar"] .stSelectbox > label {{
+    color: #8A85AD !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.8px !important;
+}}
+/* ── SIDEBAR SLIDER ──────────────────────────────── */
+section[data-testid="stSidebar"] .stSlider > div > div > div {{
+    color: #6B5CE7 !important;
+}}
+section[data-testid="stSidebar"] .stSlider > label {{
+    color: #8A85AD !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+}}
+/* ── SIDEBAR NUMBER INPUT ──────────────────────────── */
+section[data-testid="stSidebar"] .stNumberInput > div > div > input {{
+    background: rgba(107,92,231,0.08) !important;
+    border: 1px solid rgba(107,92,231,0.25) !important;
+    border-radius: 10px !important;
+    color: #E0DCF5 !important;
+}}
+section[data-testid="stSidebar"] .stNumberInput > label {{
+    color: #8A85AD !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+}}
+/* ── SIDEBAR CHECKBOX ──────────────────────────────── */
+section[data-testid="stSidebar"] .stCheckbox > label {{
+    color: #B8B3D7 !important;
+    font-size: 0.78rem !important;
+}}
+/* ── SIDEBAR EXPANDER ──────────────────────────────── */
+section[data-testid="stSidebar"] .streamlit-expanderHeader {{
+    background: rgba(107,92,231,0.06) !important;
+    border-radius: 10px !important;
+    color: #B8B3D7 !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
 }}
 section[data-testid="stSidebar"] hr {{
     border-color: rgba(107,92,231,0.2) !important;
@@ -4283,10 +4340,15 @@ with st.sidebar:
     st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
 
     # Mode Toggle - Enhanced with more analysis modes
+    st.markdown(
+        '<div style="font-size:0.65rem; font-weight:700; color:#8A85AD; text-transform:uppercase; '
+        'letter-spacing:1.5px; margin-bottom:0.3rem;">Analysis Mode</div>',
+        unsafe_allow_html=True,
+    )
     analysis_mode = st.radio(
         "Mode", 
         ["Company Profile", "Comps Analysis", "DCF Valuation", "Quick Compare", "Merger Analysis"], 
-        horizontal=True, 
+        horizontal=False, 
         label_visibility="collapsed"
     )
 
