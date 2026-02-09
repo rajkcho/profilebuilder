@@ -4704,6 +4704,15 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     _scanner_slot.empty()
 
     cs = cd.currency_symbol  # shorthand
+    _fetch_timestamp = datetime.now().strftime("%b %d, %Y at %H:%M UTC")
+
+    # Data freshness indicator
+    st.markdown(
+        f'<div style="text-align:right; padding:0.3rem 1rem; margin-bottom:-0.5rem;">'
+        f'<span style="font-size:0.6rem; color:#5A567A;">🔄 Data as of {_fetch_timestamp}</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
     # ══════════════════════════════════════════════════════
     # 1. COMPANY HEADER CARD (with logo)
@@ -7390,6 +7399,120 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
         _divider()
         
         # DCF Disclaimer
+        _divider()
+        
+        # Monte Carlo Simulation
+        _section("Monte Carlo Simulation", "🎲")
+        st.markdown(
+            '<div style="font-size:0.85rem; color:#B8B3D7; margin-bottom:1rem;">'
+            '1,000 simulations with randomized growth rate and WACC to generate a probability distribution of fair value.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        
+        try:
+            n_sims = 1000
+            base_growth = dcf_result["growth_rate"]
+            base_wacc = dcf_result["discount_rate"]
+            base_fcf = dcf_result["base_fcf"]
+            term_growth = dcf_result["terminal_growth"]
+            years = dcf_result["projection_years"]
+            shares = dcf_result.get("shares_outstanding", 1)
+            net_debt = dcf_result["net_debt"]
+            
+            mc_results = []
+            for _ in range(n_sims):
+                sim_growth = np.random.normal(base_growth, 0.03)  # ±3% std
+                sim_wacc = np.random.normal(base_wacc, 0.015)  # ±1.5% std
+                sim_wacc = max(sim_wacc, 0.04)  # Floor at 4%
+                
+                # Project FCF
+                sim_fcfs = []
+                fcf = base_fcf
+                for yr in range(1, years + 1):
+                    fcf = fcf * (1 + sim_growth)
+                    sim_fcfs.append(fcf / (1 + sim_wacc) ** yr)
+                
+                # Terminal value
+                if sim_wacc > term_growth:
+                    tv = (fcf * (1 + term_growth)) / (sim_wacc - term_growth)
+                    pv_tv = tv / (1 + sim_wacc) ** years
+                else:
+                    pv_tv = 0
+                
+                ev = sum(sim_fcfs) + pv_tv
+                eq = ev - net_debt
+                price = eq / shares if shares > 0 else 0
+                mc_results.append(price)
+            
+            mc_results = [p for p in mc_results if 0 < p < dcf_result["implied_share_price"] * 5]
+            
+            if mc_results:
+                mc_arr = np.array(mc_results)
+                p10 = np.percentile(mc_arr, 10)
+                p25 = np.percentile(mc_arr, 25)
+                p50 = np.percentile(mc_arr, 50)
+                p75 = np.percentile(mc_arr, 75)
+                p90 = np.percentile(mc_arr, 90)
+                
+                # Stats
+                mc_c1, mc_c2, mc_c3, mc_c4, mc_c5 = st.columns(5)
+                mc_c1.metric("10th %ile", f"{cs}{p10:,.2f}")
+                mc_c2.metric("25th %ile", f"{cs}{p25:,.2f}")
+                mc_c3.metric("Median", f"{cs}{p50:,.2f}")
+                mc_c4.metric("75th %ile", f"{cs}{p75:,.2f}")
+                mc_c5.metric("90th %ile", f"{cs}{p90:,.2f}")
+                
+                # Histogram
+                fig_mc = go.Figure()
+                fig_mc.add_trace(go.Histogram(
+                    x=mc_results, nbinsx=50,
+                    marker_color="rgba(107,92,231,0.5)",
+                    marker_line=dict(color="rgba(107,92,231,0.8)", width=1),
+                ))
+                # Add current price line
+                fig_mc.add_vline(x=dcf_result["current_price"], line_dash="dash",
+                                line_color="#EF4444", line_width=2,
+                                annotation_text=f"Current: {cs}{dcf_result['current_price']:,.2f}",
+                                annotation_font=dict(size=10, color="#EF4444"))
+                # Add median line
+                fig_mc.add_vline(x=p50, line_dash="dash",
+                                line_color="#10B981", line_width=2,
+                                annotation_text=f"Median: {cs}{p50:,.2f}",
+                                annotation_font=dict(size=10, color="#10B981"),
+                                annotation_position="top left")
+                
+                fig_mc.update_layout(
+                    **_CHART_LAYOUT_BASE, height=350,
+                    margin=dict(t=30, b=40, l=50, r=30),
+                    xaxis=dict(title=dict(text="Implied Share Price", font=dict(size=11, color="#8A85AD")),
+                              tickprefix=cs, tickfont=dict(size=10, color="#8A85AD"), showgrid=False),
+                    yaxis=dict(title=dict(text="Frequency", font=dict(size=11, color="#8A85AD")),
+                              tickfont=dict(size=10, color="#8A85AD")),
+                    showlegend=False,
+                    bargap=0.05,
+                )
+                _apply_space_grid(fig_mc)
+                st.plotly_chart(fig_mc, use_container_width=True, key="mc_simulation")
+                
+                # Probability of upside
+                upside_prob = sum(1 for p in mc_results if p > dcf_result["current_price"]) / len(mc_results) * 100
+                prob_color = "#10B981" if upside_prob > 60 else "#EF4444" if upside_prob < 40 else "#F59E0B"
+                st.markdown(
+                    f'<div style="text-align:center; padding:0.8rem; background:rgba(107,92,231,0.05); '
+                    f'border-radius:12px; margin-top:0.5rem;">'
+                    f'<span style="font-size:0.75rem; color:#8A85AD;">Probability stock is undervalued: </span>'
+                    f'<span style="font-size:1.3rem; font-weight:800; color:{prob_color};">{upside_prob:.0f}%</span>'
+                    f'<div style="font-size:0.6rem; color:#8A85AD; margin-top:0.2rem;">'
+                    f'Based on {len(mc_results):,} simulations (growth ±3%, WACC ±1.5%)</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+        except Exception:
+            st.info("Could not run Monte Carlo simulation.")
+        
+        _divider()
+        
         st.markdown(
             '<div style="background:rgba(245,166,35,0.1); border:1px solid rgba(245,166,35,0.3); '
             'border-radius:12px; padding:1rem; margin-top:1rem;">'
