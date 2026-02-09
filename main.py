@@ -5,6 +5,15 @@ Professional-grade company research platform with Sky.money-inspired UI.
 Generates an 8-slide investment-banker-grade PowerPoint tear sheet.
 
 Run:  streamlit run main.py
+
+v2.0 - Enhanced Features:
+- Watchlist with session persistence
+- Excel/CSV export for all financial data
+- DCF Valuation module
+- Quick Compare mode (side-by-side)
+- Sector screening
+- Keyboard shortcuts
+- Enhanced visualizations
 """
 
 import streamlit as st
@@ -15,6 +24,9 @@ import numpy as np
 import os
 import random
 import time
+import json
+import io
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -28,6 +40,377 @@ from pptx_generator import generate_presentation, generate_deal_book
 from merger_analysis import MergerAssumptions, calculate_pro_forma, build_football_field
 from comps_analysis import run_comps_analysis, generate_comps_table, format_comps_for_display, CompsAnalysis
 import yfinance as yf
+
+# ══════════════════════════════════════════════════════════════
+# WATCHLIST MANAGEMENT
+# ══════════════════════════════════════════════════════════════
+def _init_watchlist():
+    """Initialize watchlist in session state."""
+    if "watchlist" not in st.session_state:
+        st.session_state.watchlist = []
+    if "watchlist_data" not in st.session_state:
+        st.session_state.watchlist_data = {}
+
+def _add_to_watchlist(ticker: str):
+    """Add a ticker to the watchlist."""
+    _init_watchlist()
+    ticker = ticker.upper().strip()
+    if ticker and ticker not in st.session_state.watchlist:
+        st.session_state.watchlist.append(ticker)
+        # Fetch basic data
+        info = _quick_ticker_lookup(ticker)
+        if info.get("valid"):
+            st.session_state.watchlist_data[ticker] = info
+        return True
+    return False
+
+def _remove_from_watchlist(ticker: str):
+    """Remove a ticker from the watchlist."""
+    _init_watchlist()
+    ticker = ticker.upper().strip()
+    if ticker in st.session_state.watchlist:
+        st.session_state.watchlist.remove(ticker)
+        st.session_state.watchlist_data.pop(ticker, None)
+        return True
+    return False
+
+def _is_in_watchlist(ticker: str) -> bool:
+    """Check if ticker is in watchlist."""
+    _init_watchlist()
+    return ticker.upper().strip() in st.session_state.watchlist
+
+def _get_watchlist() -> list:
+    """Get current watchlist."""
+    _init_watchlist()
+    return st.session_state.watchlist
+
+# ══════════════════════════════════════════════════════════════
+# EXCEL/CSV EXPORT UTILITIES
+# ══════════════════════════════════════════════════════════════
+def _export_to_excel(cd) -> bytes:
+    """Export company data to Excel with multiple sheets."""
+    output = io.BytesIO()
+    
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        # Summary sheet
+        summary_data = {
+            'Metric': ['Company Name', 'Ticker', 'Sector', 'Industry', 'Market Cap', 
+                      'Enterprise Value', 'Current Price', 'P/E Ratio', 'Forward P/E',
+                      'EV/EBITDA', 'EV/Revenue', 'Gross Margin', 'Operating Margin',
+                      'Net Margin', 'ROE', 'ROA', 'Debt/Equity', 'Current Ratio'],
+            'Value': [cd.name, cd.ticker, cd.sector, cd.industry, 
+                     format_number(cd.market_cap, currency_symbol=cd.currency_symbol),
+                     format_number(cd.enterprise_value, currency_symbol=cd.currency_symbol),
+                     f"{cd.currency_symbol}{cd.current_price:,.2f}",
+                     format_multiple(cd.trailing_pe), format_multiple(cd.forward_pe),
+                     format_multiple(cd.ev_to_ebitda), format_multiple(cd.ev_to_revenue),
+                     format_pct(cd.gross_margins), format_pct(cd.operating_margins),
+                     format_pct(cd.profit_margins), format_pct(cd.return_on_equity),
+                     format_pct(cd.return_on_assets), format_multiple(cd.debt_to_equity),
+                     format_multiple(cd.current_ratio)]
+        }
+        pd.DataFrame(summary_data).to_excel(writer, sheet_name='Summary', index=False)
+        
+        # Income Statement
+        if cd.revenue is not None and len(cd.revenue) > 0:
+            income_data = {'Year': [str(idx.year) if hasattr(idx, 'year') else str(idx) for idx in cd.revenue.index]}
+            income_data['Revenue'] = cd.revenue.values
+            if cd.gross_profit is not None:
+                income_data['Gross Profit'] = cd.gross_profit.values[:len(cd.revenue)]
+            if cd.operating_income is not None:
+                income_data['Operating Income'] = cd.operating_income.values[:len(cd.revenue)]
+            if cd.net_income is not None:
+                income_data['Net Income'] = cd.net_income.values[:len(cd.revenue)]
+            if cd.ebitda is not None:
+                income_data['EBITDA'] = cd.ebitda.values[:len(cd.revenue)]
+            pd.DataFrame(income_data).to_excel(writer, sheet_name='Income Statement', index=False)
+        
+        # Balance Sheet
+        if cd.total_assets is not None and len(cd.total_assets) > 0:
+            bs_data = {'Year': [str(idx.year) if hasattr(idx, 'year') else str(idx) for idx in cd.total_assets.index]}
+            bs_data['Total Assets'] = cd.total_assets.values
+            if cd.total_equity is not None:
+                bs_data['Total Equity'] = cd.total_equity.values[:len(cd.total_assets)]
+            if cd.total_debt is not None:
+                bs_data['Total Debt'] = cd.total_debt.values[:len(cd.total_assets)]
+            if cd.cash_and_equivalents is not None:
+                bs_data['Cash'] = cd.cash_and_equivalents.values[:len(cd.total_assets)]
+            pd.DataFrame(bs_data).to_excel(writer, sheet_name='Balance Sheet', index=False)
+        
+        # Cash Flow
+        if cd.operating_cashflow_series is not None and len(cd.operating_cashflow_series) > 0:
+            cf_data = {'Year': [str(idx.year) if hasattr(idx, 'year') else str(idx) for idx in cd.operating_cashflow_series.index]}
+            cf_data['Operating Cash Flow'] = cd.operating_cashflow_series.values
+            if cd.capital_expenditure is not None:
+                cf_data['CapEx'] = cd.capital_expenditure.values[:len(cd.operating_cashflow_series)]
+            if cd.free_cashflow_series is not None:
+                cf_data['Free Cash Flow'] = cd.free_cashflow_series.values[:len(cd.operating_cashflow_series)]
+            pd.DataFrame(cf_data).to_excel(writer, sheet_name='Cash Flow', index=False)
+        
+        # Peer Comparison
+        if cd.peer_data:
+            peer_df = pd.DataFrame(cd.peer_data)
+            peer_df.to_excel(writer, sheet_name='Peer Comparison', index=False)
+    
+    return output.getvalue()
+
+def _export_to_csv(cd) -> str:
+    """Export key metrics to CSV."""
+    data = {
+        'Metric': ['Company', 'Ticker', 'Price', 'Market Cap', 'P/E', 'EV/EBITDA', 
+                  'Gross Margin', 'Net Margin', 'ROE', 'Debt/Equity'],
+        'Value': [cd.name, cd.ticker, cd.current_price, cd.market_cap, 
+                 cd.trailing_pe, cd.ev_to_ebitda, cd.gross_margins, 
+                 cd.profit_margins, cd.return_on_equity, cd.debt_to_equity]
+    }
+    return pd.DataFrame(data).to_csv(index=False)
+
+# ══════════════════════════════════════════════════════════════
+# DCF VALUATION MODULE
+# ══════════════════════════════════════════════════════════════
+def _calculate_dcf(cd, growth_rate: float = 0.05, terminal_growth: float = 0.025, 
+                   discount_rate: float = 0.10, projection_years: int = 5) -> dict:
+    """
+    Calculate a simple DCF valuation.
+    
+    Args:
+        cd: Company data object
+        growth_rate: Revenue/FCF growth rate for projection period
+        terminal_growth: Perpetual growth rate for terminal value
+        discount_rate: WACC or required return
+        projection_years: Number of years to project
+    
+    Returns:
+        dict with DCF valuation results
+    """
+    # Get base FCF
+    base_fcf = None
+    if cd.free_cashflow_series is not None and len(cd.free_cashflow_series) > 0:
+        base_fcf = cd.free_cashflow_series.iloc[0]
+    elif cd.operating_cashflow_series is not None and cd.capital_expenditure is not None:
+        base_fcf = cd.operating_cashflow_series.iloc[0] + cd.capital_expenditure.iloc[0]  # CapEx is negative
+    
+    if base_fcf is None or base_fcf <= 0:
+        return {"error": "Insufficient FCF data for DCF valuation"}
+    
+    # Project FCF
+    projected_fcf = []
+    current_fcf = base_fcf
+    for year in range(1, projection_years + 1):
+        current_fcf = current_fcf * (1 + growth_rate)
+        projected_fcf.append(current_fcf)
+    
+    # Calculate PV of projected FCF
+    pv_fcf = []
+    for i, fcf in enumerate(projected_fcf):
+        pv = fcf / ((1 + discount_rate) ** (i + 1))
+        pv_fcf.append(pv)
+    
+    # Terminal Value (Gordon Growth Model)
+    terminal_fcf = projected_fcf[-1] * (1 + terminal_growth)
+    terminal_value = terminal_fcf / (discount_rate - terminal_growth)
+    pv_terminal = terminal_value / ((1 + discount_rate) ** projection_years)
+    
+    # Enterprise Value
+    dcf_enterprise_value = sum(pv_fcf) + pv_terminal
+    
+    # Equity Value
+    net_debt = (cd.total_debt.iloc[0] if cd.total_debt is not None and len(cd.total_debt) > 0 else 0) - \
+               (cd.cash_and_equivalents.iloc[0] if cd.cash_and_equivalents is not None and len(cd.cash_and_equivalents) > 0 else 0)
+    
+    equity_value = dcf_enterprise_value - net_debt
+    
+    # Per Share Value
+    shares_outstanding = cd.shares_outstanding or (cd.market_cap / cd.current_price if cd.current_price > 0 else 1)
+    implied_share_price = equity_value / shares_outstanding if shares_outstanding > 0 else 0
+    
+    # Upside/Downside
+    upside = ((implied_share_price / cd.current_price) - 1) * 100 if cd.current_price > 0 else 0
+    
+    return {
+        "base_fcf": base_fcf,
+        "projected_fcf": projected_fcf,
+        "pv_fcf": pv_fcf,
+        "terminal_value": terminal_value,
+        "pv_terminal": pv_terminal,
+        "enterprise_value": dcf_enterprise_value,
+        "net_debt": net_debt,
+        "equity_value": equity_value,
+        "shares_outstanding": shares_outstanding,
+        "implied_share_price": implied_share_price,
+        "current_price": cd.current_price,
+        "upside_pct": upside,
+        "growth_rate": growth_rate,
+        "terminal_growth": terminal_growth,
+        "discount_rate": discount_rate,
+        "projection_years": projection_years,
+    }
+
+def _build_dcf_chart(dcf_result: dict, currency_symbol: str = "$", key: str = "dcf_chart"):
+    """Build a visualization for DCF results."""
+    if "error" in dcf_result:
+        st.warning(dcf_result["error"])
+        return
+    
+    years = list(range(1, dcf_result["projection_years"] + 1))
+    
+    fig = go.Figure()
+    
+    # Projected FCF bars
+    fig.add_trace(go.Bar(
+        x=[f"Year {y}" for y in years],
+        y=dcf_result["projected_fcf"],
+        name="Projected FCF",
+        marker=dict(color="rgba(107,92,231,0.7)", line=dict(color="rgba(255,255,255,0.15)", width=1)),
+        text=[format_number(v, currency_symbol=currency_symbol) for v in dcf_result["projected_fcf"]],
+        textposition="outside",
+        textfont=dict(size=9, color="#B8B3D7"),
+    ))
+    
+    # PV of FCF line
+    fig.add_trace(go.Scatter(
+        x=[f"Year {y}" for y in years],
+        y=dcf_result["pv_fcf"],
+        name="PV of FCF",
+        mode="lines+markers",
+        line=dict(color="#10B981", width=3),
+        marker=dict(size=8, line=dict(color="#fff", width=1.5)),
+    ))
+    
+    fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Inter", size=14, color="#B8B3D7"),
+        height=400,
+        margin=dict(t=40, b=40, l=60, r=60),
+        xaxis=dict(tickfont=dict(size=10, color="#8A85AD"), showgrid=False),
+        yaxis=dict(tickfont=dict(size=9, color="#8A85AD"), gridcolor="rgba(107,92,231,0.1)", griddash="dot"),
+        legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
+        barmode="group",
+    )
+    
+    st.plotly_chart(fig, use_container_width=True, key=key)
+
+# ══════════════════════════════════════════════════════════════
+# QUICK COMPARE - Side-by-side company comparison
+# ══════════════════════════════════════════════════════════════
+@st.cache_data(ttl=600, show_spinner=False)
+def _fetch_comparison_data(tickers: list) -> list:
+    """Fetch data for multiple companies for comparison."""
+    results = []
+    for ticker in tickers:
+        try:
+            cd = fetch_company_data(ticker)
+            results.append(cd)
+        except Exception:
+            continue
+    return results
+
+def _build_comparison_table(companies: list) -> pd.DataFrame:
+    """Build a comparison table for multiple companies."""
+    if not companies:
+        return pd.DataFrame()
+    
+    metrics = [
+        ("Ticker", lambda cd: cd.ticker),
+        ("Name", lambda cd: cd.name[:25] + "..." if len(cd.name) > 25 else cd.name),
+        ("Price", lambda cd: f"{cd.currency_symbol}{cd.current_price:,.2f}"),
+        ("Market Cap", lambda cd: format_number(cd.market_cap, currency_symbol=cd.currency_symbol)),
+        ("P/E", lambda cd: format_multiple(cd.trailing_pe)),
+        ("Fwd P/E", lambda cd: format_multiple(cd.forward_pe)),
+        ("EV/EBITDA", lambda cd: format_multiple(cd.ev_to_ebitda)),
+        ("EV/Revenue", lambda cd: format_multiple(cd.ev_to_revenue)),
+        ("Gross Margin", lambda cd: format_pct(cd.gross_margins)),
+        ("Op Margin", lambda cd: format_pct(cd.operating_margins)),
+        ("Net Margin", lambda cd: format_pct(cd.profit_margins)),
+        ("ROE", lambda cd: format_pct(cd.return_on_equity)),
+        ("ROA", lambda cd: format_pct(cd.return_on_assets)),
+        ("Debt/Equity", lambda cd: format_multiple(cd.debt_to_equity)),
+        ("Dividend Yield", lambda cd: format_pct(cd.dividend_yield) if cd.dividend_yield else "N/A"),
+    ]
+    
+    data = {}
+    for metric_name, getter in metrics:
+        data[metric_name] = []
+        for cd in companies:
+            try:
+                data[metric_name].append(getter(cd))
+            except Exception:
+                data[metric_name].append("N/A")
+    
+    return pd.DataFrame(data)
+
+def _build_comparison_radar(companies: list, key: str = "compare_radar"):
+    """Build a radar chart comparing multiple companies."""
+    if len(companies) < 2:
+        return
+    
+    metrics = ["P/E", "EV/EBITDA", "Gross Margin", "ROE", "Debt/Equity"]
+    
+    fig = go.Figure()
+    
+    colors = ["#6B5CE7", "#E8638B", "#10B981", "#F5A623", "#3B82F6"]
+    
+    for i, cd in enumerate(companies[:5]):  # Max 5 companies
+        values = []
+        for metric in metrics:
+            if metric == "P/E":
+                val = cd.trailing_pe if cd.trailing_pe and cd.trailing_pe > 0 else 0
+            elif metric == "EV/EBITDA":
+                val = cd.ev_to_ebitda if cd.ev_to_ebitda and cd.ev_to_ebitda > 0 else 0
+            elif metric == "Gross Margin":
+                val = (cd.gross_margins or 0) * 100
+            elif metric == "ROE":
+                val = (cd.return_on_equity or 0) * 100
+            elif metric == "Debt/Equity":
+                val = cd.debt_to_equity if cd.debt_to_equity else 0
+            values.append(val)
+        
+        # Normalize values to 0-100 scale
+        max_vals = [50, 30, 100, 50, 200]  # Reasonable max for each metric
+        norm_values = [min(v / m * 100, 120) for v, m in zip(values, max_vals)]
+        
+        fig.add_trace(go.Scatterpolar(
+            r=norm_values + [norm_values[0]],
+            theta=metrics + [metrics[0]],
+            fill='toself',
+            name=cd.ticker,
+            fillcolor=f"rgba({int(colors[i][1:3], 16)},{int(colors[i][3:5], 16)},{int(colors[i][5:7], 16)},0.1)",
+            line=dict(color=colors[i], width=2),
+            marker=dict(size=6),
+        ))
+    
+    fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Inter", size=12, color="#B8B3D7"),
+        polar=dict(
+            radialaxis=dict(visible=True, range=[0, 120], tickfont=dict(size=8, color="#8A85AD"),
+                           gridcolor="rgba(107,92,231,0.1)"),
+            angularaxis=dict(tickfont=dict(size=10, color="#8A85AD"),
+                            gridcolor="rgba(107,92,231,0.08)"),
+            bgcolor="rgba(0,0,0,0)",
+        ),
+        showlegend=True,
+        height=450,
+        margin=dict(t=50, b=50, l=70, r=70),
+        legend=dict(font=dict(size=11, color="#B8B3D7")),
+    )
+    
+    st.plotly_chart(fig, use_container_width=True, key=key)
+
+# ══════════════════════════════════════════════════════════════
+# SECTOR SCREENING
+# ══════════════════════════════════════════════════════════════
+POPULAR_TICKERS = {
+    "Technology": ["AAPL", "MSFT", "GOOGL", "META", "NVDA", "AMZN", "CRM", "ADBE", "INTC", "AMD"],
+    "Healthcare": ["JNJ", "UNH", "PFE", "ABBV", "MRK", "TMO", "ABT", "LLY", "BMY", "AMGN"],
+    "Financials": ["JPM", "BAC", "WFC", "GS", "MS", "BLK", "C", "AXP", "SCHW", "USB"],
+    "Consumer": ["WMT", "PG", "KO", "PEP", "COST", "NKE", "MCD", "SBUX", "TGT", "HD"],
+    "Energy": ["XOM", "CVX", "COP", "SLB", "EOG", "OXY", "MPC", "VLO", "PSX", "DVN"],
+    "Canadian": ["RY.TO", "TD.TO", "BNS.TO", "BMO.TO", "CM.TO", "ENB.TO", "CNQ.TO", "SU.TO", "TRP.TO", "BCE.TO"],
+    "VMS/Software": ["DDOG", "SNOW", "PLTR", "NET", "CRWD", "ZS", "OKTA", "MDB", "TEAM", "ESTC"],
+}
 
 # ── Quick Ticker Lookup (for sidebar previews) ───────────────
 @st.cache_data(ttl=300, show_spinner=False)
@@ -2917,10 +3300,68 @@ with st.sidebar:
 
     st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
 
-    # Mode Toggle
-    analysis_mode = st.radio("Mode", ["Company Profile", "Comps Analysis", "Merger Analysis"], horizontal=True, label_visibility="collapsed")
+    # Mode Toggle - Enhanced with more analysis modes
+    analysis_mode = st.radio(
+        "Mode", 
+        ["Company Profile", "Comps Analysis", "DCF Valuation", "Quick Compare", "Merger Analysis"], 
+        horizontal=True, 
+        label_visibility="collapsed"
+    )
 
     st.markdown('<div style="height:0.8rem;"></div>', unsafe_allow_html=True)
+    
+    # ══════════════════════════════════════════════════════
+    # WATCHLIST SECTION (shown in all modes)
+    # ══════════════════════════════════════════════════════
+    _init_watchlist()
+    watchlist = _get_watchlist()
+    
+    if watchlist:
+        with st.expander(f"📋 Watchlist ({len(watchlist)})", expanded=False):
+            for wl_ticker in watchlist:
+                wl_col1, wl_col2 = st.columns([4, 1])
+                with wl_col1:
+                    wl_info = st.session_state.watchlist_data.get(wl_ticker, {})
+                    wl_price = wl_info.get("price", 0)
+                    wl_change = wl_info.get("change_pct", 0)
+                    change_color = "#10B981" if wl_change and wl_change >= 0 else "#EF4444"
+                    st.markdown(
+                        f'<div style="display:flex; justify-content:space-between; align-items:center; padding:0.3rem 0;">'
+                        f'<span style="font-weight:700; color:#E0DCF5;">{wl_ticker}</span>'
+                        f'<span style="color:{change_color}; font-size:0.8rem;">${wl_price:,.2f}</span>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                with wl_col2:
+                    if st.button("✕", key=f"remove_{wl_ticker}", help=f"Remove {wl_ticker}"):
+                        _remove_from_watchlist(wl_ticker)
+                        st.rerun()
+    
+    st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════
+    # MODE-SPECIFIC SIDEBAR CONTENT
+    # ══════════════════════════════════════════════════════
+    
+    # Initialize all variables with defaults
+    ticker_input = ""
+    generate_btn = False
+    acquirer_input = ""
+    target_input = ""
+    merger_btn = False
+    merger_assumptions = MergerAssumptions()
+    comps_ticker_input = ""
+    comps_btn = False
+    max_peers = 10
+    include_saas = False
+    dcf_ticker_input = ""
+    dcf_btn = False
+    dcf_growth_rate = 0.05
+    dcf_terminal_growth = 0.025
+    dcf_discount_rate = 0.10
+    dcf_years = 5
+    compare_tickers = []
+    compare_btn = False
 
     if analysis_mode == "Company Profile":
         # ── Company Profile Mode ──
@@ -2938,19 +3379,22 @@ with st.sidebar:
         # Show company preview card
         if ticker_input:
             _render_company_card(ticker_input)
+            # Add to watchlist button
+            if not _is_in_watchlist(ticker_input):
+                if st.button("⭐ Add to Watchlist", key="add_wl_profile", use_container_width=True):
+                    _add_to_watchlist(ticker_input)
+                    st.rerun()
 
         st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
         generate_btn = st.button("🚀 Generate Profile", type="primary", use_container_width=True)
-
-        # Unused variables in this mode
-        acquirer_input = ""
-        target_input = ""
-        merger_btn = False
-        merger_assumptions = MergerAssumptions()
-        comps_ticker_input = ""
-        comps_btn = False
-        max_peers = 10
-        include_saas = False
+        
+        # Quick sector picks
+        st.markdown('<div class="sb-section"><span class="sb-section-icon">🔥</span> QUICK PICKS</div>', unsafe_allow_html=True)
+        sector_choice = st.selectbox("Sector", list(POPULAR_TICKERS.keys()), label_visibility="collapsed")
+        selected_quick = st.selectbox("Popular Tickers", POPULAR_TICKERS[sector_choice], label_visibility="collapsed")
+        if st.button("Load Ticker", key="load_quick"):
+            st.session_state["quick_ticker"] = selected_quick
+            st.rerun()
 
     elif analysis_mode == "Comps Analysis":
         # ── Comps Analysis Mode ──
@@ -2983,23 +3427,107 @@ with st.sidebar:
         st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
         comps_btn = st.button("🔍 Run Comps Analysis", type="primary", use_container_width=True)
 
-        # Set unused variables for this mode
-        ticker_input = ""
-        generate_btn = False
-        acquirer_input = ""
-        target_input = ""
-        merger_btn = False
-        merger_assumptions = MergerAssumptions()
+    elif analysis_mode == "DCF Valuation":
+        # ── DCF Valuation Mode ──
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">💰</span> TARGET COMPANY</div>',
+            unsafe_allow_html=True,
+        )
+        
+        dcf_ticker_input = st.text_input(
+            "Stock Ticker", value="", max_chars=10,
+            placeholder="Enter ticker (e.g. AAPL)",
+            label_visibility="collapsed",
+            key="dcf_ticker"
+        ).strip().upper()
+        
+        if dcf_ticker_input:
+            _render_company_card(dcf_ticker_input)
+        
+        st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
+        
+        # DCF Assumptions
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">📈</span> GROWTH ASSUMPTIONS</div>',
+            unsafe_allow_html=True,
+        )
+        
+        dcf_growth_rate = st.slider("FCF Growth Rate (%)", 0, 30, 8, 1) / 100
+        dcf_terminal_growth = st.slider("Terminal Growth (%)", 0.0, 4.0, 2.5, 0.5) / 100
+        dcf_years = st.slider("Projection Years", 3, 10, 5, 1)
+        
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">🎯</span> DISCOUNT RATE</div>',
+            unsafe_allow_html=True,
+        )
+        
+        dcf_discount_rate = st.slider("WACC / Discount Rate (%)", 5, 20, 10, 1) / 100
+        
+        st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
+        dcf_btn = st.button("💹 Calculate DCF", type="primary", use_container_width=True)
+        
+        st.markdown(
+            '<div style="font-size:0.65rem; color:#8A85AD; margin-top:0.5rem; line-height:1.6;">'
+            '💡 <b>Tip:</b> Use historical growth rates and peer WACC as starting points. '
+            'Higher risk = higher discount rate.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
 
-    else:
+    elif analysis_mode == "Quick Compare":
+        # ── Quick Compare Mode ──
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">⚖️</span> COMPANIES TO COMPARE</div>',
+            unsafe_allow_html=True,
+        )
+        
+        compare_input = st.text_area(
+            "Enter tickers (comma-separated)",
+            placeholder="AAPL, MSFT, GOOGL, META",
+            height=80,
+            label_visibility="collapsed",
+            key="compare_input"
+        )
+        
+        compare_tickers = [t.strip().upper() for t in compare_input.split(",") if t.strip()]
+        
+        if compare_tickers:
+            st.markdown(
+                f'<div style="font-size:0.75rem; color:#9B8AFF; margin:0.5rem 0;">'
+                f'📊 Comparing {len(compare_tickers)} companies: {", ".join(compare_tickers[:5])}'
+                f'{"..." if len(compare_tickers) > 5 else ""}'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        
+        st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
+        
+        # Preset comparisons
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">🔥</span> PRESET COMPARISONS</div>',
+            unsafe_allow_html=True,
+        )
+        
+        preset_options = {
+            "FAANG": "META, AAPL, AMZN, NFLX, GOOGL",
+            "Big Tech": "AAPL, MSFT, GOOGL, AMZN, META, NVDA",
+            "Canadian Banks": "RY.TO, TD.TO, BNS.TO, BMO.TO, CM.TO",
+            "Software/SaaS": "CRM, ADBE, NOW, WDAY, TEAM",
+            "Semiconductors": "NVDA, AMD, INTC, QCOM, AVGO",
+            "Healthcare Giants": "JNJ, UNH, PFE, ABBV, MRK",
+        }
+        
+        preset_choice = st.selectbox("Load Preset", ["Custom"] + list(preset_options.keys()), label_visibility="collapsed")
+        if preset_choice != "Custom":
+            if st.button("Load Preset", key="load_preset"):
+                st.session_state["compare_input"] = preset_options[preset_choice]
+                st.rerun()
+        
+        st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
+        compare_btn = st.button("⚖️ Compare Companies", type="primary", use_container_width=True)
+
+    elif analysis_mode == "Merger Analysis":
         # ── Merger Analysis Mode ──
-        ticker_input = ""
-        generate_btn = False
-        comps_ticker_input = ""
-        comps_btn = False
-        max_peers = 10
-        include_saas = False
-
         # Acquirer
         st.markdown(
             '<div class="sb-section"><span class="sb-section-icon">🏢</span> ACQUIRER</div>',
@@ -4002,6 +4530,57 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             "</p>",
             unsafe_allow_html=True,
         )
+    
+    # Excel Export
+    _divider()
+    _section("Export Financial Data", "📊")
+    
+    ex1, ex2, ex3 = st.columns([1, 2, 1])
+    with ex2:
+        try:
+            excel_data = _export_to_excel(cd)
+            st.download_button(
+                label=f"📥 Download {cd.ticker} Financial Data (Excel)",
+                data=excel_data,
+                file_name=f"{cd.ticker}_Financial_Data.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
+            st.markdown(
+                "<p style='text-align:center; font-size:0.72rem; color:#8A85AD; margin-top:0.3rem;'>"
+                "Multi-sheet Excel workbook &middot; Income Statement &middot; Balance Sheet &middot; Cash Flow &middot; Peer Data"
+                "</p>",
+                unsafe_allow_html=True,
+            )
+        except Exception as e:
+            st.warning(f"Excel export not available: {e}")
+        
+        # CSV Quick Export
+        csv_data = _export_to_csv(cd)
+        st.download_button(
+            label=f"📄 Quick Export (CSV)",
+            data=csv_data,
+            file_name=f"{cd.ticker}_Summary.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+    
+    # Add to Watchlist
+    _divider()
+    if not _is_in_watchlist(cd.ticker):
+        wl1, wl2, wl3 = st.columns([1, 2, 1])
+        with wl2:
+            if st.button(f"⭐ Add {cd.ticker} to Watchlist", use_container_width=True):
+                _add_to_watchlist(cd.ticker)
+                st.success(f"Added {cd.ticker} to watchlist!")
+                st.rerun()
+    else:
+        st.markdown(
+            f'<div style="text-align:center; padding:0.5rem; background:rgba(16,185,129,0.1); '
+            f'border-radius:10px; color:#10B981; font-size:0.85rem;">'
+            f'⭐ {cd.ticker} is in your watchlist</div>',
+            unsafe_allow_html=True,
+        )
 
 elif analysis_mode == "Company Profile" and generate_btn and not ticker_input:
     st.warning("Please enter a ticker symbol in the sidebar.")
@@ -4899,6 +5478,260 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
 
 elif analysis_mode == "Merger Analysis" and merger_btn and (not acquirer_input or not target_input):
     st.warning("Please enter both Acquirer and Target tickers in the sidebar.")
+
+# ══════════════════════════════════════════════════════════════
+# DCF VALUATION MODE
+# ══════════════════════════════════════════════════════════════
+elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
+    st.markdown(
+        '<div class="hero-header">'
+        '<div class="orbital-brand">'
+        f'{_orbital_logo()}'
+        '<p class="orbital-tagline">DCF Valuation Analysis</p>'
+        '</div>'
+        '<span class="hero-tagline">Discounted Cash Flow Model</span>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    
+    with st.spinner(f"Fetching data for {dcf_ticker_input}..."):
+        try:
+            dcf_cd = fetch_company_data(dcf_ticker_input)
+        except Exception as e:
+            st.error(f"Failed to fetch data for {dcf_ticker_input}: {e}")
+            st.stop()
+    
+    cs = dcf_cd.currency_symbol
+    
+    # Company Header
+    st.markdown(
+        f'<div class="company-card">'
+        f'<div><p class="company-name">{dcf_cd.name}</p>'
+        f'<p class="company-meta"><span>{dcf_cd.ticker}</span> &nbsp;&middot;&nbsp; {dcf_cd.sector} &rarr; {dcf_cd.industry}</p></div>'
+        f'<div style="margin-top:0.8rem;">'
+        f'<span style="font-size:1.5rem; font-weight:700; color:#E0DCF5;">{cs}{dcf_cd.current_price:,.2f}</span>'
+        f'</div></div>',
+        unsafe_allow_html=True,
+    )
+    
+    # Calculate DCF
+    dcf_result = _calculate_dcf(
+        dcf_cd,
+        growth_rate=dcf_growth_rate,
+        terminal_growth=dcf_terminal_growth,
+        discount_rate=dcf_discount_rate,
+        projection_years=dcf_years
+    )
+    
+    if "error" in dcf_result:
+        st.error(dcf_result["error"])
+    else:
+        # DCF Results Summary
+        _section("DCF Valuation Results", "💰")
+        
+        # Key metrics
+        r1, r2, r3, r4 = st.columns(4)
+        r1.metric("Base FCF", format_number(dcf_result["base_fcf"], currency_symbol=cs))
+        r2.metric("DCF Enterprise Value", format_number(dcf_result["enterprise_value"], currency_symbol=cs))
+        r3.metric("DCF Equity Value", format_number(dcf_result["equity_value"], currency_symbol=cs))
+        
+        # Implied share price with upside/downside
+        upside = dcf_result["upside_pct"]
+        upside_color = "#10B981" if upside >= 0 else "#EF4444"
+        upside_text = f"+{upside:.1f}%" if upside >= 0 else f"{upside:.1f}%"
+        r4.metric("Implied Share Price", f"{cs}{dcf_result['implied_share_price']:,.2f}", delta=upside_text)
+        
+        _divider()
+        
+        # Valuation Summary Card
+        st.markdown(
+            f'<div style="background:linear-gradient(135deg, rgba(107,92,231,0.1), rgba(16,185,129,0.05)); '
+            f'border:1px solid rgba(107,92,231,0.25); border-radius:16px; padding:1.5rem; margin:1rem 0;">'
+            f'<div style="display:flex; justify-content:space-between; align-items:center;">'
+            f'<div>'
+            f'<div style="font-size:0.7rem; color:#8A85AD; text-transform:uppercase; letter-spacing:1px;">Current Price</div>'
+            f'<div style="font-size:1.8rem; font-weight:700; color:#E0DCF5;">{cs}{dcf_result["current_price"]:,.2f}</div>'
+            f'</div>'
+            f'<div style="font-size:2rem; color:#8A85AD;">→</div>'
+            f'<div>'
+            f'<div style="font-size:0.7rem; color:#8A85AD; text-transform:uppercase; letter-spacing:1px;">Implied Value</div>'
+            f'<div style="font-size:1.8rem; font-weight:700; color:{upside_color};">{cs}{dcf_result["implied_share_price"]:,.2f}</div>'
+            f'</div>'
+            f'<div style="background:{"rgba(16,185,129,0.15)" if upside >= 0 else "rgba(239,68,68,0.15)"}; '
+            f'padding:0.8rem 1.5rem; border-radius:12px; text-align:center;">'
+            f'<div style="font-size:0.7rem; color:#8A85AD; text-transform:uppercase;">{"Upside" if upside >= 0 else "Downside"}</div>'
+            f'<div style="font-size:1.5rem; font-weight:800; color:{upside_color};">{upside_text}</div>'
+            f'</div></div></div>',
+            unsafe_allow_html=True,
+        )
+        
+        _divider()
+        
+        # Assumptions Used
+        _section("Model Assumptions", "📊")
+        a1, a2, a3, a4 = st.columns(4)
+        a1.metric("FCF Growth Rate", f"{dcf_result['growth_rate']*100:.1f}%")
+        a2.metric("Terminal Growth", f"{dcf_result['terminal_growth']*100:.1f}%")
+        a3.metric("Discount Rate (WACC)", f"{dcf_result['discount_rate']*100:.1f}%")
+        a4.metric("Projection Years", f"{dcf_result['projection_years']}")
+        
+        _divider()
+        
+        # Projected FCF Chart
+        _section("Projected Free Cash Flow", "📈")
+        _build_dcf_chart(dcf_result, currency_symbol=cs, key="dcf_main_chart")
+        
+        _divider()
+        
+        # Value Bridge
+        _section("Value Bridge", "🌉")
+        st.markdown(
+            f'<div style="display:grid; grid-template-columns:repeat(4,1fr); gap:1rem;">'
+            f'<div style="background:rgba(107,92,231,0.1); border-radius:12px; padding:1rem; text-align:center;">'
+            f'<div style="font-size:0.7rem; color:#8A85AD; margin-bottom:0.3rem;">Sum of PV (FCF)</div>'
+            f'<div style="font-size:1.2rem; font-weight:700; color:#6B5CE7;">{format_number(sum(dcf_result["pv_fcf"]), currency_symbol=cs)}</div></div>'
+            f'<div style="background:rgba(232,99,139,0.1); border-radius:12px; padding:1rem; text-align:center;">'
+            f'<div style="font-size:0.7rem; color:#8A85AD; margin-bottom:0.3rem;">PV of Terminal Value</div>'
+            f'<div style="font-size:1.2rem; font-weight:700; color:#E8638B;">{format_number(dcf_result["pv_terminal"], currency_symbol=cs)}</div></div>'
+            f'<div style="background:rgba(245,166,35,0.1); border-radius:12px; padding:1rem; text-align:center;">'
+            f'<div style="font-size:0.7rem; color:#8A85AD; margin-bottom:0.3rem;">Less: Net Debt</div>'
+            f'<div style="font-size:1.2rem; font-weight:700; color:#F5A623;">({format_number(abs(dcf_result["net_debt"]), currency_symbol=cs)})</div></div>'
+            f'<div style="background:rgba(16,185,129,0.1); border-radius:12px; padding:1rem; text-align:center;">'
+            f'<div style="font-size:0.7rem; color:#8A85AD; margin-bottom:0.3rem;">= Equity Value</div>'
+            f'<div style="font-size:1.2rem; font-weight:700; color:#10B981;">{format_number(dcf_result["equity_value"], currency_symbol=cs)}</div></div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+# ══════════════════════════════════════════════════════════════
+# QUICK COMPARE MODE
+# ══════════════════════════════════════════════════════════════
+elif analysis_mode == "Quick Compare" and compare_btn and compare_tickers:
+    st.markdown(
+        '<div class="hero-header">'
+        '<div class="orbital-brand">'
+        f'{_orbital_logo()}'
+        '<p class="orbital-tagline">Company Comparison Analysis</p>'
+        '</div>'
+        '<span class="hero-tagline">Side-by-Side Intelligence</span>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    
+    with st.spinner(f"Fetching data for {len(compare_tickers)} companies..."):
+        companies = _fetch_comparison_data(compare_tickers[:10])  # Max 10
+    
+    if not companies:
+        st.error("Could not fetch data for any of the specified tickers.")
+    else:
+        st.success(f"✅ Loaded {len(companies)} companies: {', '.join([c.ticker for c in companies])}")
+        
+        _divider()
+        
+        # Comparison Table
+        _section("Key Metrics Comparison", "📊")
+        
+        comp_df = _build_comparison_table(companies)
+        
+        # Style the dataframe
+        st.dataframe(
+            comp_df,
+            use_container_width=True,
+            hide_index=True,
+            height=400,
+        )
+        
+        # Download as CSV
+        csv_data = comp_df.to_csv(index=False)
+        st.download_button(
+            "📥 Download Comparison (CSV)",
+            data=csv_data,
+            file_name=f"comparison_{'_'.join([c.ticker for c in companies[:5]])}.csv",
+            mime="text/csv",
+        )
+        
+        _divider()
+        
+        # Radar Chart Comparison
+        if len(companies) >= 2:
+            _section("Valuation Radar", "🎯")
+            _build_comparison_radar(companies, key="compare_radar")
+        
+        _divider()
+        
+        # Price Performance Comparison
+        _section("Market Cap Comparison", "💰")
+        
+        mc_data = [(c.ticker, c.market_cap or 0) for c in companies]
+        mc_data.sort(key=lambda x: x[1], reverse=True)
+        
+        fig = go.Figure(go.Bar(
+            x=[d[0] for d in mc_data],
+            y=[d[1] for d in mc_data],
+            marker=dict(
+                color=["#6B5CE7", "#E8638B", "#10B981", "#F5A623", "#3B82F6", 
+                       "#8B5CF6", "#EC4899", "#14B8A6", "#F59E0B", "#6366F1"][:len(mc_data)],
+                line=dict(color="rgba(255,255,255,0.15)", width=1),
+            ),
+            text=[format_number(d[1], currency_symbol="$") for d in mc_data],
+            textposition="outside",
+            textfont=dict(size=10, color="#B8B3D7"),
+        ))
+        
+        fig.update_layout(
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(family="Inter", size=14, color="#B8B3D7"),
+            height=400,
+            margin=dict(t=40, b=40, l=60, r=60),
+            xaxis=dict(tickfont=dict(size=11, color="#8A85AD"), showgrid=False),
+            yaxis=dict(tickfont=dict(size=9, color="#8A85AD"), gridcolor="rgba(107,92,231,0.1)", griddash="dot"),
+        )
+        
+        st.plotly_chart(fig, use_container_width=True, key="mc_comparison")
+        
+        _divider()
+        
+        # Profitability Comparison
+        _section("Profitability Comparison", "📈")
+        
+        prof_metrics = ["Gross Margin", "Op Margin", "Net Margin", "ROE"]
+        prof_data = []
+        for c in companies:
+            prof_data.append({
+                "Company": c.ticker,
+                "Gross Margin": (c.gross_margins or 0) * 100,
+                "Op Margin": (c.operating_margins or 0) * 100,
+                "Net Margin": (c.profit_margins or 0) * 100,
+                "ROE": (c.return_on_equity or 0) * 100,
+            })
+        
+        prof_df = pd.DataFrame(prof_data)
+        
+        fig2 = go.Figure()
+        colors = ["#6B5CE7", "#E8638B", "#10B981", "#F5A623"]
+        for i, metric in enumerate(prof_metrics):
+            fig2.add_trace(go.Bar(
+                x=prof_df["Company"],
+                y=prof_df[metric],
+                name=metric,
+                marker=dict(color=colors[i], line=dict(color="rgba(255,255,255,0.15)", width=1)),
+            ))
+        
+        fig2.update_layout(
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(family="Inter", size=14, color="#B8B3D7"),
+            height=400,
+            margin=dict(t=40, b=40, l=60, r=60),
+            xaxis=dict(tickfont=dict(size=11, color="#8A85AD"), showgrid=False),
+            yaxis=dict(tickfont=dict(size=9, color="#8A85AD"), gridcolor="rgba(107,92,231,0.1)", 
+                      griddash="dot", ticksuffix="%"),
+            legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
+            barmode="group",
+        )
+        
+        st.plotly_chart(fig2, use_container_width=True, key="prof_comparison")
 
 else:
     # ══════════════════════════════════════════════════════
