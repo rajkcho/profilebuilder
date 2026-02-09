@@ -192,6 +192,91 @@ SECTOR_TICKERS = {
                "HAL", "BKR", "FANG", "HES", "PXD", "KMI", "WMB", "OKE", "TRGP", "LNG"],
 }
 
+@st.cache_data(ttl=300, show_spinner=False)
+def _fetch_top_movers() -> dict:
+    """Fetch top gainers and losers from major stocks."""
+    major_stocks = [
+        "AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA", "BRK-B", "JPM", "V",
+        "JNJ", "WMT", "PG", "MA", "UNH", "HD", "DIS", "PYPL", "NFLX", "ADBE",
+        "CRM", "INTC", "AMD", "CSCO", "PFE", "ABT", "KO", "PEP", "MRK", "VZ"
+    ]
+    
+    results = []
+    for ticker in major_stocks[:20]:
+        try:
+            tk = yf.Ticker(ticker)
+            info = tk.info or {}
+            change_pct = info.get("regularMarketChangePercent") or 0
+            price = info.get("currentPrice") or info.get("regularMarketPrice") or 0
+            results.append({
+                "ticker": ticker,
+                "name": info.get("shortName", ticker)[:20],
+                "price": price,
+                "change_pct": change_pct,
+            })
+        except Exception:
+            continue
+    
+    # Sort by change percentage
+    gainers = sorted([r for r in results if r["change_pct"] > 0], 
+                     key=lambda x: x["change_pct"], reverse=True)[:5]
+    losers = sorted([r for r in results if r["change_pct"] < 0], 
+                    key=lambda x: x["change_pct"])[:5]
+    
+    return {"gainers": gainers, "losers": losers}
+
+def _render_movers_cards(movers: dict):
+    """Render top gainers and losers cards."""
+    if not movers or (not movers.get("gainers") and not movers.get("losers")):
+        return
+    
+    st.markdown(
+        '<div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:1rem;">',
+        unsafe_allow_html=True,
+    )
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown(
+            '<div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.2); '
+            'border-radius:12px; padding:1rem;">'
+            '<div style="font-size:0.75rem; font-weight:700; color:#10B981; text-transform:uppercase; '
+            'letter-spacing:1px; margin-bottom:0.8rem;">🚀 Top Gainers</div>',
+            unsafe_allow_html=True,
+        )
+        for stock in movers.get("gainers", [])[:5]:
+            st.markdown(
+                f'<div style="display:flex; justify-content:space-between; padding:0.3rem 0; '
+                f'border-bottom:1px solid rgba(255,255,255,0.05);">'
+                f'<span style="color:#E0DCF5; font-weight:600;">{stock["ticker"]}</span>'
+                f'<span style="color:#10B981; font-weight:700;">+{stock["change_pct"]:.2f}%</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(
+            '<div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); '
+            'border-radius:12px; padding:1rem;">'
+            '<div style="font-size:0.75rem; font-weight:700; color:#EF4444; text-transform:uppercase; '
+            'letter-spacing:1px; margin-bottom:0.8rem;">📉 Top Losers</div>',
+            unsafe_allow_html=True,
+        )
+        for stock in movers.get("losers", [])[:5]:
+            st.markdown(
+                f'<div style="display:flex; justify-content:space-between; padding:0.3rem 0; '
+                f'border-bottom:1px solid rgba(255,255,255,0.05);">'
+                f'<span style="color:#E0DCF5; font-weight:600;">{stock["ticker"]}</span>'
+                f'<span style="color:#EF4444; font-weight:700;">{stock["change_pct"]:.2f}%</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
 @st.cache_data(ttl=600, show_spinner=False)
 def _screen_sector(sector: str, sort_by: str = "market_cap", top_n: int = 10) -> list:
     """Screen stocks in a sector by various criteria."""
@@ -6482,3 +6567,11 @@ else:
                 st.markdown('</div>', unsafe_allow_html=True)
         except Exception:
             pass  # Market overview is non-critical
+        
+        # Top Movers Section
+        try:
+            movers = _fetch_top_movers()
+            if movers and (movers.get("gainers") or movers.get("losers")):
+                _render_movers_cards(movers)
+        except Exception:
+            pass  # Top movers is non-critical
