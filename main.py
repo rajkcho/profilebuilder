@@ -85,6 +85,145 @@ def _get_watchlist() -> list:
     return st.session_state.watchlist
 
 # ══════════════════════════════════════════════════════════════
+# SEARCH HISTORY
+# ══════════════════════════════════════════════════════════════
+def _init_search_history():
+    """Initialize search history in session state."""
+    if "search_history" not in st.session_state:
+        st.session_state.search_history = []
+
+def _add_to_search_history(ticker: str):
+    """Add a ticker to search history."""
+    _init_search_history()
+    ticker = ticker.upper().strip()
+    if ticker:
+        # Remove if already exists (to move to front)
+        if ticker in st.session_state.search_history:
+            st.session_state.search_history.remove(ticker)
+        # Add to front
+        st.session_state.search_history.insert(0, ticker)
+        # Keep only last 10
+        st.session_state.search_history = st.session_state.search_history[:10]
+
+def _get_search_history() -> list:
+    """Get search history."""
+    _init_search_history()
+    return st.session_state.search_history
+
+# ══════════════════════════════════════════════════════════════
+# MARKET INDICES OVERVIEW
+# ══════════════════════════════════════════════════════════════
+@st.cache_data(ttl=300, show_spinner=False)
+def _fetch_market_indices() -> list:
+    """Fetch major market indices data."""
+    indices = [
+        ("^GSPC", "S&P 500"),
+        ("^DJI", "Dow Jones"),
+        ("^IXIC", "NASDAQ"),
+        ("^RUT", "Russell 2000"),
+        ("^VIX", "VIX"),
+        ("^GSPTSE", "TSX"),
+    ]
+    
+    results = []
+    for symbol, name in indices:
+        try:
+            tk = yf.Ticker(symbol)
+            info = tk.info or {}
+            price = info.get("regularMarketPrice") or info.get("previousClose") or 0
+            change = info.get("regularMarketChange") or 0
+            change_pct = info.get("regularMarketChangePercent") or 0
+            results.append({
+                "symbol": symbol,
+                "name": name,
+                "price": price,
+                "change": change,
+                "change_pct": change_pct,
+            })
+        except Exception:
+            continue
+    
+    return results
+
+def _render_market_ticker(indices: list):
+    """Render a scrolling market ticker."""
+    if not indices:
+        return
+    
+    ticker_items = []
+    for idx in indices:
+        color = "#10B981" if idx["change_pct"] >= 0 else "#EF4444"
+        arrow = "▲" if idx["change_pct"] >= 0 else "▼"
+        ticker_items.append(
+            f'<span style="margin-right:2rem;">'
+            f'<span style="color:#E0DCF5; font-weight:600;">{idx["name"]}</span> '
+            f'<span style="color:{color};">{idx["price"]:,.2f} {arrow} {idx["change_pct"]:+.2f}%</span>'
+            f'</span>'
+        )
+    
+    # Duplicate for seamless scroll
+    ticker_html = "".join(ticker_items) * 2
+    
+    st.markdown(
+        f'<div style="overflow:hidden; background:rgba(107,92,231,0.05); '
+        f'border-top:1px solid rgba(107,92,231,0.15); border-bottom:1px solid rgba(107,92,231,0.15); '
+        f'padding:0.5rem 0; margin-bottom:1rem;">'
+        f'<div style="display:inline-block; white-space:nowrap; animation:ticker-scroll 30s linear infinite;">'
+        f'{ticker_html}'
+        f'</div></div>',
+        unsafe_allow_html=True,
+    )
+
+# ══════════════════════════════════════════════════════════════
+# SCREENER - Quick filter for stocks by criteria
+# ══════════════════════════════════════════════════════════════
+SECTOR_TICKERS = {
+    "Technology": ["AAPL", "MSFT", "GOOGL", "META", "NVDA", "AMZN", "CRM", "ADBE", "INTC", "AMD", 
+                   "CSCO", "ORCL", "IBM", "QCOM", "TXN", "AVGO", "NOW", "SHOP", "SNOW", "PLTR"],
+    "Healthcare": ["JNJ", "UNH", "PFE", "ABBV", "MRK", "TMO", "ABT", "LLY", "BMY", "AMGN",
+                   "GILD", "MDT", "CVS", "CI", "ISRG", "VRTX", "REGN", "ZTS", "BDX", "EW"],
+    "Financials": ["JPM", "BAC", "WFC", "GS", "MS", "BLK", "C", "AXP", "SCHW", "USB",
+                   "PNC", "TFC", "COF", "BK", "STT", "SPGI", "CME", "ICE", "MMC", "AON"],
+    "Consumer": ["WMT", "PG", "KO", "PEP", "COST", "NKE", "MCD", "SBUX", "TGT", "HD",
+                 "LOW", "TJX", "DG", "DLTR", "ROST", "YUM", "CMG", "DPZ", "EL", "CL"],
+    "Industrials": ["CAT", "HON", "UNP", "UPS", "BA", "RTX", "DE", "GE", "LMT", "MMM",
+                    "EMR", "ETN", "ITW", "PH", "ROK", "FDX", "CSX", "NSC", "WM", "RSG"],
+    "Energy": ["XOM", "CVX", "COP", "SLB", "EOG", "OXY", "MPC", "VLO", "PSX", "DVN",
+               "HAL", "BKR", "FANG", "HES", "PXD", "KMI", "WMB", "OKE", "TRGP", "LNG"],
+}
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _screen_sector(sector: str, sort_by: str = "market_cap", top_n: int = 10) -> list:
+    """Screen stocks in a sector by various criteria."""
+    tickers = SECTOR_TICKERS.get(sector, [])
+    results = []
+    
+    for ticker in tickers[:20]:  # Limit API calls
+        try:
+            tk = yf.Ticker(ticker)
+            info = tk.info or {}
+            results.append({
+                "ticker": ticker,
+                "name": info.get("shortName", ticker)[:30],
+                "price": info.get("currentPrice") or info.get("regularMarketPrice") or 0,
+                "market_cap": info.get("marketCap") or 0,
+                "pe_ratio": info.get("trailingPE") or 0,
+                "change_pct": info.get("regularMarketChangePercent") or 0,
+            })
+        except Exception:
+            continue
+    
+    # Sort by specified criteria
+    if sort_by == "market_cap":
+        results.sort(key=lambda x: x["market_cap"], reverse=True)
+    elif sort_by == "pe_ratio":
+        results.sort(key=lambda x: x["pe_ratio"] if x["pe_ratio"] > 0 else 9999)
+    elif sort_by == "change_pct":
+        results.sort(key=lambda x: x["change_pct"], reverse=True)
+    
+    return results[:top_n]
+
+# ══════════════════════════════════════════════════════════════
 # EXCEL/CSV EXPORT UTILITIES
 # ══════════════════════════════════════════════════════════════
 def _export_to_excel(cd) -> bytes:
@@ -756,6 +895,10 @@ html, body, [class*="css"] {{
 [data-testid="stExpanderDetails"] {{ background: rgba(255,255,255,0.02) !important; }}
 
 /* ── ANIMATIONS (15+ keyframes) ────────────────────────── */
+@keyframes ticker-scroll {{
+    from {{ transform: translateX(0); }}
+    to {{ transform: translateX(-50%); }}
+}}
 @keyframes fadeInUp {{
     from {{ opacity: 0; transform: translateY(30px) scale(0.98); }}
     to {{ opacity: 1; transform: translateY(0) scale(1); }}
@@ -3554,12 +3697,23 @@ with st.sidebar:
         st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
         generate_btn = st.button("🚀 Generate Profile", type="primary", use_container_width=True)
         
+        # Search History
+        search_history = _get_search_history()
+        if search_history:
+            st.markdown('<div class="sb-section"><span class="sb-section-icon">🕐</span> RECENT</div>', unsafe_allow_html=True)
+            recent_cols = st.columns(5)
+            for i, hist_ticker in enumerate(search_history[:5]):
+                with recent_cols[i % 5]:
+                    if st.button(hist_ticker, key=f"hist_{hist_ticker}", use_container_width=True):
+                        st.session_state["load_ticker"] = hist_ticker
+                        st.rerun()
+        
         # Quick sector picks
         st.markdown('<div class="sb-section"><span class="sb-section-icon">🔥</span> QUICK PICKS</div>', unsafe_allow_html=True)
         sector_choice = st.selectbox("Sector", list(POPULAR_TICKERS.keys()), label_visibility="collapsed")
         selected_quick = st.selectbox("Popular Tickers", POPULAR_TICKERS[sector_choice], label_visibility="collapsed")
         if st.button("Load Ticker", key="load_quick"):
-            st.session_state["quick_ticker"] = selected_quick
+            st.session_state["load_ticker"] = selected_quick
             st.rerun()
 
     elif analysis_mode == "Comps Analysis":
@@ -3832,6 +3986,8 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
 
     try:
         cd = fetch_company_data(ticker_input)
+        # Add to search history on successful fetch
+        _add_to_search_history(ticker_input)
     except Exception as e:
         _scanner_slot.empty()
         st.error(f"Failed to fetch data for **{ticker_input}**: {e}")
