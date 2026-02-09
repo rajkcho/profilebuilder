@@ -5118,7 +5118,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 tickfont=dict(size=12, color="#8A85AD"),
                 tickprefix=cs,
             ),
-            showlegend=show_ma if 'show_ma' in dir() else False,
+            showlegend=True,
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
                        font=dict(size=9, color="#8A85AD")),
         )
@@ -6207,6 +6207,88 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     _divider()
 
     # ══════════════════════════════════════════════════════
+    # 10f. ESG SCORES
+    # ══════════════════════════════════════════════════════
+    try:
+        if cd.esg_scores is not None and not cd.esg_scores.empty:
+            _section("ESG Scores", "🌱")
+            
+            esg = cd.esg_scores
+            
+            # Try to extract key scores
+            esg_total = None
+            esg_env = None
+            esg_social = None
+            esg_gov = None
+            
+            for idx_name in esg.index:
+                idx_lower = str(idx_name).lower()
+                if "total" in idx_lower and "esg" in idx_lower:
+                    esg_total = float(esg.loc[idx_name].iloc[0]) if pd.notna(esg.loc[idx_name].iloc[0]) else None
+                elif "environment" in idx_lower:
+                    esg_env = float(esg.loc[idx_name].iloc[0]) if pd.notna(esg.loc[idx_name].iloc[0]) else None
+                elif "social" in idx_lower:
+                    esg_social = float(esg.loc[idx_name].iloc[0]) if pd.notna(esg.loc[idx_name].iloc[0]) else None
+                elif "governance" in idx_lower:
+                    esg_gov = float(esg.loc[idx_name].iloc[0]) if pd.notna(esg.loc[idx_name].iloc[0]) else None
+            
+            if esg_total is not None or esg_env is not None:
+                esg_cols = st.columns(4)
+                
+                esg_items = [
+                    ("Total ESG", esg_total, "🌍"),
+                    ("Environmental", esg_env, "🌿"),
+                    ("Social", esg_social, "👥"),
+                    ("Governance", esg_gov, "⚖️"),
+                ]
+                
+                for i, (label, score, icon) in enumerate(esg_items):
+                    with esg_cols[i]:
+                        if score is not None:
+                            # Lower ESG risk score = better (Sustainalytics scale)
+                            if score < 15:
+                                color = "#10B981"
+                                rating = "Low Risk"
+                            elif score < 25:
+                                color = "#34D399"
+                                rating = "Medium"
+                            elif score < 35:
+                                color = "#F59E0B"
+                                rating = "High"
+                            else:
+                                color = "#EF4444"
+                                rating = "Severe"
+                            
+                            st.markdown(
+                                f'<div style="text-align:center; padding:0.8rem; background:rgba(107,92,231,0.05); '
+                                f'border-radius:12px; border:1px solid rgba(107,92,231,0.1);">'
+                                f'<div style="font-size:1.2rem;">{icon}</div>'
+                                f'<div style="font-size:0.6rem; color:#8A85AD; font-weight:600; text-transform:uppercase;">{label}</div>'
+                                f'<div style="font-size:1.3rem; font-weight:800; color:{color};">{score:.1f}</div>'
+                                f'<div style="font-size:0.6rem; color:{color};">{rating}</div>'
+                                f'</div>',
+                                unsafe_allow_html=True,
+                            )
+                        else:
+                            st.markdown(
+                                f'<div style="text-align:center; padding:0.8rem; background:rgba(107,92,231,0.05); '
+                                f'border-radius:12px;"><div style="font-size:1.2rem;">{icon}</div>'
+                                f'<div style="font-size:0.6rem; color:#8A85AD;">{label}</div>'
+                                f'<div style="color:#8A85AD;">N/A</div></div>',
+                                unsafe_allow_html=True,
+                            )
+                
+                st.markdown(
+                    '<div style="font-size:0.6rem; color:#5A567A; text-align:center; margin-top:0.5rem;">'
+                    'Lower scores = lower ESG risk (Sustainalytics methodology)</div>',
+                    unsafe_allow_html=True,
+                )
+            
+            _divider()
+    except Exception:
+        pass
+
+    # ══════════════════════════════════════════════════════
     # 11. M&A HISTORY
     # ══════════════════════════════════════════════════════
     _section("M&A History")
@@ -6890,6 +6972,63 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
                     f'</div>',
                     unsafe_allow_html=True,
                 )
+        
+        # Implied Valuation Football Field
+        try:
+            ff_methods = []
+            current_ev = tc.enterprise_value or 0
+            
+            if comps_analysis.implied_ev_from_ebitda and comps_analysis.implied_ev_from_ebitda > 0:
+                ff_methods.append(("EV/EBITDA\n(Peer Median)", comps_analysis.implied_ev_from_ebitda))
+            if comps_analysis.implied_ev_from_revenue and comps_analysis.implied_ev_from_revenue > 0:
+                ff_methods.append(("EV/Revenue\n(Peer Median)", comps_analysis.implied_ev_from_revenue))
+            
+            # Add 25th/75th percentile valuations if we can calculate
+            if comps_analysis.peers and tc.ev_ebitda:
+                peer_ebitda_mults = [p.ev_ebitda for p in comps_analysis.peers if p.ev_ebitda and p.ev_ebitda > 0]
+                if peer_ebitda_mults and tc.ev_ebitda > 0:
+                    base_ebitda = current_ev / tc.ev_ebitda if tc.ev_ebitda > 0 else 0
+                    if base_ebitda > 0:
+                        p25 = np.percentile(peer_ebitda_mults, 25) * base_ebitda
+                        p75 = np.percentile(peer_ebitda_mults, 75) * base_ebitda
+                        ff_methods.append(("EV/EBITDA\n(25th pctile)", p25))
+                        ff_methods.append(("EV/EBITDA\n(75th pctile)", p75))
+            
+            if len(ff_methods) >= 2:
+                fig_ff = go.Figure()
+                
+                names = [m[0] for m in ff_methods]
+                values = [m[1] for m in ff_methods]
+                colors = ["#6B5CE7", "#E8638B", "#10B981", "#F5A623", "#3B82F6"][:len(ff_methods)]
+                
+                fig_ff.add_trace(go.Bar(
+                    y=names, x=values, orientation="h",
+                    marker_color=colors,
+                    text=[format_num(v) for v in values],
+                    textposition="outside",
+                    textfont=dict(size=10, color="#B8B3D7"),
+                ))
+                
+                # Current EV line
+                if current_ev > 0:
+                    fig_ff.add_vline(x=current_ev, line_dash="dash", line_color="#F59E0B", line_width=2)
+                    fig_ff.add_annotation(
+                        x=current_ev, y=names[0], text=f"Current EV: {format_num(current_ev)}",
+                        showarrow=False, font=dict(size=9, color="#F59E0B"),
+                        yshift=30,
+                    )
+                
+                fig_ff.update_layout(
+                    **_CHART_LAYOUT_BASE, height=250,
+                    margin=dict(t=30, b=30, l=100, r=80),
+                    xaxis=dict(tickfont=dict(size=9, color="#8A85AD"), showgrid=False),
+                    yaxis=dict(tickfont=dict(size=9, color="#8A85AD")),
+                    showlegend=False,
+                )
+                _apply_space_grid(fig_ff)
+                st.plotly_chart(fig_ff, use_container_width=True, key="comps_football_field")
+        except Exception:
+            pass
         
         st.markdown('<div style="height:1.5rem;"></div>', unsafe_allow_html=True)
         
