@@ -9101,9 +9101,23 @@ else:
         # Market Overview Section
         st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
         
-        # Fetch and display market indices
+        # Fetch indices once (cached)
         try:
             indices = _fetch_market_indices()
+        except Exception:
+            indices = None
+        
+        # Scrolling Market Ticker
+        try:
+            if indices:
+                _render_market_ticker(indices)
+        except Exception:
+            pass
+        
+        st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
+        
+        # Market Overview Cards
+        try:
             if indices:
                 st.markdown(
                     '<div style="background:rgba(107,92,231,0.05); border-radius:16px; padding:1.5rem; '
