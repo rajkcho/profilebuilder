@@ -363,6 +363,53 @@ def _render_sparkline_svg(values: list, color: str = "#6B5CE7", width: int = 80,
 # ══════════════════════════════════════════════════════════════
 # STATUS BADGES - Colored status indicators
 # ══════════════════════════════════════════════════════════════
+def _kpi_color(metric_name, value, sector=None):
+    """Return (border_color, glow_color) for color-coded KPI cards.
+    
+    P/E: green < industry median, yellow within 20%, red > 20% above
+    ROE: green > 15%, yellow 8-15%, red < 8%
+    Debt/Equity: green < 0.5, yellow 0.5-1.5, red > 1.5
+    EV/EBITDA: green < industry median, yellow within 20%, red > 20% above
+    """
+    _GREEN = ("rgba(16,185,129,0.4)", "rgba(16,185,129,0.08)")
+    _YELLOW = ("rgba(245,166,35,0.4)", "rgba(245,166,35,0.08)")
+    _RED = ("rgba(239,68,68,0.4)", "rgba(239,68,68,0.08)")
+    _DEFAULT = ("rgba(107,92,231,0.15)", "transparent")
+    if value is None:
+        return _DEFAULT
+    if metric_name in ("P/E (TTM)", "P/E"):
+        _bench = get_sector_benchmarks(sector) if sector else None
+        _med = _bench["pe"]["median"] if _bench else 20
+        if value < _med:
+            return _GREEN
+        elif value < _med * 1.2:
+            return _YELLOW
+        return _RED
+    elif metric_name == "EV/EBITDA":
+        _bench = get_sector_benchmarks(sector) if sector else None
+        _med = _bench["ev_ebitda"]["median"] if _bench else 12
+        if value < _med:
+            return _GREEN
+        elif value < _med * 1.2:
+            return _YELLOW
+        return _RED
+    elif metric_name == "ROE":
+        roe_pct = value * 100 if abs(value) < 1 else value
+        if roe_pct > 15:
+            return _GREEN
+        elif roe_pct >= 8:
+            return _YELLOW
+        return _RED
+    elif metric_name in ("Debt/Equity", "D/E"):
+        de = value / 100 if value > 5 else value
+        if de < 0.5:
+            return _GREEN
+        elif de <= 1.5:
+            return _YELLOW
+        return _RED
+    return _DEFAULT
+
+
 def _render_status_badge(text: str, status: str = "neutral") -> str:
     """Render a colored status badge."""
     colors = {
@@ -1985,6 +2032,72 @@ html, body, [class*="css"] {{
 [data-testid="stAlert"] {{ background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.1) !important; color: #E0DCF5 !important; }}
 [data-testid="stAlert"] p {{ color: #E0DCF5 !important; }}
 [data-testid="stExpanderDetails"] {{ background: rgba(255,255,255,0.02) !important; }}
+
+/* ── HIDE STREAMLIT DEFAULT CHROME ────────────────────── */
+#MainMenu {{ visibility: hidden; }}
+header {{ visibility: hidden; }}
+footer {{ visibility: hidden; }}
+[data-testid="stToolbar"] {{ display: none !important; }}
+
+/* ── CUSTOM SCROLLBAR ─────────────────────────────────── */
+::-webkit-scrollbar {{ width: 6px; height: 6px; }}
+::-webkit-scrollbar-track {{ background: rgba(0,0,0,0.1); }}
+::-webkit-scrollbar-thumb {{ background: rgba(107,92,231,0.5); border-radius: 3px; }}
+::-webkit-scrollbar-thumb:hover {{ background: rgba(107,92,231,0.75); }}
+* {{ scrollbar-width: thin; scrollbar-color: rgba(107,92,231,0.5) rgba(0,0,0,0.1); }}
+
+/* ── TAB STYLING (rounded, active indicator) ──────────── */
+[data-testid="stTabs"] button[role="tab"] {{
+    border-radius: 10px 10px 0 0 !important;
+    padding: 0.5rem 1.2rem !important;
+    font-weight: 600 !important;
+    color: #8A85AD !important;
+    border: none !important;
+    background: rgba(255,255,255,0.02) !important;
+    transition: all 0.3s ease !important;
+}}
+[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {{
+    color: #9B8AFF !important;
+    background: rgba(107,92,231,0.12) !important;
+    border-bottom: 3px solid #6B5CE7 !important;
+}}
+[data-testid="stTabs"] button[role="tab"]:hover {{
+    color: #E0DCF5 !important;
+    background: rgba(107,92,231,0.08) !important;
+}}
+
+/* ── METRIC CARD GRADIENT BACKGROUNDS ─────────────────── */
+[data-testid="stMetric"] {{
+    background: linear-gradient(135deg, rgba(107,92,231,0.08) 0%, rgba(232,99,139,0.04) 100%) !important;
+    border: 1px solid rgba(107,92,231,0.15) !important;
+    border-radius: 14px !important;
+    padding: 0.8rem 1rem !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}}
+[data-testid="stMetric"]:hover {{
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 20px rgba(107,92,231,0.15) !important;
+}}
+[data-testid="stMetric"] label {{ color: #8A85AD !important; font-weight: 600 !important; }}
+[data-testid="stMetric"] [data-testid="stMetricValue"] {{ color: #E0DCF5 !important; }}
+
+/* ── EXPANDER STYLING ─────────────────────────────────── */
+[data-testid="stExpander"] {{
+    border: 1px solid rgba(107,92,231,0.15) !important;
+    border-radius: 14px !important;
+    overflow: hidden;
+    transition: border-color 0.3s ease !important;
+}}
+[data-testid="stExpander"]:hover {{
+    border-color: rgba(107,92,231,0.35) !important;
+}}
+[data-testid="stExpander"] summary {{
+    border-radius: 14px !important;
+    transition: background 0.3s ease !important;
+}}
+[data-testid="stExpanderDetails"] {{
+    animation: fadeInUp 0.3s ease-out !important;
+}}
 
 /* ── ANIMATIONS (15+ keyframes) ────────────────────────── */
 @keyframes ticker-scroll {{
@@ -5692,11 +5805,11 @@ with st.sidebar:
         )
         
         dcf_growth_rate = st.slider("FCF Growth Rate (%)", 0, 30, 8, 1, 
-                                     help="Expected annual free cash flow growth rate") / 100
+                                     help="Expected annual free cash flow growth rate — how fast the company's cash generation will grow") / 100
         dcf_terminal_growth = st.slider("Terminal Growth (%)", 0.0, 4.0, 2.5, 0.5,
-                                        help="Long-term perpetuity growth rate (typically GDP growth ~2-3%)") / 100
+                                        help="Long-term perpetuity growth rate after projection period — typically matches GDP growth (~2-3%). Must be below WACC.") / 100
         dcf_years = st.slider("Projection Years", 3, 10, 5, 1,
-                              help="Number of years to project FCF before terminal value")
+                              help="Number of years to explicitly project FCF before applying a terminal value. Longer = more speculative.")
         
         st.markdown(
             '<div class="sb-section"><span class="sb-section-icon">🎯</span> DISCOUNT RATE</div>',
@@ -5704,7 +5817,7 @@ with st.sidebar:
         )
         
         dcf_auto_wacc = st.checkbox("🤖 Auto-Calculate WACC", value=False,
-                                     help="Compute WACC from CAPM and company financials")
+                                     help="Weighted Average Cost of Capital (WACC) — the discount rate reflecting the blended cost of equity and debt financing. Auto-calc uses CAPM for equity cost + actual debt cost from financials.")
         
         if dcf_auto_wacc and dcf_ticker_input:
             try:
@@ -6312,6 +6425,8 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     except Exception:
         pass  # Scanner rendering is non-critical
 
+    _loading_msg = st.empty()
+    _loading_msg.info(f"🔭 Analyzing **{ticker_input.upper()}**... Fetching 150+ data points")
     try:
         cd = fetch_company_data(ticker_input)
         st.session_state["last_cd"] = cd
@@ -6319,9 +6434,11 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         _add_to_search_history(ticker_input)
     except Exception as e:
         _scanner_slot.empty()
+        _loading_msg.empty()
         st.error(f"😕 Failed to fetch data for **{ticker_input}**: {e}")
         st.info("💡 **Try these fixes:** Check the ticker symbol is correct (e.g., AAPL, MSFT) · Verify your internet connection · Try again in a few seconds", icon="🔧")
         st.stop()
+    _loading_msg.empty()
 
     try:
         _scanner_slot.markdown(_render_profile_scanner(ticker_input.upper(), 1), unsafe_allow_html=True)
@@ -6399,16 +6516,17 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         # Key ratios row
         _ed_cols = st.columns(4)
         _ed_metrics = [
-            ("P/E (TTM)", f"{cd.trailing_pe:.1f}x" if cd.trailing_pe else "N/A"),
-            ("EV/EBITDA", f"{cd.ev_to_ebitda:.1f}x" if cd.ev_to_ebitda else "N/A"),
-            ("ROE", f"{cd.return_on_equity*100:.1f}%" if cd.return_on_equity else "N/A"),
-            ("Div Yield", f"{cd.dividend_yield*100:.2f}%" if cd.dividend_yield else "N/A"),
+            ("P/E (TTM)", f"{cd.trailing_pe:.1f}x" if cd.trailing_pe else "N/A", cd.trailing_pe),
+            ("EV/EBITDA", f"{cd.ev_to_ebitda:.1f}x" if cd.ev_to_ebitda else "N/A", cd.ev_to_ebitda),
+            ("ROE", f"{cd.return_on_equity*100:.1f}%" if cd.return_on_equity else "N/A", cd.return_on_equity),
+            ("Div Yield", f"{cd.dividend_yield*100:.2f}%" if cd.dividend_yield else "N/A", None),
         ]
-        for i, (label, val) in enumerate(_ed_metrics):
+        for i, (label, val, raw_val) in enumerate(_ed_metrics):
+            _bdr, _glow = _kpi_color(label, raw_val, sector=cd.sector)
             with _ed_cols[i]:
                 st.markdown(
-                    f'<div style="background:rgba(255,255,255,0.04); border:1px solid rgba(107,92,231,0.15); '
-                    f'border-radius:12px; padding:0.8rem; text-align:center;">'
+                    f'<div style="background:linear-gradient(135deg, {_glow}, rgba(255,255,255,0.04)); border:1px solid {_bdr}; '
+                    f'border-radius:12px; padding:0.8rem; text-align:center; transition: transform 0.2s ease;">'
                     f'<div style="font-size:0.65rem; color:#8A85AD; text-transform:uppercase; letter-spacing:0.5px;">{label}</div>'
                     f'<div style="font-size:1.3rem; font-weight:700; color:#E0DCF5; margin-top:0.2rem;">{val}</div>'
                     f'</div>',
@@ -6742,15 +6860,15 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             return None
 
     k1, k2, k3, k4, k5, k6 = st.columns(6)
-    k1.metric("Market Cap", format_number(getattr(cd, 'market_cap', None), currency_symbol=cs))
-    k2.metric("Enterprise Value", format_number(getattr(cd, 'enterprise_value', None), currency_symbol=cs))
+    k1.metric("Market Cap", format_number(getattr(cd, 'market_cap', None), currency_symbol=cs), help="Total market value of outstanding shares (share price × shares outstanding)")
+    k2.metric("Enterprise Value", format_number(getattr(cd, 'enterprise_value', None), currency_symbol=cs), help="Market Cap + Total Debt − Cash — represents the total cost to acquire the business")
 
     _rev_val = "N/A"
     _rev_delta = None
     if cd.revenue is not None and len(cd.revenue) > 0:
         _rev_val = format_number(cd.revenue.iloc[0], currency_symbol=cs)
         _rev_delta = _yoy_delta(cd.revenue)
-    k3.metric("Revenue (TTM)", _rev_val, delta=_rev_delta)
+    k3.metric("Revenue (TTM)", _rev_val, delta=_rev_delta, help="Trailing twelve months total revenue")
 
     _ni_val = "N/A"
     _ni_delta = None
@@ -6764,11 +6882,11 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     if cd.free_cashflow_series is not None and len(cd.free_cashflow_series) > 0:
         _fcf_val = format_number(cd.free_cashflow_series.iloc[0], currency_symbol=cs)
         _fcf_delta = _yoy_delta(cd.free_cashflow_series)
-    k5.metric("Free Cash Flow", _fcf_val, delta=_fcf_delta)
+    k5.metric("Free Cash Flow", _fcf_val, delta=_fcf_delta, help="Operating cash flow minus capital expenditures — cash available to shareholders and debtholders")
 
     # dividend_yield: yfinance may return as decimal (0.009) or already as pct-like (0.9)
     _div_yield = getattr(cd, 'dividend_yield', None)
-    k6.metric("Dividend Yield", format_pct(_div_yield) if _div_yield else "N/A")
+    k6.metric("Dividend Yield", format_pct(_div_yield) if _div_yield else "N/A", help="Annual dividend per share ÷ share price — income return on investment")
 
     # Sparkline row under KPIs
     _price_hist = getattr(cd, 'price_history', None)
@@ -15888,13 +16006,18 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
         unsafe_allow_html=True,
     )
     
-    with st.spinner(f"🔭 Scanning the universe for {dcf_ticker_input}... Building DCF model"):
+    with st.status(f"Analyzing {dcf_ticker_input}... Fetching 150+ data points", expanded=True) as _dcf_status:
+        st.write("📡 Connecting to market data feeds...")
         try:
             dcf_cd = fetch_company_data(dcf_ticker_input)
+            st.write("✅ Company data loaded")
         except Exception as e:
+            _dcf_status.update(label="❌ Data fetch failed", state="error")
             st.error(f"😕 Failed to fetch data for **{dcf_ticker_input}**: {e}")
             st.info("💡 Check the ticker symbol is correct and try again. DCF works best with companies that have positive free cash flow.", icon="🔧")
             st.stop()
+        st.write("🧮 Preparing DCF model inputs...")
+        _dcf_status.update(label=f"✅ {dcf_ticker_input} data ready — Building DCF model", state="complete")
     
     cs = dcf_cd.currency_symbol
     
@@ -15927,9 +16050,9 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
         
         # Key metrics
         r1, r2, r3, r4 = st.columns(4)
-        r1.metric("Base FCF", format_number(dcf_result["base_fcf"], currency_symbol=cs))
-        r2.metric("DCF Enterprise Value", format_number(dcf_result["enterprise_value"], currency_symbol=cs))
-        r3.metric("DCF Equity Value", format_number(dcf_result["equity_value"], currency_symbol=cs))
+        r1.metric("Base FCF", format_number(dcf_result["base_fcf"], currency_symbol=cs), help="Starting Free Cash Flow used as the base for projections")
+        r2.metric("DCF Enterprise Value", format_number(dcf_result["enterprise_value"], currency_symbol=cs), help="Sum of discounted projected FCFs + terminal value")
+        r3.metric("DCF Equity Value", format_number(dcf_result["equity_value"], currency_symbol=cs), help="Enterprise Value minus net debt — value attributable to shareholders")
         
         # Implied share price with upside/downside
         upside = dcf_result["upside_pct"]
@@ -16239,6 +16362,8 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
         )
         
         if st.button("▶ Run Monte Carlo Simulation", key="mc_run_btn", type="primary"):
+          _mc_status_slot = st.empty()
+          _mc_status_slot.info("🎲 Running 1,000 simulations — randomizing growth, WACC & terminal multiples...")
           try:
             n_sims = 1000
             base_growth = dcf_result["growth_rate"]
@@ -16274,6 +16399,7 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
                 mc_results.append(price)
             
             mc_results = [p for p in mc_results if 0 < p < dcf_result["implied_share_price"] * 5]
+            _mc_status_slot.success(f"✅ {len(mc_results):,} simulations complete")
             
             if mc_results:
                 mc_arr = np.array(mc_results)
