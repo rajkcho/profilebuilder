@@ -935,11 +935,166 @@ def _export_to_excel(cd) -> bytes:
                 cf_data['Free Cash Flow'] = cd.free_cashflow_series.values[:len(cd.operating_cashflow_series)]
             pd.DataFrame(cf_data).to_excel(writer, sheet_name='Cash Flow', index=False)
         
+        # Key Ratios
+        try:
+            ratios_data = {
+                'Ratio': ['Gross Margin', 'Operating Margin', 'Net Margin', 'ROE', 'ROA', 'ROIC',
+                          'Current Ratio', 'Quick Ratio', 'Debt/Equity', 'Interest Coverage',
+                          'Asset Turnover', 'Inventory Turnover', 'Revenue Growth', 'Earnings Growth',
+                          'Dividend Yield', 'Payout Ratio', 'Beta'],
+                'Value': [
+                    format_pct(cd.gross_margins), format_pct(cd.operating_margins), format_pct(cd.profit_margins),
+                    format_pct(cd.return_on_equity), format_pct(cd.return_on_assets),
+                    format_pct(getattr(cd, 'return_on_invested_capital', None)),
+                    format_multiple(cd.current_ratio), format_multiple(getattr(cd, 'quick_ratio', None)),
+                    format_multiple(cd.debt_to_equity), format_multiple(getattr(cd, 'interest_coverage', None)),
+                    format_multiple(getattr(cd, 'asset_turnover', None)),
+                    format_multiple(getattr(cd, 'inventory_turnover', None)),
+                    format_pct(cd.revenue_growth), format_pct(getattr(cd, 'earnings_growth', None)),
+                    format_pct(cd.dividend_yield), format_pct(getattr(cd, 'payout_ratio', None)),
+                    f"{cd.beta:.2f}" if cd.beta else "N/A",
+                ]
+            }
+            pd.DataFrame(ratios_data).to_excel(writer, sheet_name='Key Ratios', index=False)
+        except Exception:
+            pass
+
+        # Valuation Multiples
+        try:
+            val_data = {
+                'Multiple': ['Trailing P/E', 'Forward P/E', 'PEG Ratio', 'Price/Book', 'Price/Sales',
+                             'EV/Revenue', 'EV/EBITDA', 'EV/EBIT', 'Price/FCF', 'Dividend Yield'],
+                'Value': [
+                    format_multiple(cd.trailing_pe), format_multiple(cd.forward_pe),
+                    format_multiple(getattr(cd, 'peg_ratio', None)), format_multiple(cd.price_to_book),
+                    format_multiple(getattr(cd, 'price_to_sales', None)),
+                    format_multiple(cd.ev_to_revenue), format_multiple(cd.ev_to_ebitda),
+                    format_multiple(getattr(cd, 'ev_to_ebit', None)),
+                    format_multiple(getattr(cd, 'price_to_fcf', None)),
+                    format_pct(cd.dividend_yield),
+                ]
+            }
+            pd.DataFrame(val_data).to_excel(writer, sheet_name='Valuation Multiples', index=False)
+        except Exception:
+            pass
+
         # Peer Comparison
         if cd.peer_data:
             peer_df = pd.DataFrame(cd.peer_data)
             peer_df.to_excel(writer, sheet_name='Peer Comparison', index=False)
+
+        # Format headers on all sheets
+        try:
+            from openpyxl.styles import Font, PatternFill, Alignment, numbers
+            header_font = Font(bold=True, color="FFFFFF", size=11)
+            header_fill = PatternFill(start_color="6B5CE7", end_color="6B5CE7", fill_type="solid")
+            for ws in writer.book.worksheets:
+                for cell in ws[1]:
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.alignment = Alignment(horizontal="center")
+                # Auto-width columns
+                for col in ws.columns:
+                    max_len = max((len(str(c.value or "")) for c in col), default=10)
+                    ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 30)
+        except Exception:
+            pass
     
+    return output.getvalue()
+
+
+def _export_comps_to_excel(comps_analysis) -> bytes:
+    """Export comps analysis to Excel with conditional formatting."""
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        comps_df = generate_comps_table(comps_analysis)
+        comps_df.to_excel(writer, sheet_name='Comps Table', index=False)
+        # Summary sheet
+        tc = comps_analysis.target_comps
+        summary = {
+            'Metric': ['Target Company', 'Ticker', 'Sector', 'Industry', 'Peers Analyzed',
+                       'Median EV/Revenue', 'Median EV/EBITDA', 'Median P/E'],
+            'Value': [tc.name, tc.ticker, tc.sector, tc.industry, len(comps_analysis.peers),
+                      f"{comps_analysis.median_ev_revenue:.1f}x" if hasattr(comps_analysis, 'median_ev_revenue') else "N/A",
+                      f"{comps_analysis.median_ev_ebitda:.1f}x" if hasattr(comps_analysis, 'median_ev_ebitda') else "N/A",
+                      f"{comps_analysis.median_pe:.1f}x" if hasattr(comps_analysis, 'median_pe') else "N/A"]
+        }
+        pd.DataFrame(summary).to_excel(writer, sheet_name='Summary', index=False)
+        # Format
+        try:
+            from openpyxl.styles import Font, PatternFill, Alignment
+            header_font = Font(bold=True, color="FFFFFF", size=11)
+            header_fill = PatternFill(start_color="6B5CE7", end_color="6B5CE7", fill_type="solid")
+            for ws in writer.book.worksheets:
+                for cell in ws[1]:
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.alignment = Alignment(horizontal="center")
+                for col in ws.columns:
+                    max_len = max((len(str(c.value or "")) for c in col), default=10)
+                    ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 30)
+        except Exception:
+            pass
+    return output.getvalue()
+
+
+def _export_dcf_to_excel(dcf_cd, dcf_result, assumptions) -> bytes:
+    """Export DCF model to Excel."""
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        # Assumptions
+        cs = dcf_cd.currency_symbol
+        assumptions_data = {
+            'Parameter': ['Company', 'Ticker', 'Current Price', 'Shares Outstanding',
+                         'FCF Growth Rate', 'Terminal Growth Rate', 'Discount Rate (WACC)',
+                         'Projection Years'],
+            'Value': [dcf_cd.name, dcf_cd.ticker, f"{cs}{dcf_cd.current_price:,.2f}",
+                     f"{dcf_result.get('shares_outstanding', 0):,.0f}",
+                     f"{assumptions['growth_rate']*100:.1f}%", f"{assumptions['terminal_growth']*100:.1f}%",
+                     f"{assumptions['discount_rate']*100:.1f}%", str(assumptions['years'])]
+        }
+        pd.DataFrame(assumptions_data).to_excel(writer, sheet_name='Assumptions', index=False)
+        # Projected FCF
+        years = list(range(1, dcf_result.get("projection_years", 5) + 1))
+        proj_data = {
+            'Year': years,
+            'Projected FCF': dcf_result.get("projected_fcf", []),
+            'PV of FCF': dcf_result.get("pv_fcf", []),
+        }
+        pd.DataFrame(proj_data).to_excel(writer, sheet_name='Projections', index=False)
+        # Valuation Summary
+        val_data = {
+            'Component': ['PV of Projected FCFs', 'Terminal Value', 'PV of Terminal Value',
+                         'Enterprise Value', 'Less: Net Debt', 'Equity Value',
+                         'Implied Share Price', 'Current Price', 'Upside/Downside'],
+            'Value': [
+                f"{cs}{dcf_result.get('pv_fcf_total', 0):,.0f}",
+                f"{cs}{dcf_result.get('terminal_value', 0):,.0f}",
+                f"{cs}{dcf_result.get('pv_terminal_value', 0):,.0f}",
+                f"{cs}{dcf_result.get('enterprise_value', 0):,.0f}",
+                f"{cs}{dcf_result.get('net_debt', 0):,.0f}",
+                f"{cs}{dcf_result.get('equity_value', 0):,.0f}",
+                f"{cs}{dcf_result.get('implied_share_price', 0):,.2f}",
+                f"{cs}{dcf_result.get('current_price', 0):,.2f}",
+                f"{dcf_result.get('upside_pct', 0):+.1f}%",
+            ]
+        }
+        pd.DataFrame(val_data).to_excel(writer, sheet_name='Valuation', index=False)
+        # Format
+        try:
+            from openpyxl.styles import Font, PatternFill, Alignment
+            header_font = Font(bold=True, color="FFFFFF", size=11)
+            header_fill = PatternFill(start_color="6B5CE7", end_color="6B5CE7", fill_type="solid")
+            for ws in writer.book.worksheets:
+                for cell in ws[1]:
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.alignment = Alignment(horizontal="center")
+                for col in ws.columns:
+                    max_len = max((len(str(c.value or "")) for c in col), default=10)
+                    ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 30)
+        except Exception:
+            pass
     return output.getvalue()
 
 def _export_to_csv(cd) -> str:
@@ -1356,6 +1511,32 @@ def _build_comparison_radar(companies: list, key: str = "compare_radar"):
 # ══════════════════════════════════════════════════════════════
 # SECTOR SCREENING
 # ══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════
+# SECTOR → PEER MAPPING (for Smart Peer Suggestions)
+# ══════════════════════════════════════════════════════════════
+SECTOR_PEER_MAP = {
+    "Technology": ["AAPL", "MSFT", "GOOGL", "META", "NVDA", "CRM", "ADBE", "ORCL", "IBM", "INTC", "AMD", "CSCO", "TXN", "AVGO", "NOW"],
+    "Communication Services": ["GOOGL", "META", "NFLX", "DIS", "CMCSA", "T", "VZ", "TMUS", "CHTR", "EA"],
+    "Consumer Cyclical": ["AMZN", "TSLA", "HD", "NKE", "MCD", "SBUX", "TGT", "LOW", "TJX", "BKNG"],
+    "Consumer Defensive": ["WMT", "PG", "KO", "PEP", "COST", "PM", "CL", "MDLZ", "KHC", "GIS"],
+    "Healthcare": ["JNJ", "UNH", "PFE", "ABBV", "MRK", "TMO", "ABT", "LLY", "BMY", "AMGN", "GILD", "ISRG"],
+    "Financial Services": ["JPM", "BAC", "WFC", "GS", "MS", "BLK", "C", "AXP", "SCHW", "USB", "PNC", "BK"],
+    "Financials": ["JPM", "BAC", "WFC", "GS", "MS", "BLK", "C", "AXP", "SCHW", "USB"],
+    "Energy": ["XOM", "CVX", "COP", "SLB", "EOG", "OXY", "MPC", "VLO", "PSX", "DVN", "HES", "HAL"],
+    "Industrials": ["HON", "UNP", "UPS", "CAT", "DE", "RTX", "BA", "LMT", "GE", "MMM", "WM", "ETN"],
+    "Basic Materials": ["LIN", "APD", "ECL", "SHW", "DD", "NEM", "FCX", "NUE", "DOW", "PPG"],
+    "Real Estate": ["AMT", "PLD", "CCI", "EQIX", "SPG", "O", "WELL", "DLR", "PSA", "AVB"],
+    "Utilities": ["NEE", "DUK", "SO", "D", "AEP", "SRE", "EXC", "XEL", "ED", "WEC"],
+    "Software—Infrastructure": ["MSFT", "ORCL", "CRM", "NOW", "ADBE", "INTU", "PLTR", "SNOW", "DDOG", "NET"],
+    "Software—Application": ["CRM", "ADBE", "WDAY", "TEAM", "ZS", "CRWD", "OKTA", "MDB", "HUBS", "VEEV"],
+    "Semiconductors": ["NVDA", "AMD", "INTC", "QCOM", "AVGO", "TXN", "MU", "AMAT", "LRCX", "KLAC"],
+    "Internet Content & Information": ["GOOGL", "META", "SNAP", "PINS", "TWTR", "ZG", "IAC", "TTGT"],
+    "Biotechnology": ["AMGN", "GILD", "REGN", "VRTX", "BIIB", "MRNA", "BNTX", "ILMN", "SGEN", "ALNY"],
+    "Drug Manufacturers": ["JNJ", "PFE", "ABBV", "MRK", "LLY", "BMY", "AZN", "NVS", "GSK", "SNY"],
+    "Banks—Diversified": ["JPM", "BAC", "WFC", "C", "USB", "PNC", "TFC", "FITB", "CFG", "KEY"],
+    "Insurance": ["BRK-B", "PRU", "MET", "AFL", "AIG", "TRV", "ALL", "CB", "HIG", "PGR"],
+}
+
 POPULAR_TICKERS = {
     "Technology": ["AAPL", "MSFT", "GOOGL", "META", "NVDA", "AMZN", "CRM", "ADBE", "INTC", "AMD"],
     "Healthcare": ["JNJ", "UNH", "PFE", "ABBV", "MRK", "TMO", "ABT", "LLY", "BMY", "AMGN"],
@@ -4606,6 +4787,86 @@ with st.sidebar:
         
         max_peers = st.slider("Number of Peers", 5, 20, 10, 1)
         include_saas = st.checkbox("Include SaaS/Software peers", value=False)
+
+        # ── Smart Peer Suggestions ──
+        if comps_ticker_input:
+            with st.expander("🧠 Smart Peer Suggestions", expanded=False):
+                st.markdown(
+                    '<div style="font-size:0.7rem; color:#B8B3D7; margin-bottom:0.5rem;">'
+                    'Auto-suggested peers based on sector/industry. Accept or override.</div>',
+                    unsafe_allow_html=True,
+                )
+                # Try to get sector for this ticker
+                _sps_sector = None
+                _sps_industry = None
+                try:
+                    _sps_info = _quick_ticker_lookup(comps_ticker_input)
+                    _sps_sector = _sps_info.get("sector", "")
+                    _sps_industry = _sps_info.get("industry", "")
+                except Exception:
+                    pass
+
+                # Find matching peers from our map
+                _sps_candidates = []
+                if _sps_industry and _sps_industry in SECTOR_PEER_MAP:
+                    _sps_candidates = SECTOR_PEER_MAP[_sps_industry]
+                elif _sps_sector and _sps_sector in SECTOR_PEER_MAP:
+                    _sps_candidates = SECTOR_PEER_MAP[_sps_sector]
+                else:
+                    # Try partial match
+                    for _sk, _sv in SECTOR_PEER_MAP.items():
+                        if _sps_sector and _sps_sector.lower() in _sk.lower():
+                            _sps_candidates = _sv
+                            break
+                        if _sps_industry and _sps_industry.lower() in _sk.lower():
+                            _sps_candidates = _sv
+                            break
+
+                # Remove the target itself
+                _sps_suggestions = [t for t in _sps_candidates if t.upper() != comps_ticker_input.upper()][:8]
+
+                if _sps_suggestions:
+                    if _sps_sector:
+                        st.markdown(f'<div style="font-size:0.65rem; color:#9B8AFF;">Sector: {_sps_sector} · Industry: {_sps_industry or "N/A"}</div>', unsafe_allow_html=True)
+
+                    # Initialize session state for peer suggestions
+                    _sps_key = f"smart_peers_{comps_ticker_input}"
+                    if _sps_key not in st.session_state:
+                        st.session_state[_sps_key] = _sps_suggestions
+
+                    _sps_selected = st.multiselect(
+                        "Suggested Peers",
+                        options=_sps_suggestions,
+                        default=st.session_state[_sps_key],
+                        key=f"sps_ms_{comps_ticker_input}",
+                        label_visibility="collapsed",
+                    )
+                    st.session_state[_sps_key] = _sps_selected
+
+                    # Manual override
+                    _sps_manual = st.text_input(
+                        "Add custom peers (comma-separated)",
+                        placeholder="TICKER1, TICKER2",
+                        key=f"sps_manual_{comps_ticker_input}",
+                        label_visibility="collapsed",
+                    )
+                    if _sps_manual:
+                        _sps_custom = [t.strip().upper() for t in _sps_manual.split(",") if t.strip()]
+                        _sps_selected = list(set(_sps_selected + _sps_custom))
+                        st.session_state[_sps_key] = _sps_selected
+
+                    st.markdown(
+                        f'<div style="font-size:0.65rem; color:#8A85AD; margin-top:0.3rem;">'
+                        f'{len(_sps_selected)} peers selected</div>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.markdown(
+                        '<div style="font-size:0.7rem; color:#8A85AD;">'
+                        'No auto-suggestions available for this ticker. The comps engine will find peers automatically.'
+                        '</div>',
+                        unsafe_allow_html=True,
+                    )
         
         st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
         comps_btn = st.button("🔍 Run Comps Analysis", type="primary", use_container_width=True)
@@ -4915,6 +5176,73 @@ with st.sidebar:
         st.markdown('<div style="height:0.8rem;"></div>', unsafe_allow_html=True)
         vms_screen_btn = st.button("🚀 Run Screen", type="primary", use_container_width=True)
 
+    # ══════════════════════════════════════════════════════
+    # 📊 FULL DATA EXPORT (available in all modes)
+    # ══════════════════════════════════════════════════════
+    st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
+    with st.expander("📊 Full Data Export", expanded=False):
+        st.markdown(
+            '<div style="font-size:0.72rem; color:#B8B3D7; margin-bottom:0.5rem;">'
+            'Export financial data for the last analyzed company as a multi-sheet Excel workbook.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        if "last_cd" in st.session_state and st.session_state["last_cd"] is not None:
+            _exp_cd = st.session_state["last_cd"]
+            try:
+                _exp_excel = _export_to_excel(_exp_cd)
+                st.download_button(
+                    label=f"📥 {_exp_cd.ticker} Full Export (.xlsx)",
+                    data=_exp_excel,
+                    file_name=f"{_exp_cd.ticker}_Full_Financial_Data.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="sidebar_full_export",
+                )
+                st.markdown(
+                    '<div style="font-size:0.6rem; color:#8A85AD; margin-top:0.3rem;">'
+                    '6 sheets: Summary · Income Statement · Balance Sheet · Cash Flow · Key Ratios · Valuation Multiples'
+                    '</div>',
+                    unsafe_allow_html=True,
+                )
+            except Exception as _exp_e:
+                st.warning(f"Export error: {_exp_e}")
+        else:
+            st.info("Analyze a company first to enable export.", icon="ℹ️")
+
+    # ══════════════════════════════════════════════════════
+    # ⌨️ KEYBOARD SHORTCUTS PANEL
+    # ══════════════════════════════════════════════════════
+    with st.expander("⌨️ Shortcuts & Reference", expanded=False):
+        _shortcuts_data = [
+            ("⌘/Ctrl + K", "Quick search (Streamlit native)"),
+            ("⌘/Ctrl + B", "Toggle sidebar"),
+            ("⌘/Ctrl + E", "Export data"),
+            ("⌘/Ctrl + D", "Download report"),
+            ("⌘/Ctrl + W", "Add to watchlist"),
+            ("R", "Rerun app"),
+            ("?", "Show this panel"),
+        ]
+        for _sk, _sd in _shortcuts_data:
+            st.markdown(
+                f'<div style="display:flex; justify-content:space-between; padding:0.25rem 0; '
+                f'border-bottom:1px solid rgba(255,255,255,0.04);">'
+                f'<kbd style="background:rgba(0,0,0,0.3); padding:0.15rem 0.4rem; border-radius:4px; '
+                f'font-family:monospace; font-size:0.7rem; color:#E0DCF5;">{_sk}</kbd>'
+                f'<span style="color:#B8B3D7; font-size:0.72rem;">{_sd}</span></div>',
+                unsafe_allow_html=True,
+            )
+        st.markdown(
+            '<div style="font-size:0.6rem; color:#6B6B80; margin-top:0.5rem; line-height:1.5;">'
+            '💡 <b>Quick Actions:</b><br>'
+            '• Use sidebar radio buttons to switch modes<br>'
+            '• Click any watchlist ticker to load it<br>'
+            '• Use preset comparisons for quick benchmarks<br>'
+            '• All exports support .xlsx, .csv, and .json formats'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
     # Sidebar Footer
     st.markdown('<div class="sb-divider" style="margin-top:1.5rem;"></div>', unsafe_allow_html=True)
     st.markdown(
@@ -4984,6 +5312,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
 
     try:
         cd = fetch_company_data(ticker_input)
+        st.session_state["last_cd"] = cd
         # Add to search history on successful fetch
         _add_to_search_history(ticker_input)
     except Exception as e:
@@ -5421,6 +5750,114 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             )
     except Exception:
         pass
+
+    # ══════════════════════════════════════════════════════
+    # 2c-ii. WHAT-IF SIMULATOR
+    # ══════════════════════════════════════════════════════
+    with _safe_section("What-If Simulator"):
+        try:
+            _wif_revenue = None
+            _wif_ebitda = None
+            _wif_ev_ebitda = cd.ev_to_ebitda if cd.ev_to_ebitda and cd.ev_to_ebitda > 0 else None
+            _wif_shares = cd.shares_outstanding if hasattr(cd, 'shares_outstanding') and cd.shares_outstanding else None
+            if _wif_shares is None and cd.market_cap and cd.current_price and cd.current_price > 0:
+                _wif_shares = cd.market_cap / cd.current_price
+            if cd.revenue is not None and len(cd.revenue) > 0:
+                _wif_revenue = float(cd.revenue.iloc[0])
+            if cd.ebitda is not None:
+                if hasattr(cd.ebitda, 'iloc') and len(cd.ebitda) > 0:
+                    _wif_ebitda = float(cd.ebitda.iloc[0])
+                elif isinstance(cd.ebitda, (int, float)):
+                    _wif_ebitda = float(cd.ebitda)
+            _wif_margin = (_wif_ebitda / _wif_revenue * 100) if _wif_revenue and _wif_ebitda and _wif_revenue > 0 else None
+
+            if _wif_revenue and _wif_shares and _wif_shares > 0 and _wif_ev_ebitda:
+                with st.expander("🎯 What-If Simulator", expanded=False):
+                    st.markdown(
+                        '<div style="font-size:0.75rem; color:#B8B3D7; margin-bottom:0.8rem;">'
+                        'Adjust assumptions to see implied share price changes in real time.</div>',
+                        unsafe_allow_html=True,
+                    )
+                    _wif_c1, _wif_c2, _wif_c3 = st.columns(3)
+                    with _wif_c1:
+                        _wif_rev_growth = st.slider("Revenue Growth (%)", -20, 20, 0, 1, key="wif_rev_growth",
+                                                     help="Adjust revenue growth from base")
+                    with _wif_c2:
+                        _wif_margin_adj = st.slider("Margin Δ (bps)", -500, 500, 0, 25, key="wif_margin_adj",
+                                                     help="EBITDA margin expansion/compression in basis points")
+                    with _wif_c3:
+                        _wif_mult_adj = st.slider("Multiple Δ (x)", -5.0, 5.0, 0.0, 0.5, key="wif_mult_adj",
+                                                   help="EV/EBITDA multiple re-rating")
+
+                    # Calculate implied price
+                    _wif_adj_revenue = _wif_revenue * (1 + _wif_rev_growth / 100)
+                    _wif_base_margin = _wif_margin if _wif_margin else 20.0
+                    _wif_adj_margin = (_wif_base_margin + _wif_margin_adj / 100) / 100
+                    _wif_adj_ebitda = _wif_adj_revenue * _wif_adj_margin
+                    _wif_adj_multiple = _wif_ev_ebitda + _wif_mult_adj
+                    _wif_adj_ev = _wif_adj_ebitda * _wif_adj_multiple
+                    _wif_net_debt = (cd.enterprise_value or 0) - (cd.market_cap or 0)
+                    _wif_eq_value = _wif_adj_ev - _wif_net_debt
+                    _wif_implied_price = _wif_eq_value / _wif_shares if _wif_shares > 0 else 0
+                    _wif_upside = ((_wif_implied_price / cd.current_price) - 1) * 100 if cd.current_price > 0 else 0
+
+                    # Bull case: +10% rev, +200bps margin, +2x multiple
+                    _wif_bull_rev = _wif_revenue * 1.10
+                    _wif_bull_ebitda = _wif_bull_rev * ((_wif_base_margin + 2) / 100)
+                    _wif_bull_ev = _wif_bull_ebitda * (_wif_ev_ebitda + 2)
+                    _wif_bull_price = (_wif_bull_ev - _wif_net_debt) / _wif_shares if _wif_shares > 0 else 0
+
+                    # Bear case: -10% rev, -200bps margin, -2x multiple
+                    _wif_bear_rev = _wif_revenue * 0.90
+                    _wif_bear_ebitda = _wif_bear_rev * (max(0, _wif_base_margin - 2) / 100)
+                    _wif_bear_ev = _wif_bear_ebitda * max(1, _wif_ev_ebitda - 2)
+                    _wif_bear_price = (_wif_bear_ev - _wif_net_debt) / _wif_shares if _wif_shares > 0 else 0
+
+                    # Display metrics
+                    _wm1, _wm2, _wm3 = st.columns(3)
+                    _wif_color = "#10B981" if _wif_upside >= 0 else "#EF4444"
+                    _wm1.metric("Current Price", f"{cd.currency_symbol}{cd.current_price:,.2f}")
+                    _wm2.metric("Implied Price", f"{cd.currency_symbol}{_wif_implied_price:,.2f}",
+                               delta=f"{_wif_upside:+.1f}%")
+                    _wm3.metric("Adj. EV/EBITDA", f"{_wif_adj_multiple:.1f}x",
+                               delta=f"{_wif_mult_adj:+.1f}x" if _wif_mult_adj != 0 else None)
+
+                    # Plotly bar chart: Current vs Implied vs Bull vs Bear
+                    try:
+                        _wif_fig = go.Figure()
+                        _wif_labels = ["Bear Case", "Current", "Your Scenario", "Bull Case"]
+                        _wif_values = [_wif_bear_price, cd.current_price, _wif_implied_price, _wif_bull_price]
+                        _wif_colors = ["#EF4444", "#8A85AD", "#6B5CE7", "#10B981"]
+                        _wif_fig.add_trace(go.Bar(
+                            x=_wif_labels, y=_wif_values,
+                            marker_color=_wif_colors,
+                            text=[f"{cd.currency_symbol}{v:,.2f}" for v in _wif_values],
+                            textposition="outside",
+                            textfont=dict(size=11, color="#E0DCF5"),
+                        ))
+                        _wif_fig.update_layout(
+                            **_CHART_LAYOUT_BASE, height=300,
+                            margin=dict(t=30, b=30, l=40, r=20),
+                            yaxis=dict(title=dict(text="Implied Price", font=dict(size=10, color="#8A85AD")),
+                                      tickprefix=cd.currency_symbol, tickfont=dict(size=9, color="#8A85AD"),
+                                      showgrid=True, gridcolor="rgba(255,255,255,0.05)"),
+                            xaxis=dict(tickfont=dict(size=10, color="#B8B3D7")),
+                            showlegend=False,
+                        )
+                        _apply_space_grid(_wif_fig)
+                        st.plotly_chart(_wif_fig, use_container_width=True, key="whatif_bar")
+                    except Exception:
+                        pass
+
+                    st.markdown(
+                        '<div style="font-size:0.65rem; color:#6B6B80; margin-top:0.3rem; line-height:1.5;">'
+                        '💡 Bull/Bear cases use ±10% revenue, ±200bps margin, ±2x multiple from current levels. '
+                        'Your scenario reflects the slider adjustments above.'
+                        '</div>',
+                        unsafe_allow_html=True,
+                    )
+        except Exception:
+            pass
 
     # ══════════════════════════════════════════════════════
     # 2d. BULL / BEAR INVESTMENT THESIS
@@ -8600,6 +9037,19 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
             unsafe_allow_html=True,
         )
 
+        # ── Export Comps Table ──
+        try:
+            _comps_excel = _export_comps_to_excel(comps_analysis)
+            st.download_button(
+                label=f"📥 Export Comps Table (.xlsx)",
+                data=_comps_excel,
+                file_name=f"{comps_ticker_input}_Comps_Analysis.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="export_comps_xlsx",
+            )
+        except Exception:
+            pass
+
         # ── Enhanced: Implied Valuation Range (Football Field by Share Price) ──
         with _safe_section("Implied Valuation Range"):
             st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
@@ -10773,6 +11223,25 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
                 st.plotly_chart(fig_scenario, use_container_width=True, key="scenario_bar_chart")
 
         _divider()
+
+        # ── Export DCF Model ──
+        try:
+            _dcf_assumptions = {
+                "growth_rate": dcf_growth_rate,
+                "terminal_growth": dcf_terminal_growth,
+                "discount_rate": dcf_discount_rate,
+                "years": dcf_years,
+            }
+            _dcf_excel = _export_dcf_to_excel(dcf_cd, dcf_result, _dcf_assumptions)
+            st.download_button(
+                label=f"📥 Export DCF Model (.xlsx)",
+                data=_dcf_excel,
+                file_name=f"{dcf_ticker_input}_DCF_Model.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="export_dcf_xlsx",
+            )
+        except Exception:
+            pass
         
         st.markdown(
             '<div style="background:rgba(245,166,35,0.1); border:1px solid rgba(245,166,35,0.3); '
