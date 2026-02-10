@@ -1,190 +1,86 @@
-<div align="center">
+# ProfileBuilder v5.3
 
-# 🛰️ ORBITAL — M&A Intelligence Platform
+**Wall Street–grade company analysis in a Streamlit app.** ProfileBuilder generates institutional-quality equity research profiles, comparable company analyses, DCF valuations, and M&A models — all from a single ticker input.
 
-**Wall Street-grade financial analysis, powered by open data.**
-
-[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io)
-[![Plotly](https://img.shields.io/badge/Plotly-5.18+-3F4F75?style=for-the-badge&logo=plotly&logoColor=white)](https://plotly.com)
-[![License: MIT](https://img.shields.io/badge/License-MIT-6B5CE7?style=for-the-badge)](LICENSE)
-
-A comprehensive M&A intelligence platform that combines company profiling, comparable analysis, DCF modeling, merger simulations, and advanced analytics into a single, beautifully designed Streamlit application.
-
-![Orbital Screenshot](screenshot.png)
-
-</div>
+![ProfileBuilder Screenshot](docs/screenshot.png)
+<!-- Replace with actual screenshot -->
 
 ---
 
-## ✨ Features
-
-### 📊 6 Analysis Modes
+## 🎯 Analysis Modes
 
 | Mode | Description |
 |------|-------------|
-| **Company Profile** | Deep-dive single-company analysis with 200+ data points, financials, technicals, and AI commentary |
-| **Comparable Analysis** | Multi-company comps with auto-calculated valuation multiples and percentile rankings |
-| **DCF Valuation** | Full discounted cash flow model with WACC estimation, sensitivity tables, and scenario analysis |
-| **Quick Compare** | Side-by-side comparison of up to 5 companies across key metrics |
-| **Merger Analysis** | Accretion/dilution modeling, synergy estimation, pro-forma financials, and football field visualization |
-| **VMS Screener** | Vertical market software screening with custom scoring and filtering |
+| **Company Profile** | Full equity research profile with 150+ data points, financial statements, key ratios, ownership, and AI-generated insights |
+| **Comps Analysis** | Comparable company analysis with automatic peer discovery, trading multiples, and relative valuation |
+| **DCF Valuation** | Discounted cash flow model with Monte Carlo simulation, sensitivity tables, and football field chart |
+| **Quick Compare** | Side-by-side comparison of up to 5 companies across key financial metrics |
+| **Merger Analysis** | Full M&A model with pro forma financials, accretion/dilution analysis, synergy modeling, and deal structure |
+| **Options P/L** | Options profit/loss calculator with payoff diagrams and Greeks analysis |
+| **Sector Rotation** | Sector-level analysis with rotation signals, relative strength, and macro overlay |
+| **VMS Screener** | Vertical market software screener with Rule of 40, growth/margin scoring, and acquisition candidates |
 
-### 🧮 Advanced Analytics
+## ✨ Key Features
 
-- **Monte Carlo Simulation** — Probabilistic price forecasting with configurable distributions and confidence intervals
-- **LBO Model** — Leveraged buyout analysis with debt structuring, IRR waterfall, and exit scenario modeling
-- **Sum-of-Parts (SOTP)** — Segment-level valuation with independent multiples and methodology per division
-- **Dividend Discount Model (DDM)** — Multi-stage DDM with Gordon Growth terminal value
-- **Piotroski F-Score** — 9-factor fundamental strength scoring
-- **Altman Z-Score** — Bankruptcy risk probability assessment
+- **150+ data points** per company profile
+- **Monte Carlo DCF** with 10,000-iteration simulation
+- **LBO / Leveraged Buyout** calculator
+- **Piotroski F-Score** and quality metrics
+- **AI-powered insights** (OpenAI integration)
+- **Excel export** with formatted, multi-tab workbooks
+- **PowerPoint generation** for pitch decks and deal books
+- **Precedent transaction** analysis for M&A
+- **Pro forma merger modeling** with synergy & sensitivity analysis
+- **Interactive Plotly charts** throughout
 
-### 📈 Technical Analysis
+## 🛠 Tech Stack
 
-- **RSI** — Relative Strength Index with overbought/oversold signals
-- **MACD** — Moving Average Convergence Divergence with signal line crossovers
-- **Bollinger Bands** — Volatility-based price channels with squeeze detection
-- **Support & Resistance** — Automated pivot point and level identification
-- **Momentum Score** — Composite technical momentum indicator (0–100)
+- **Python 3.10+**
+- **Streamlit** — UI framework
+- **Plotly** — interactive charting
+- **yfinance** — market data
+- **pandas / NumPy** — data processing
+- **openpyxl** — Excel export
+- **python-pptx** — PowerPoint generation
+- **matplotlib** — supplementary charts
 
-### 🤝 M&A Intelligence
-
-- **Deal Book** — Exportable HTML deal book with branded cover page and full analysis
-- **Precedent Transactions** — Comparable transaction multiples and premium analysis
-- **Accretion/Dilution** — Pro-forma EPS impact modeling with synergy layering
-- **Football Field** — Multi-methodology valuation range visualization
-
-### 📤 Data Export
-
-- **Excel** — Multi-sheet workbook with formatted financials, comps, and charts
-- **PowerPoint** — 9-slide institutional-quality pitch deck with embedded visualizations
-- **HTML Deal Book** — Standalone branded deal book for client distribution
-- **CSV** — Raw data export for further analysis
-
-### ⚠️ Risk & Quality
-
-- **Risk Matrix** — Multi-factor risk scoring across market, credit, liquidity, and operational dimensions
-- **Earnings Quality** — Accrual analysis, cash flow verification, and red flag detection
-- **Covenant Monitor** — Debt covenant compliance tracking and headroom analysis
-- **Insider Sentiment** — Insider transaction tracking and net sentiment scoring
-
-### 🌐 Market Intelligence
-
-- **Live Market Ticker** — Real-time index and commodity price marquee
-- **Sector Heatmap** — S&P 500 sector performance visualization
-- **News Feed** — Company and market news aggregation
-- **Earnings Calendar** — Upcoming earnings dates and consensus estimates
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Python 3.10+
-- pip
-
-### Installation
+## 🚀 Getting Started
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-org/orbital.git
-cd orbital
+# Clone
+git clone https://github.com/rajkcho/profilebuilder.git
+cd profilebuilder
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the application
+# Run
 streamlit run main.py
 ```
 
-The app will launch at [http://localhost:8501](http://localhost:8501).
+The app opens at `http://localhost:8501`.
 
----
+### Optional: AI Insights
 
-## ⚙️ Configuration
+Set your OpenAI API key for AI-generated analysis:
 
-### Environment Variables
-
-Create a `.env` file in the project root (all keys are **optional**):
-
-```env
-# OpenAI — enables AI-powered commentary and insights
-OPENAI_API_KEY=sk-...
-
-# Alpha Vantage — enhances fundamental data coverage
-ALPHA_VANTAGE_API_KEY=...
+```bash
+echo "OPENAI_API_KEY=sk-..." > .env
 ```
 
-> **Note:** Orbital is fully functional without any API keys. AI commentary and some supplemental data sources are disabled when keys are not provided.
-
----
-
-## 🏗️ Architecture
+## 📁 Project Structure
 
 ```
-orbital/
-├── main.py                  # Application entry point (~16,700 lines)
-├── requirements.txt         # Python dependencies
-├── .env                     # API keys (optional, not committed)
-├── .streamlit/
-│   └── config.toml          # Streamlit theme & server config
-├── screenshot.png           # App screenshot for README
-├── LICENSE                  # MIT License
-└── README.md                # This file
+main.py               — Main Streamlit application (17,000+ lines)
+data_engine.py        — Financial data fetching & processing
+comps_analysis.py     — Comparable company analysis engine
+merger_analysis.py    — M&A / pro forma modeling
+precedent_deals.py    — Precedent transaction scraping
+ai_insights.py        — AI-powered insight generation
+pptx_generator.py     — PowerPoint report generation
+requirements.txt      — Python dependencies
 ```
-
-The application is structured as a single-file Streamlit app with modular internal sections for each analysis mode. Key architectural patterns:
-
-- **Session state management** for cross-component data sharing
-- **Cached data fetching** via `@st.cache_data` for performance
-- **Lazy computation** — heavy models (Monte Carlo, LBO, DCF) run on-demand
-- **Responsive CSS** with custom dark theme and glassmorphism styling
-
----
-
-## 🛠️ Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| **Frontend** | Streamlit, Custom CSS, HTML Components |
-| **Visualization** | Plotly, Streamlit native charts |
-| **Data** | yfinance, Alpha Vantage (optional) |
-| **Modeling** | NumPy, Pandas |
-| **Export** | python-pptx, openpyxl, native HTML |
-| **AI** | OpenAI GPT (optional) |
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Guidelines
-
-- Maintain the single-file architecture for `main.py`
-- Follow existing code style and naming conventions
-- Test with multiple tickers before submitting
-- Update feature documentation if adding new analysis capabilities
-
----
 
 ## 📄 License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
-
----
-
-<div align="center">
-
-**Built for analysts, by analysts.**
-
-*ORBITAL — See the whole picture.*
-
-</div>
+MIT
