@@ -6656,6 +6656,107 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         )
 
     # ══════════════════════════════════════════════════════
+    # PREMIUM COMPANY SUMMARY CARD
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Company Summary Card"):
+        try:
+            # Sector-derived accent colors
+            _sector_colors = {
+                "Technology": ("#6B5CE7", "#9B8AFF"), "Healthcare": ("#E8638B", "#F093B0"),
+                "Financial Services": ("#F5A623", "#F7C574"), "Financials": ("#F5A623", "#F7C574"),
+                "Consumer Cyclical": ("#10B981", "#6EE7B7"), "Consumer Defensive": ("#34D399", "#A7F3D0"),
+                "Energy": ("#EF4444", "#FCA5A5"), "Industrials": ("#3B82F6", "#93C5FD"),
+                "Real Estate": ("#8B5CF6", "#C4B5FD"), "Communication Services": ("#EC4899", "#F9A8D4"),
+                "Basic Materials": ("#D97706", "#FCD34D"), "Utilities": ("#06B6D4", "#67E8F9"),
+            }
+            _sc_accent1, _sc_accent2 = _sector_colors.get(cd.sector, ("#6B5CE7", "#9B8AFF"))
+
+            # Logo or initials
+            _sc_initial = (cd.name or "?")[0].upper()
+            if cd.logo_url:
+                _sc_logo = (
+                    f'<img src="{cd.logo_url}" style="width:64px; height:64px; border-radius:16px; '
+                    f'object-fit:contain; background:white; padding:6px; flex-shrink:0;" '
+                    f'onerror="this.onerror=null; this.style.display=\'none\'; '
+                    f'this.nextElementSibling.style.display=\'flex\';">'
+                    f'<div style="display:none; width:64px; height:64px; border-radius:16px; '
+                    f'background:linear-gradient(135deg, {_sc_accent1}, {_sc_accent2}); color:white; '
+                    f'font-size:1.8rem; font-weight:800; align-items:center; justify-content:center; flex-shrink:0;">{_sc_initial}</div>'
+                )
+            else:
+                _sc_logo = (
+                    f'<div style="width:64px; height:64px; border-radius:16px; '
+                    f'background:linear-gradient(135deg, {_sc_accent1}, {_sc_accent2}); color:white; '
+                    f'font-size:1.8rem; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{_sc_initial}</div>'
+                )
+
+            # Business summary snippet
+            _sc_summary = (getattr(cd, 'long_business_summary', '') or '')[:200]
+            if _sc_summary and len(getattr(cd, 'long_business_summary', '') or '') > 200:
+                _sc_summary = _sc_summary.rsplit(' ', 1)[0] + '…'
+
+            # Badges
+            _sc_badges = []
+            if cd.sector:
+                _sc_badges.append(f'<span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:20px; font-size:0.65rem; font-weight:600; background:rgba({int(_sc_accent1[1:3],16)},{int(_sc_accent1[3:5],16)},{int(_sc_accent1[5:7],16)},0.15); color:{_sc_accent2}; letter-spacing:0.3px;">⚡ {cd.sector}</span>')
+            if cd.industry:
+                _sc_badges.append(f'<span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:20px; font-size:0.65rem; font-weight:600; background:rgba(107,92,231,0.1); color:#9B8AFF; letter-spacing:0.3px;">🏭 {cd.industry}</span>')
+            _sc_country = getattr(cd, 'country', '') or ''
+            if _sc_country:
+                _sc_badges.append(f'<span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:20px; font-size:0.65rem; font-weight:600; background:rgba(16,185,129,0.1); color:#34D399; letter-spacing:0.3px;">🌍 {_sc_country}</span>')
+            _sc_emp = getattr(cd, 'full_time_employees', None)
+            if _sc_emp:
+                _sc_badges.append(f'<span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:20px; font-size:0.65rem; font-weight:600; background:rgba(245,166,35,0.1); color:#F7C574; letter-spacing:0.3px;">👥 {_sc_emp:,} employees</span>')
+            _sc_badges_html = ' '.join(_sc_badges)
+
+            # Extra details (CEO, website, founded)
+            _sc_details = []
+            _sc_officers = getattr(cd, 'officers', []) or []
+            _sc_ceo = ''
+            for _off in _sc_officers:
+                _title = (_off.get('title', '') or '').lower()
+                if 'ceo' in _title or 'chief executive' in _title:
+                    _sc_ceo = _off.get('name', '')
+                    break
+            if _sc_ceo:
+                _sc_details.append(f'<span style="color:#B8B3D7; font-size:0.75rem;">👤 <strong style="color:#E0DCF5;">{_sc_ceo}</strong> — CEO</span>')
+            _sc_web = getattr(cd, 'website', '') or ''
+            if _sc_web:
+                _sc_details.append(f'<a href="{_sc_web}" target="_blank" style="color:{_sc_accent2}; font-size:0.75rem; text-decoration:none;">🔗 {_sc_web.replace("https://","").replace("http://","").rstrip("/")}</a>')
+            _sc_details_html = '&nbsp;&nbsp;·&nbsp;&nbsp;'.join(_sc_details) if _sc_details else ''
+
+            st.markdown(
+                f'<div style="background:linear-gradient(135deg, rgba(20,18,35,0.95), rgba(30,27,50,0.95)); '
+                f'border:2px solid transparent; border-image:linear-gradient(135deg, {_sc_accent1}, {_sc_accent2}, {_sc_accent1}) 1; '
+                f'border-radius:0px; padding:1.8rem 2rem; margin:1rem 0 1.5rem 0; position:relative; overflow:hidden; '
+                f'box-shadow: 0 8px 32px rgba(0,0,0,0.3), 0 0 60px {_sc_accent1}15;">'
+                # Decorative gradient orb
+                f'<div style="position:absolute; top:-40px; right:-40px; width:160px; height:160px; '
+                f'border-radius:50%; background:radial-gradient(circle, {_sc_accent1}20, transparent 70%); pointer-events:none;"></div>'
+                # Header row: logo + name/ticker
+                f'<div style="display:flex; align-items:center; gap:1.2rem; margin-bottom:1rem;">'
+                f'{_sc_logo}'
+                f'<div>'
+                f'<div style="font-size:1.5rem; font-weight:900; color:#FFFFFF; letter-spacing:-0.5px;">{cd.name}</div>'
+                f'<div style="display:flex; align-items:center; gap:0.6rem; margin-top:0.2rem;">'
+                f'<span style="background:{_sc_accent1}; color:white; padding:0.15rem 0.6rem; border-radius:20px; '
+                f'font-size:0.7rem; font-weight:700; letter-spacing:0.5px;">{cd.ticker}</span>'
+                f'<span style="color:#8A85AD; font-size:0.75rem;">{cd.exchange}</span>'
+                f'</div></div></div>'
+                # Business summary
+                + (f'<div style="color:#B8B3D7; font-size:0.82rem; line-height:1.5; margin-bottom:1rem; '
+                   f'padding-left:0.5rem; border-left:3px solid {_sc_accent1}40;">{_sc_summary}</div>' if _sc_summary else '')
+                # Badges row
+                + (f'<div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.8rem;">{_sc_badges_html}</div>' if _sc_badges_html else '')
+                # Details row (CEO, website)
+                + (f'<div style="margin-top:0.5rem;">{_sc_details_html}</div>' if _sc_details_html else '')
+                + '</div>',
+                unsafe_allow_html=True,
+            )
+        except Exception:
+            pass  # Non-critical decorative element
+
+    # ══════════════════════════════════════════════════════
     # VALUATION AT A GLANCE DASHBOARD
     # ══════════════════════════════════════════════════════
     with _safe_section("Valuation Dashboard"):
