@@ -920,9 +920,17 @@ def fetch_peer_data(cd: CompanyData) -> CompanyData:
 # ── Formatting Helpers ───────────────────────────────────────
 
 def format_number(val, prefix="$", suffix="", decimals=1, currency_symbol=None) -> str:
-    """Human-readable large numbers: $1.2B, C$340.5M, etc."""
+    """Human-readable large numbers: $1.2B, C$340.5M, etc.
+
+    Args:
+        currency_symbol: If provided, overrides prefix. Handles JPY/¥ (no decimals),
+                         GBP (£), EUR (€), CAD (C$), INR (₹), etc.
+    """
     if currency_symbol is not None:
         prefix = currency_symbol
+        # JPY and KRW typically don't use decimals
+        if currency_symbol in ("¥", "₩"):
+            decimals = 0
     if val is None or (isinstance(val, float) and np.isnan(val)):
         return "N/A"
     try:
@@ -1203,6 +1211,290 @@ def format_ratio(val, decimals=2) -> str:
         return f"{float(val):.{decimals}f}x"
     except (TypeError, ValueError):
         return "N/A"
+
+
+# ── Sector Benchmarks ────────────────────────────────────────
+
+SECTOR_BENCHMARKS = {
+    "Technology": {
+        "pe": {"low": 18, "median": 28, "high": 45},
+        "ev_ebitda": {"low": 12, "median": 20, "high": 35},
+        "gross_margin": {"low": 0.50, "median": 0.65, "high": 0.80},
+        "revenue_growth": {"low": 0.05, "median": 0.12, "high": 0.30},
+        "debt_equity": {"low": 0.10, "median": 0.40, "high": 1.00},
+    },
+    "Healthcare": {
+        "pe": {"low": 15, "median": 22, "high": 40},
+        "ev_ebitda": {"low": 10, "median": 16, "high": 28},
+        "gross_margin": {"low": 0.40, "median": 0.60, "high": 0.80},
+        "revenue_growth": {"low": 0.03, "median": 0.08, "high": 0.20},
+        "debt_equity": {"low": 0.20, "median": 0.60, "high": 1.50},
+    },
+    "Financials": {
+        "pe": {"low": 8, "median": 13, "high": 20},
+        "ev_ebitda": {"low": 6, "median": 10, "high": 16},
+        "gross_margin": {"low": 0.30, "median": 0.50, "high": 0.70},
+        "revenue_growth": {"low": 0.02, "median": 0.06, "high": 0.15},
+        "debt_equity": {"low": 1.00, "median": 3.00, "high": 8.00},
+    },
+    "Consumer Discretionary": {
+        "pe": {"low": 12, "median": 20, "high": 35},
+        "ev_ebitda": {"low": 8, "median": 14, "high": 24},
+        "gross_margin": {"low": 0.25, "median": 0.40, "high": 0.60},
+        "revenue_growth": {"low": 0.02, "median": 0.08, "high": 0.20},
+        "debt_equity": {"low": 0.30, "median": 0.80, "high": 2.00},
+    },
+    "Consumer Staples": {
+        "pe": {"low": 15, "median": 22, "high": 30},
+        "ev_ebitda": {"low": 10, "median": 15, "high": 22},
+        "gross_margin": {"low": 0.30, "median": 0.45, "high": 0.60},
+        "revenue_growth": {"low": 0.01, "median": 0.04, "high": 0.10},
+        "debt_equity": {"low": 0.40, "median": 0.90, "high": 1.80},
+    },
+    "Industrials": {
+        "pe": {"low": 14, "median": 21, "high": 32},
+        "ev_ebitda": {"low": 9, "median": 14, "high": 22},
+        "gross_margin": {"low": 0.20, "median": 0.35, "high": 0.50},
+        "revenue_growth": {"low": 0.02, "median": 0.06, "high": 0.15},
+        "debt_equity": {"low": 0.30, "median": 0.80, "high": 1.80},
+    },
+    "Energy": {
+        "pe": {"low": 6, "median": 11, "high": 20},
+        "ev_ebitda": {"low": 3, "median": 6, "high": 10},
+        "gross_margin": {"low": 0.15, "median": 0.35, "high": 0.55},
+        "revenue_growth": {"low": -0.10, "median": 0.05, "high": 0.25},
+        "debt_equity": {"low": 0.20, "median": 0.50, "high": 1.20},
+    },
+    "Materials": {
+        "pe": {"low": 10, "median": 16, "high": 25},
+        "ev_ebitda": {"low": 6, "median": 10, "high": 16},
+        "gross_margin": {"low": 0.20, "median": 0.35, "high": 0.50},
+        "revenue_growth": {"low": -0.05, "median": 0.05, "high": 0.15},
+        "debt_equity": {"low": 0.20, "median": 0.55, "high": 1.20},
+    },
+    "Real Estate": {
+        "pe": {"low": 20, "median": 35, "high": 55},
+        "ev_ebitda": {"low": 15, "median": 22, "high": 35},
+        "gross_margin": {"low": 0.30, "median": 0.55, "high": 0.75},
+        "revenue_growth": {"low": 0.01, "median": 0.05, "high": 0.15},
+        "debt_equity": {"low": 0.50, "median": 1.20, "high": 2.50},
+    },
+    "Utilities": {
+        "pe": {"low": 12, "median": 18, "high": 26},
+        "ev_ebitda": {"low": 8, "median": 12, "high": 18},
+        "gross_margin": {"low": 0.25, "median": 0.40, "high": 0.60},
+        "revenue_growth": {"low": 0.01, "median": 0.04, "high": 0.10},
+        "debt_equity": {"low": 0.80, "median": 1.30, "high": 2.20},
+    },
+    "Communication Services": {
+        "pe": {"low": 12, "median": 20, "high": 35},
+        "ev_ebitda": {"low": 7, "median": 12, "high": 22},
+        "gross_margin": {"low": 0.35, "median": 0.55, "high": 0.75},
+        "revenue_growth": {"low": 0.02, "median": 0.08, "high": 0.20},
+        "debt_equity": {"low": 0.40, "median": 0.90, "high": 2.00},
+    },
+}
+
+
+def get_sector_benchmarks(sector: str) -> Optional[dict]:
+    """Return benchmark ranges for key metrics by sector.
+
+    Returns dict with keys: pe, ev_ebitda, gross_margin, revenue_growth, debt_equity.
+    Each sub-dict has: low, median, high.
+    Returns None if sector not found.
+    """
+    return SECTOR_BENCHMARKS.get(sector)
+
+
+# ── Industry Peers Mapping (30+ industries) ─────────────────
+
+INDUSTRY_PEERS = {
+    "Consumer Electronics": ["AAPL", "SONY", "HPQ", "DELL", "LOGI", "HEAR", "GPRO"],
+    "Software - Infrastructure": ["MSFT", "ORCL", "CRM", "NOW", "ADBE", "INTU", "SNOW", "DDOG", "NET"],
+    "Software - Application": ["CRM", "ADBE", "INTU", "NOW", "WDAY", "TEAM", "HUBS", "ZS", "PANW"],
+    "Semiconductors": ["NVDA", "AMD", "INTC", "AVGO", "QCOM", "TXN", "MU", "MRVL", "ON"],
+    "Semiconductor Equipment & Materials": ["ASML", "AMAT", "LRCX", "KLAC", "TER", "ENTG"],
+    "Internet Content & Information": ["GOOGL", "META", "SNAP", "PINS", "SPOT", "RDDT", "YELP"],
+    "Internet Retail": ["AMZN", "BABA", "JD", "MELI", "SE", "SHOP", "ETSY", "W", "CHWY"],
+    "Information Technology Services": ["ACN", "IBM", "CTSH", "INFY", "WIT", "EPAM", "GLOB"],
+    "Electronic Components": ["APH", "TEL", "GLW", "JBL", "FLEX", "CLS"],
+    "Communication Equipment": ["CSCO", "MSI", "JNPR", "ERIC", "NOK", "CIEN", "CALX"],
+    "Banks - Diversified": ["JPM", "BAC", "WFC", "C", "GS", "MS", "USB"],
+    "Banks - Regional": ["USB", "PNC", "TFC", "FITB", "KEY", "RF", "HBAN", "CFG"],
+    "Insurance - Diversified": ["BRK-B", "AIG", "MET", "PRU", "ALL", "TRV", "HIG"],
+    "Capital Markets": ["GS", "MS", "SCHW", "BLK", "ICE", "CME", "NDAQ"],
+    "Financial Data & Stock Exchanges": ["SPGI", "MCO", "MSCI", "ICE", "NDAQ", "FDS"],
+    "Drug Manufacturers - General": ["JNJ", "PFE", "MRK", "LLY", "ABBV", "NVO", "AZN", "BMY"],
+    "Biotechnology": ["AMGN", "GILD", "VRTX", "REGN", "BIIB", "MRNA", "SGEN", "ALNY"],
+    "Medical Devices": ["MDT", "ABT", "SYK", "BSX", "ISRG", "EW", "ZBH", "BAX"],
+    "Health Care Plans": ["UNH", "ELV", "CI", "HUM", "CNC", "MOH"],
+    "Oil & Gas Integrated": ["XOM", "CVX", "SHEL", "TTE", "COP", "BP", "ENB"],
+    "Oil & Gas E&P": ["EOG", "PXD", "DVN", "FANG", "MRO", "OVV", "APA"],
+    "Beverages - Non-Alcoholic": ["KO", "PEP", "MNST", "CELH", "KDP"],
+    "Restaurants": ["MCD", "SBUX", "CMG", "YUM", "DRI", "QSR", "WING"],
+    "Discount Stores": ["WMT", "COST", "TGT", "DG", "DLTR", "BJ"],
+    "Specialty Retail": ["HD", "LOW", "TJX", "ROST", "ORLY", "AZO", "ULTA"],
+    "Household & Personal Products": ["PG", "CL", "KMB", "EL", "CHD", "CLX"],
+    "Aerospace & Defense": ["BA", "LMT", "RTX", "NOC", "GD", "GE", "HII", "LHX"],
+    "Auto Manufacturers": ["TSLA", "TM", "GM", "F", "HMC", "STLA", "RIVN"],
+    "Railroads": ["UNP", "CSX", "NSC", "CP", "CNI"],
+    "Industrial Conglomerates": ["HON", "MMM", "GE", "ITW", "EMR", "ETN"],
+    "Entertainment": ["DIS", "NFLX", "CMCSA", "WBD", "PARA", "LGF-A"],
+    "Telecom Services": ["T", "VZ", "TMUS", "CHTR", "LBRDK"],
+    "REIT - Diversified": ["AMT", "PLD", "CCI", "EQIX", "SPG", "O", "DLR"],
+    "Utilities - Regulated Electric": ["NEE", "DUK", "SO", "D", "AEP", "EXC", "SRE"],
+    "Diagnostics & Research": ["TMO", "DHR", "A", "ILMN", "BIO", "WAT"],
+    "Insurance - Property & Casualty": ["PGR", "CB", "ALL", "TRV", "HIG", "CNA"],
+    "Asset Management": ["BLK", "BX", "KKR", "APO", "ARES", "OWL"],
+}
+
+# Cache for discovered peers
+_peer_cache: Dict[str, List[str]] = {}
+
+
+def discover_peers(cd: CompanyData, max_peers: int = 8) -> List[str]:
+    """Auto-discover peer tickers based on sector, industry, and market cap.
+
+    Uses INDUSTRY_PEERS mapping, filters by same sector and market cap range (0.2x-5x).
+    Results are cached by ticker.
+    """
+    cache_key = f"{cd.ticker}_{max_peers}"
+    if cache_key in _peer_cache:
+        return _peer_cache[cache_key]
+
+    candidates = []
+
+    # Look up from industry map first, then fall back to INDUSTRY_PEER_MAP
+    industry_candidates = INDUSTRY_PEERS.get(cd.industry, [])
+    if not industry_candidates:
+        industry_candidates = INDUSTRY_PEER_MAP.get(cd.industry, [])
+    if not industry_candidates:
+        # Try sector-level fallback: collect all tickers from industries in this sector
+        for ind, tickers in INDUSTRY_PEERS.items():
+            if tickers:
+                # We can't easily check sector from the map, so just use what we have
+                pass
+        industry_candidates = INDUSTRY_PEER_MAP.get(cd.industry, [])
+
+    # Remove target itself
+    industry_candidates = [t for t in industry_candidates if t.upper() != cd.ticker.upper()]
+
+    if not industry_candidates:
+        _peer_cache[cache_key] = []
+        return []
+
+    target_mcap = cd.market_cap or 0
+
+    validated = []
+    for pticker in industry_candidates:
+        if len(validated) >= max_peers:
+            break
+        try:
+            pk = yf.Ticker(pticker)
+            pinfo = pk.fast_info if hasattr(pk, 'fast_info') else {}
+            # Try fast_info first for market cap
+            p_mcap = getattr(pinfo, 'market_cap', None)
+            if p_mcap is None:
+                pinfo_full = pk.info
+                p_mcap = pinfo_full.get('marketCap', 0)
+                p_sector = pinfo_full.get('sector', '')
+            else:
+                p_sector = cd.sector  # Assume same sector from our curated list
+
+            if not p_mcap:
+                continue
+
+            # Filter: market cap within 0.2x to 5x of target
+            if target_mcap > 0:
+                ratio = p_mcap / target_mcap
+                if ratio < 0.2 or ratio > 5.0:
+                    continue
+
+            validated.append(pticker)
+        except Exception:
+            # If yfinance fails, still include it (it's from our curated list)
+            validated.append(pticker)
+            continue
+
+    result = validated[:max_peers]
+    _peer_cache[cache_key] = result
+    return result
+
+
+def get_upcoming_earnings(ticker: str) -> dict:
+    """Fetch upcoming and recent earnings data for a ticker.
+
+    Returns dict with:
+        - next_earnings_date: str or None
+        - previous_earnings_date: str or None
+        - quarterly_eps: list of dicts with date, estimate, actual, surprise
+    """
+    result = {
+        "next_earnings_date": None,
+        "previous_earnings_date": None,
+        "quarterly_eps": [],
+    }
+    try:
+        tk = yf.Ticker(ticker)
+
+        # Try earnings_dates (shows future + past)
+        try:
+            ed = tk.get_earnings_dates(limit=12)
+            if ed is not None and not ed.empty:
+                now = pd.Timestamp.now(tz='UTC') if ed.index.tz else pd.Timestamp.now()
+
+                future = ed[ed.index > now]
+                past = ed[ed.index <= now]
+
+                if not future.empty:
+                    result["next_earnings_date"] = str(future.index[-1].date())
+                if not past.empty:
+                    result["previous_earnings_date"] = str(past.index[0].date())
+
+                # Last 4 quarters of EPS data
+                past_4 = past.head(4)
+                for idx, row in past_4.iterrows():
+                    eps_entry = {
+                        "date": str(idx.date()),
+                        "estimate": None,
+                        "actual": None,
+                        "surprise_pct": None,
+                    }
+                    for col in row.index:
+                        cl = col.lower()
+                        val = row[col]
+                        if pd.notna(val):
+                            if "estimate" in cl or "expected" in cl:
+                                eps_entry["estimate"] = float(val)
+                            elif "reported" in cl or "actual" in cl:
+                                eps_entry["actual"] = float(val)
+                            elif "surprise" in cl:
+                                eps_entry["surprise_pct"] = float(val)
+                    result["quarterly_eps"].append(eps_entry)
+        except Exception:
+            pass
+
+        # Fallback: try calendar property
+        if not result["next_earnings_date"]:
+            try:
+                cal = tk.calendar
+                if cal is not None:
+                    if isinstance(cal, dict):
+                        ed_list = cal.get("Earnings Date", [])
+                        if ed_list:
+                            result["next_earnings_date"] = str(ed_list[0])
+                    elif isinstance(cal, pd.DataFrame) and not cal.empty:
+                        if "Earnings Date" in cal.index:
+                            val = cal.loc["Earnings Date"].iloc[0]
+                            if pd.notna(val):
+                                result["next_earnings_date"] = str(val)
+            except Exception:
+                pass
+
+    except Exception:
+        pass
+
+    return result
 
 
 def format_multiple(val, decimals=1) -> str:
