@@ -5124,9 +5124,205 @@ with st.sidebar:
                     _add_to_watchlist(ticker_input)
                     st.rerun()
 
+        # ── Natural Language Search ──
+        if ticker_input and not ticker_input.replace(".", "").replace("-", "").isalpha() is False:
+            pass  # normal ticker
+        if ticker_input and len(ticker_input) > 5 and " " not in ticker_input:
+            pass  # could be a long ticker like BRK.B
+        if ticker_input and (" " in ticker_input or (len(ticker_input) > 6 and ticker_input.isalpha())):
+            # User may have typed a company name instead of ticker
+            _nlq = ticker_input
+            _nl_suggestions = []
+            try:
+                import yfinance as _yf_search
+                _nl_result = _yf_search.Ticker(_nlq)
+                _nl_info = _nl_result.info
+                if _nl_info and _nl_info.get("symbol"):
+                    _nl_suggestions.append((_nl_info["symbol"], _nl_info.get("shortName", "")))
+            except Exception:
+                pass
+            if not _nl_suggestions:
+                # Try common name mappings
+                _name_map = {
+                    "APPLE": "AAPL", "MICROSOFT": "MSFT", "GOOGLE": "GOOGL", "ALPHABET": "GOOGL",
+                    "AMAZON": "AMZN", "META": "META", "FACEBOOK": "META", "TESLA": "TSLA",
+                    "NVIDIA": "NVDA", "NETFLIX": "NFLX", "DISNEY": "DIS", "WALMART": "WMT",
+                    "JPMORGAN": "JPM", "BERKSHIRE": "BRK-B", "JOHNSON": "JNJ",
+                    "VISA": "V", "MASTERCARD": "MA", "PAYPAL": "PYPL", "ADOBE": "ADBE",
+                    "SALESFORCE": "CRM", "ORACLE": "ORCL", "INTEL": "INTC", "AMD": "AMD",
+                    "COCA COLA": "KO", "PEPSI": "PEP", "MCDONALDS": "MCD", "STARBUCKS": "SBUX",
+                    "BOEING": "BA", "GOLDMAN SACHS": "GS", "MORGAN STANLEY": "MS",
+                    "BANK OF AMERICA": "BAC", "WELLS FARGO": "WFC", "CHEVRON": "CVX",
+                    "EXXON": "XOM", "PROCTER": "PG", "UNITEDHEALTH": "UNH",
+                }
+                for _nm_key, _nm_val in _name_map.items():
+                    if _nm_key in _nlq.upper():
+                        try:
+                            _nm_tk = _yf_search.Ticker(_nm_val)
+                            _nm_name = _nm_tk.info.get("shortName", _nm_key.title())
+                        except Exception:
+                            _nm_name = _nm_key.title()
+                        _nl_suggestions.append((_nm_val, _nm_name))
+                        break
+            if _nl_suggestions:
+                st.markdown(
+                    f'<div style="background:rgba(107,92,231,0.1); border:1px solid rgba(107,92,231,0.2); '
+                    f'border-radius:8px; padding:0.5rem 0.8rem; margin-bottom:0.5rem;">'
+                    f'<span style="font-size:0.75rem; color:#B8B3D7;">Did you mean:</span><br>'
+                    f'<span style="font-size:0.85rem; font-weight:700; color:#9B8AFF;">'
+                    f'{_nl_suggestions[0][0]} ({_nl_suggestions[0][1]})</span></div>',
+                    unsafe_allow_html=True,
+                )
+                if st.button(f"Load {_nl_suggestions[0][0]}", key="nl_load_suggestion", use_container_width=True):
+                    st.session_state["load_ticker"] = _nl_suggestions[0][0]
+                    # Store in recent searches
+                    if "nl_recent_searches" not in st.session_state:
+                        st.session_state["nl_recent_searches"] = []
+                    st.session_state["nl_recent_searches"] = [_nlq] + [s for s in st.session_state["nl_recent_searches"] if s != _nlq][:9]
+                    st.rerun()
+            else:
+                st.markdown(
+                    f'<div style="font-size:0.7rem; color:#8A85AD; margin-bottom:0.3rem;">'
+                    f'💡 Tip: Enter a stock ticker (e.g. AAPL) instead of a company name</div>',
+                    unsafe_allow_html=True,
+                )
+
         st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
         generate_btn = st.button("🚀 Generate Profile", type="primary", use_container_width=True)
-        
+
+        # ── 🔔 Smart Alerts (sidebar) ──
+        if ticker_input and generate_btn is False:
+            # Show alerts for the ticker even before generating full profile
+            pass
+        if ticker_input:
+            _sa_alerts = []
+            try:
+                import yfinance as _yf_sa
+                _sa_tk = _yf_sa.Ticker(ticker_input)
+                _sa_info = _sa_tk.info or {}
+                _sa_price = _sa_info.get("currentPrice") or _sa_info.get("regularMarketPrice", 0)
+                _sa_52h = _sa_info.get("fiftyTwoWeekHigh", 0)
+                _sa_52l = _sa_info.get("fiftyTwoWeekLow", 0)
+
+                # Price near 52-week high/low
+                if _sa_52h and _sa_price and _sa_52h > 0:
+                    if _sa_price >= _sa_52h * 0.95:
+                        _sa_alerts.append(("🟡", f"Within 5% of 52W High ({_sa_price:.2f} vs {_sa_52h:.2f})"))
+                if _sa_52l and _sa_price and _sa_52l > 0:
+                    if _sa_price <= _sa_52l * 1.05:
+                        _sa_alerts.append(("🟢", f"Within 5% of 52W Low — potential value ({_sa_price:.2f} vs {_sa_52l:.2f})"))
+
+                # RSI
+                try:
+                    _sa_hist = _sa_tk.history(period="3mo")
+                    if _sa_hist is not None and len(_sa_hist) >= 14:
+                        _sa_delta = _sa_hist["Close"].diff()
+                        _sa_gain = _sa_delta.where(_sa_delta > 0, 0).rolling(14).mean()
+                        _sa_loss = (-_sa_delta.where(_sa_delta < 0, 0)).rolling(14).mean()
+                        _sa_rs = _sa_gain / _sa_loss
+                        _sa_rsi = (100 - (100 / (1 + _sa_rs))).dropna()
+                        if len(_sa_rsi) > 0:
+                            _sa_rsi_val = float(_sa_rsi.iloc[-1])
+                            if _sa_rsi_val > 70:
+                                _sa_alerts.append(("🔴", f"RSI Overbought ({_sa_rsi_val:.0f})"))
+                            elif _sa_rsi_val < 30:
+                                _sa_alerts.append(("🟢", f"RSI Oversold ({_sa_rsi_val:.0f})"))
+                except Exception:
+                    pass
+
+                # Golden Cross / Death Cross
+                try:
+                    _sa_hist_1y = _sa_tk.history(period="1y")
+                    if _sa_hist_1y is not None and len(_sa_hist_1y) >= 200:
+                        _sa_sma50 = _sa_hist_1y["Close"].rolling(50).mean()
+                        _sa_sma200 = _sa_hist_1y["Close"].rolling(200).mean()
+                        _sa_cross_df = _sa_sma50.dropna() - _sa_sma200.dropna()
+                        if len(_sa_cross_df) >= 2:
+                            if _sa_cross_df.iloc[-1] > 0 and _sa_cross_df.iloc[-2] <= 0:
+                                _sa_alerts.append(("🟢", "Golden Cross — bullish signal"))
+                            elif _sa_cross_df.iloc[-1] < 0 and _sa_cross_df.iloc[-2] >= 0:
+                                _sa_alerts.append(("🔴", "Death Cross — bearish signal"))
+                            elif _sa_cross_df.iloc[-1] > 0:
+                                _sa_alerts.append(("🟡", "50d SMA above 200d SMA (bullish trend)"))
+                            else:
+                                _sa_alerts.append(("🟡", "50d SMA below 200d SMA (bearish trend)"))
+                except Exception:
+                    pass
+
+                # Unusual Volume
+                try:
+                    _sa_vol = _sa_info.get("volume", 0)
+                    _sa_avg_vol = _sa_info.get("averageVolume", 0)
+                    if _sa_vol and _sa_avg_vol and _sa_avg_vol > 0:
+                        _sa_vol_ratio = _sa_vol / _sa_avg_vol
+                        if _sa_vol_ratio > 2:
+                            _sa_alerts.append(("🟡", f"Unusual Volume ({_sa_vol_ratio:.1f}x average)"))
+                except Exception:
+                    pass
+
+                # Dividend yield vs ~4.3% (proxy for 10Y treasury)
+                _sa_div_yield = _sa_info.get("dividendYield", 0) or 0
+                if _sa_div_yield > 0.043:
+                    _sa_alerts.append(("🟢", f"Dividend yield ({_sa_div_yield*100:.1f}%) above 10Y Treasury"))
+
+                # Earnings date within 14 days
+                try:
+                    from datetime import datetime as _dt_sa, timedelta as _td_sa
+                    _sa_cal = _sa_tk.calendar
+                    if _sa_cal is not None:
+                        _sa_earnings = None
+                        if isinstance(_sa_cal, dict):
+                            _sa_earnings = _sa_cal.get("Earnings Date", [None])[0] if "Earnings Date" in _sa_cal else None
+                        if _sa_earnings:
+                            import pandas as _pd_sa
+                            _sa_ed = _pd_sa.Timestamp(_sa_earnings)
+                            _sa_days = (_sa_ed - _pd_sa.Timestamp.now()).days
+                            if 0 <= _sa_days <= 14:
+                                _sa_alerts.append(("🟡", f"Earnings in {_sa_days} days"))
+                except Exception:
+                    pass
+
+                # Piotroski F-Score (simplified check)
+                try:
+                    from data_engine import calculate_piotroski_score as _cps_sa
+                    from data_engine import CompanyData as _CD_sa
+                    _sa_cd_stub = _CD_sa(ticker=ticker_input)
+                    _sa_cd_stub.info = _sa_info
+                    _pf_score = _cps_sa(_sa_cd_stub)
+                    if isinstance(_pf_score, (int, float)) and _pf_score < 3:
+                        _sa_alerts.append(("🔴", f"Piotroski F-Score: {_pf_score} (weak fundamentals)"))
+                except Exception:
+                    pass
+
+                # Insider buying (from info)
+                try:
+                    _sa_insider_buy = _sa_info.get("netSharePurchaseActivity", _sa_info.get("heldPercentInsiders", None))
+                    if _sa_insider_buy and isinstance(_sa_insider_buy, (int, float)) and _sa_insider_buy > 0:
+                        _sa_alerts.append(("🟢", "Net insider buying detected"))
+                except Exception:
+                    pass
+
+            except Exception:
+                pass
+
+            if _sa_alerts:
+                st.markdown(
+                    '<div class="sb-section"><span class="sb-section-icon">🔔</span> SMART ALERTS</div>',
+                    unsafe_allow_html=True,
+                )
+                _alert_html = ""
+                _alert_colors = {"🟢": "rgba(16,185,129,0.15)", "🔴": "rgba(239,68,68,0.15)", "🟡": "rgba(245,158,11,0.15)"}
+                _alert_text_colors = {"🟢": "#10B981", "🔴": "#EF4444", "🟡": "#F59E0B"}
+                for _sa_icon, _sa_msg in _sa_alerts:
+                    _bg = _alert_colors.get(_sa_icon, "rgba(255,255,255,0.05)")
+                    _tc = _alert_text_colors.get(_sa_icon, "#B8B3D7")
+                    _alert_html += (
+                        f'<div style="background:{_bg}; border-radius:8px; padding:0.35rem 0.6rem; '
+                        f'margin-bottom:0.3rem; font-size:0.7rem; color:{_tc}; font-weight:600;">'
+                        f'{_sa_icon} {_sa_msg}</div>'
+                    )
+                st.markdown(_alert_html, unsafe_allow_html=True)
+
         # Search History
         search_history = _get_search_history()
         if search_history:
@@ -10738,6 +10934,91 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             _ex_text = "\n".join(_ex_lines)
             st.code(_ex_text, language=None)
 
+    # ══════════════════════════════════════════════════════
+    # AI INVESTMENT MEMO
+    # ══════════════════════════════════════════════════════
+    _divider()
+    with _safe_section("AI Investment Memo"):
+        _memo_key = f"ai_memo_{cd.ticker}"
+        if st.button("📝 Generate AI Investment Memo", key="gen_ai_memo", use_container_width=True):
+            with st.spinner("Generating investment memo..."):
+                _memo_text = None
+                try:
+                    import os as _os_memo
+                    if _os_memo.environ.get("OPENROUTER_API_KEY") or _os_memo.environ.get("OPENAI_API_KEY"):
+                        from ai_insights import _call_llm, format_number, format_pct
+                        _memo_prompt = f"""You are a senior equity research analyst. Write a concise investment memo for {cd.name} ({cd.ticker}).
+
+Key Data:
+- Price: {cs}{cd.current_price:.2f} | Market Cap: {format_number(cd.market_cap, currency_symbol=cs)}
+- EV/EBITDA: {cd.ev_to_ebitda or 'N/A'} | P/E: {cd.trailing_pe or 'N/A'} | Forward P/E: {cd.forward_pe or 'N/A'}
+- Revenue Growth: {f'{cd.revenue_growth:.1f}%' if cd.revenue_growth else 'N/A'}
+- Gross Margin: {format_pct(cd.gross_margins)} | Operating Margin: {format_pct(cd.operating_margins)} | Net Margin: {format_pct(cd.profit_margins)}
+- ROE: {format_pct(cd.return_on_equity)} | D/E: {cd.debt_to_equity or 'N/A'}
+- Beta: {cd.beta or 'N/A'} | Dividend Yield: {format_pct(cd.dividend_yield) if cd.dividend_yield else 'None'}
+- Sector: {cd.sector} | Industry: {cd.industry}
+
+Write in this format:
+## Investment Thesis
+[2-3 sentences on why this is or isn't a good investment]
+
+## Key Risks
+[3 bullet points of specific risks with data]
+
+## Catalysts
+[3 bullet points of potential positive catalysts]
+
+## Recommendation
+[1-2 sentences: BUY/HOLD/SELL with price context]
+"""
+                        _memo_text = _call_llm(_memo_prompt, max_tokens=1500)
+                except Exception as _memo_e:
+                    _memo_text = None
+
+                if not _memo_text:
+                    # Rule-based fallback memo with actual data
+                    _m_growth = cd.revenue_growth or 0
+                    _m_pe = cd.trailing_pe or 0
+                    _m_fpe = cd.forward_pe or 0
+                    _m_de = cd.debt_to_equity or 0
+                    _m_gm = (cd.gross_margins or 0) * 100
+                    _m_om = (cd.operating_margins or 0) * 100
+                    _m_roe = (cd.return_on_equity or 0) * 100
+                    _m_beta = cd.beta or 1.0
+                    _m_div = (cd.dividend_yield or 0) * 100
+                    _m_fcf = cd.free_cashflow_series.iloc[0] if cd.free_cashflow_series is not None and len(cd.free_cashflow_series) > 0 else 0
+
+                    _m_thesis_tone = "attractive" if (_m_growth > 5 and _m_roe > 15) else "fairly valued" if _m_roe > 10 else "challenging"
+                    _m_val = "premium" if _m_pe > 25 else "reasonable" if _m_pe > 12 else "value"
+
+                    _memo_text = f"""## Investment Thesis
+{cd.name} presents a {_m_thesis_tone} investment opportunity in the {cd.industry} space. The company generates {cs}{format_number(cd.market_cap, currency_symbol='') if cd.market_cap else 'N/A'} in market cap with {'positive' if _m_growth > 0 else 'negative'} revenue momentum ({_m_growth:.1f}% YoY) and {_m_gm:.0f}% gross margins. Trading at {_m_pe:.1f}x trailing earnings ({'forward P/E of ' + f'{_m_fpe:.1f}x suggests earnings growth' if _m_fpe < _m_pe and _m_fpe > 0 else 'valuation appears ' + _m_val}).
+
+## Key Risks
+- **Leverage:** D/E ratio of {_m_de:.0f}% {'is elevated and may constrain flexibility' if _m_de > 150 else 'is manageable' if _m_de > 50 else 'indicates a conservative balance sheet'}
+- **Margin Pressure:** Operating margin of {_m_om:.1f}% {'leaves limited buffer against cost inflation' if _m_om < 10 else 'provides reasonable cushion' if _m_om < 20 else 'demonstrates strong pricing power'}
+- **Volatility:** Beta of {_m_beta:.2f} implies {'above-market' if _m_beta > 1.2 else 'near-market' if _m_beta > 0.8 else 'below-market'} risk — {'potential for sharp drawdowns in risk-off environments' if _m_beta > 1.2 else 'relatively stable price action'}
+
+## Catalysts
+- {'Revenue acceleration beyond ' + f'{_m_growth:.0f}% could drive multiple expansion' if _m_growth > 0 else 'Revenue stabilization and return to growth'}
+- {'Margin expansion from operating leverage on ' + f'{_m_gm:.0f}% gross margins' if _m_gm > 40 else 'Cost optimization initiatives to improve profitability'}
+- {'Strong FCF generation (' + format_number(_m_fcf, currency_symbol=cs) + ') enables buybacks/dividends' if _m_fcf > 0 else 'Improving cash flow conversion as business scales'}
+
+## Recommendation
+{'**BUY** — ' + cd.name + ' offers compelling growth at a reasonable valuation with strong fundamentals (ROE: ' + f'{_m_roe:.0f}%, growing at {_m_growth:.0f}%).' if _m_thesis_tone == 'attractive' else '**HOLD** — ' + cd.name + ' is fairly valued at current levels. Wait for a better entry point or positive catalyst.' if _m_thesis_tone == 'fairly valued' else '**SELL/AVOID** — Fundamentals are under pressure. Monitor for improvement before initiating a position.'}"""
+
+                st.session_state[_memo_key] = _memo_text
+
+        if _memo_key in st.session_state:
+            st.markdown(
+                f'<div style="background:rgba(107,92,231,0.05); border:1px solid rgba(107,92,231,0.15); '
+                f'border-radius:12px; padding:1.2rem; margin-top:0.5rem;">'
+                f'<div style="font-size:0.65rem; color:#8A85AD; margin-bottom:0.5rem;">🤖 AI-GENERATED MEMO — NOT FINANCIAL ADVICE</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            st.markdown(st.session_state[_memo_key])
+
     # Add to Watchlist
     _divider()
     if not _is_in_watchlist(cd.ticker):
@@ -11495,6 +11776,83 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
                         f'</div></div>',
                         unsafe_allow_html=True,
                     )
+
+        # ══════════════════════════════════════════════════════
+        # AI PEER ANALYSIS NARRATIVE
+        # ══════════════════════════════════════════════════════
+        with _safe_section("AI Peer Analysis"):
+            _peer_key = f"ai_peer_{tc.ticker}"
+            if st.button("🤖 Generate AI Peer Analysis", key="gen_ai_peer", use_container_width=True):
+                with st.spinner("Analyzing peers..."):
+                    _peer_narrative = None
+                    try:
+                        import os as _os_peer
+                        if _os_peer.environ.get("OPENROUTER_API_KEY") or _os_peer.environ.get("OPENAI_API_KEY"):
+                            from ai_insights import _call_llm
+                            _peer_data_lines = []
+                            for _p in comps_analysis.peers[:8]:
+                                _peer_data_lines.append(
+                                    f"- {_p.ticker} ({_p.name}): Mkt Cap {format_num(_p.market_cap)}, "
+                                    f"EV/EBITDA {_p.ev_ebitda or 'N/A':.1f}x, P/E {_p.pe_ratio or 'N/A'}, "
+                                    f"Rev Growth {(_p.revenue_growth or 0)*100:.1f}%, "
+                                    f"Gross Margin {(_p.gross_margin or 0)*100:.1f}%, "
+                                    f"EBITDA Margin {(_p.ebitda_margin or 0)*100:.1f}%"
+                                )
+                            _peer_prompt = f"""Compare {tc.name} ({tc.ticker}) against its peer group. Write a 4-paragraph narrative:
+1. How {tc.ticker} compares on valuation (EV/EBITDA, P/E) - is it cheap or expensive vs peers?
+2. Growth comparison - who's growing faster and why it matters
+3. Profitability comparison - margin advantages/disadvantages
+4. Overall relative value conclusion - is {tc.ticker} attractively positioned?
+
+Target: {tc.ticker} ({tc.name}): EV/EBITDA {tc.ev_ebitda or 'N/A'}, P/E {tc.pe_ratio or 'N/A'}, Rev Growth {(tc.revenue_growth or 0)*100:.1f}%, Gross Margin {(tc.gross_margin or 0)*100:.1f}%, EBITDA Margin {(tc.ebitda_margin or 0)*100:.1f}%
+
+Peers:
+{chr(10).join(_peer_data_lines)}
+
+Be specific with numbers. Keep it concise."""
+                            _peer_narrative = _call_llm(_peer_prompt, max_tokens=1200)
+                    except Exception:
+                        _peer_narrative = None
+
+                    if not _peer_narrative:
+                        # Rule-based narrative
+                        _pr_peers = [p for p in comps_analysis.peers if p.ev_ebitda]
+                        _pr_avg_ev = sum(p.ev_ebitda for p in _pr_peers) / len(_pr_peers) if _pr_peers else 0
+                        _pr_pe_peers = [p for p in comps_analysis.peers if p.pe_ratio and p.pe_ratio > 0]
+                        _pr_avg_pe = sum(p.pe_ratio for p in _pr_pe_peers) / len(_pr_pe_peers) if _pr_pe_peers else 0
+                        _pr_gm_peers = [p for p in comps_analysis.peers if p.gross_margin is not None]
+                        _pr_avg_gm = sum(p.gross_margin for p in _pr_gm_peers) / len(_pr_gm_peers) * 100 if _pr_gm_peers else 0
+                        _pr_rg_peers = [p for p in comps_analysis.peers if p.revenue_growth is not None]
+                        _pr_avg_rg = sum(p.revenue_growth for p in _pr_rg_peers) / len(_pr_rg_peers) * 100 if _pr_rg_peers else 0
+
+                        _tc_ev = tc.ev_ebitda or 0
+                        _tc_pe = tc.pe_ratio or 0
+                        _tc_gm = (tc.gross_margin or 0) * 100
+                        _tc_rg = (tc.revenue_growth or 0) * 100
+
+                        _val_comp = "at a premium to" if _tc_ev > _pr_avg_ev * 1.1 else "at a discount to" if _tc_ev < _pr_avg_ev * 0.9 else "in line with"
+                        _growth_comp = "outpacing" if _tc_rg > _pr_avg_rg * 1.1 else "lagging" if _tc_rg < _pr_avg_rg * 0.9 else "tracking"
+                        _margin_comp = "superior" if _tc_gm > _pr_avg_gm * 1.1 else "inferior" if _tc_gm < _pr_avg_gm * 0.9 else "comparable"
+
+                        _peer_narrative = f"""**Valuation:** {tc.name} trades at {_tc_ev:.1f}x EV/EBITDA and {_tc_pe:.1f}x P/E, {_val_comp} the peer median of {_pr_avg_ev:.1f}x EV/EBITDA and {_pr_avg_pe:.1f}x P/E. {'The premium may be justified by superior growth or margins.' if _val_comp == 'at a premium to' else 'The discount may present an opportunity if fundamentals are intact.' if _val_comp == 'at a discount to' else 'Valuation is roughly in line with comparable companies.'}
+
+**Growth:** Revenue growth of {_tc_rg:.1f}% is {_growth_comp} the peer average of {_pr_avg_rg:.1f}%. {'This faster growth trajectory supports a premium valuation.' if _growth_comp == 'outpacing' else 'Slower growth relative to peers may warrant a valuation discount.' if _growth_comp == 'lagging' else 'Growth is tracking the peer group average.'}
+
+**Profitability:** Gross margins of {_tc_gm:.1f}% are {_margin_comp} to the peer average of {_pr_avg_gm:.1f}%. {'Higher margins indicate pricing power or cost advantages that enhance earnings quality.' if _margin_comp == 'superior' else 'Lower margins suggest competitive pressure or a different business model mix.' if _margin_comp == 'inferior' else 'Margin profile is consistent with the peer group.'}
+
+**Relative Value:** {'**Attractively positioned** — {}'.format(tc.name) + ' combines competitive growth and margins at a reasonable valuation relative to peers.' if (_val_comp != 'at a premium to' and _growth_comp != 'lagging') else '**Fairly valued** — ' + tc.name + ' is priced appropriately given its growth and margin profile relative to peers.' if _val_comp == 'in line with' else '**Premium valuation** — ' + tc.name + ' commands a higher multiple which requires continued execution on growth and margins to sustain.'}"""
+
+                    st.session_state[_peer_key] = _peer_narrative
+
+            if _peer_key in st.session_state:
+                st.markdown(
+                    f'<div style="background:rgba(107,92,231,0.05); border:1px solid rgba(107,92,231,0.15); '
+                    f'border-radius:12px; padding:1.2rem; margin-top:0.5rem;">'
+                    f'<div style="font-size:0.65rem; color:#8A85AD; margin-bottom:0.5rem;">🤖 AI-GENERATED ANALYSIS — NOT FINANCIAL ADVICE</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+                st.markdown(st.session_state[_peer_key])
 
 elif analysis_mode == "Comps Analysis" and comps_btn and not comps_ticker_input:
     st.warning("⚠️ Please enter a ticker symbol in the sidebar to run comparable company analysis.")
