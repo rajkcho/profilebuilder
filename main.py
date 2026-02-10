@@ -5512,6 +5512,119 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 st.plotly_chart(_spark_rev, use_container_width=True, key="spark_rev")
 
     # ══════════════════════════════════════════════════════
+    # 📈 HISTORICAL VALUATION
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Historical Valuation"):
+        _divider()
+        _section("Historical Valuation", "📈")
+        try:
+            _hv_hist = getattr(cd, 'price_history', None)
+            _hv_pe = getattr(cd, 'trailing_pe', None)
+            _hv_ps = getattr(cd, 'price_to_sales', None)
+            _hv_earnings = getattr(cd, 'quarterly_earnings', None)
+            _hv_revenue = getattr(cd, 'quarterly_revenue', None) or getattr(cd, 'revenue', None)
+
+            if _hv_hist is not None and len(_hv_hist) > 30:
+                _hv_prices = _hv_hist if isinstance(_hv_hist, pd.Series) else (
+                    _hv_hist['Close'] if hasattr(_hv_hist, 'columns') and 'Close' in _hv_hist.columns else None
+                )
+                if _hv_prices is not None:
+                    # Try to compute trailing P/E over time using quarterly earnings
+                    _hv_pe_series = None
+                    _hv_label = "P/E"
+                    if _hv_earnings is not None and hasattr(_hv_earnings, '__len__') and len(_hv_earnings) >= 4:
+                        try:
+                            # quarterly_earnings may be a DataFrame with 'Earnings' column
+                            if hasattr(_hv_earnings, 'columns'):
+                                _hv_eps_vals = _hv_earnings['Earnings'] if 'Earnings' in _hv_earnings.columns else _hv_earnings.iloc[:, 0]
+                            else:
+                                _hv_eps_vals = _hv_earnings
+                            # trailing 4Q EPS
+                            _hv_ttm_eps = float(_hv_eps_vals.rolling(4).sum().iloc[-1]) if hasattr(_hv_eps_vals, 'rolling') else float(sum(list(_hv_eps_vals)[-4:]))
+                            if _hv_ttm_eps and _hv_ttm_eps > 0:
+                                _hv_pe_series = _hv_prices / _hv_ttm_eps
+                        except Exception:
+                            pass
+
+                    # Fallback to P/S if P/E not available
+                    if _hv_pe_series is None and _hv_ps is not None and _hv_ps > 0:
+                        # Approximate P/S over time using current P/S as ratio anchor
+                        _hv_current_price = _hv_prices.iloc[-1] if len(_hv_prices) > 0 else 1
+                        _hv_sps = _hv_current_price / _hv_ps if _hv_ps > 0 else 1  # sales per share
+                        if _hv_sps > 0:
+                            _hv_pe_series = _hv_prices / _hv_sps
+                            _hv_label = "P/S"
+
+                    if _hv_pe_series is not None and len(_hv_pe_series) > 10:
+                        # Filter out extreme values
+                        _hv_pe_clean = _hv_pe_series.replace([np.inf, -np.inf], np.nan).dropna()
+                        _hv_pe_clean = _hv_pe_clean[(_hv_pe_clean > 0) & (_hv_pe_clean < _hv_pe_clean.quantile(0.98))]
+
+                        if len(_hv_pe_clean) > 10:
+                            _hv_mean = _hv_pe_clean.mean()
+                            _hv_std = _hv_pe_clean.std()
+
+                            fig_hv = go.Figure()
+
+                            # ±1 std band
+                            fig_hv.add_trace(go.Scatter(
+                                x=list(_hv_pe_clean.index) + list(_hv_pe_clean.index[::-1]),
+                                y=[_hv_mean + _hv_std] * len(_hv_pe_clean) + [_hv_mean - _hv_std] * len(_hv_pe_clean),
+                                fill="toself", fillcolor="rgba(107,92,231,0.1)",
+                                line=dict(width=0), showlegend=True, name="±1σ Band",
+                            ))
+
+                            # Mean line
+                            fig_hv.add_trace(go.Scatter(
+                                x=_hv_pe_clean.index, y=[_hv_mean] * len(_hv_pe_clean),
+                                mode="lines", line=dict(color="#F5A623", dash="dash", width=1.5),
+                                name=f"Mean ({_hv_mean:.1f}x)",
+                            ))
+
+                            # Actual P/E line
+                            fig_hv.add_trace(go.Scatter(
+                                x=_hv_pe_clean.index, y=_hv_pe_clean.values,
+                                mode="lines", line=dict(color="#6B5CE7", width=2),
+                                name=f"Trailing {_hv_label}",
+                            ))
+
+                            fig_hv.update_layout(
+                                **_CHART_LAYOUT_BASE, height=350,
+                                margin=dict(t=30, b=40, l=50, r=30),
+                                yaxis=dict(title=dict(text=f"{_hv_label} Ratio", font=dict(size=11, color="#8A85AD")),
+                                          tickfont=dict(size=10, color="#8A85AD")),
+                                xaxis=dict(tickfont=dict(size=10, color="#8A85AD"), showgrid=False),
+                                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
+                                           font=dict(size=9, color="#8A85AD")),
+                            )
+                            _apply_space_grid(fig_hv)
+                            st.plotly_chart(fig_hv, use_container_width=True, key="hist_valuation_chart")
+
+                            # Summary stats
+                            _hv_current = _hv_pe_clean.iloc[-1] if len(_hv_pe_clean) > 0 else 0
+                            _hv_pctile = ((_hv_pe_clean < _hv_current).sum() / len(_hv_pe_clean)) * 100
+                            _hv_status = "EXPENSIVE" if _hv_current > _hv_mean + _hv_std else "CHEAP" if _hv_current < _hv_mean - _hv_std else "FAIR"
+                            _hv_scolor = "#EF4444" if _hv_status == "EXPENSIVE" else "#10B981" if _hv_status == "CHEAP" else "#F5A623"
+                            _hvc1, _hvc2, _hvc3, _hvc4 = st.columns(4)
+                            _hvc1.metric(f"Current {_hv_label}", f"{_hv_current:.1f}x")
+                            _hvc2.metric(f"Mean {_hv_label}", f"{_hv_mean:.1f}x")
+                            _hvc3.metric("Percentile", f"{_hv_pctile:.0f}th")
+                            _hvc4.markdown(
+                                f'<div style="text-align:center; padding:0.5rem;">'
+                                f'<div style="font-size:0.7rem; color:#8A85AD;">Valuation</div>'
+                                f'<div style="font-size:1.2rem; font-weight:800; color:{_hv_scolor};">{_hv_status}</div></div>',
+                                unsafe_allow_html=True,
+                            )
+                    else:
+                        st.info(f"Insufficient data for historical {_hv_label if '_hv_label' in dir() else 'valuation'} chart.")
+                else:
+                    st.info("Price history data not in expected format.")
+            else:
+                st.info("Insufficient price history for historical valuation analysis (need 30+ data points).")
+        except Exception as _hv_e:
+            st.info(f"Historical valuation analysis unavailable: {str(_hv_e)[:80]}")
+
+    # ══════════════════════════════════════════════════════
     # 2b. AT A GLANCE CARD
     # ══════════════════════════════════════════════════════
     glance_signals = []
@@ -7569,6 +7682,112 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     _divider()
 
     # ══════════════════════════════════════════════════════
+    # 10d-ii. EARNINGS QUALITY SCORE
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Earnings Quality"):
+        _section("Earnings Quality Score", "🔎")
+        try:
+            _eq_ni = _safe_val(getattr(cd, 'net_income', None))
+            _eq_ocf = _safe_val(getattr(cd, 'operating_cashflow_series', getattr(cd, 'operating_cash_flow', None)))
+            _eq_ta = _safe_val(getattr(cd, 'total_assets', None))
+            _eq_rev = getattr(cd, 'quarterly_revenue', getattr(cd, 'revenue', None))
+
+            _eq_scores = []
+            _eq_details = []
+
+            # 1. Accruals Ratio
+            if _eq_ni is not None and _eq_ocf is not None and _eq_ta is not None and _eq_ta > 0:
+                _eq_accruals = (_eq_ni - _eq_ocf) / _eq_ta
+                # Low accruals = high quality. Range: <-0.05 excellent, >0.1 poor
+                if _eq_accruals < -0.05:
+                    _eq_acr_score = 10
+                elif _eq_accruals < 0:
+                    _eq_acr_score = 8
+                elif _eq_accruals < 0.05:
+                    _eq_acr_score = 6
+                elif _eq_accruals < 0.10:
+                    _eq_acr_score = 4
+                else:
+                    _eq_acr_score = 2
+                _eq_scores.append(_eq_acr_score)
+                _eq_details.append(("Accruals Ratio", f"{_eq_accruals:.3f}", _eq_acr_score))
+
+            # 2. Cash Conversion
+            if _eq_ni is not None and _eq_ocf is not None and _eq_ni != 0:
+                _eq_cc = _eq_ocf / _eq_ni
+                if _eq_cc >= 1.2:
+                    _eq_cc_score = 10
+                elif _eq_cc >= 1.0:
+                    _eq_cc_score = 8
+                elif _eq_cc >= 0.8:
+                    _eq_cc_score = 6
+                elif _eq_cc >= 0.5:
+                    _eq_cc_score = 4
+                else:
+                    _eq_cc_score = 2
+                _eq_scores.append(_eq_cc_score)
+                _eq_details.append(("Cash Conversion", f"{_eq_cc:.2f}x", _eq_cc_score))
+
+            # 3. Revenue Consistency
+            if _eq_rev is not None and hasattr(_eq_rev, '__len__') and len(_eq_rev) >= 4:
+                try:
+                    _eq_rev_vals = [float(v) for v in (list(_eq_rev) if not hasattr(_eq_rev, 'values') else _eq_rev.values) if v is not None and float(v) > 0]
+                    if len(_eq_rev_vals) >= 4:
+                        _eq_rev_mean = np.mean(_eq_rev_vals)
+                        _eq_rev_std = np.std(_eq_rev_vals)
+                        _eq_cv = _eq_rev_std / _eq_rev_mean if _eq_rev_mean > 0 else 1
+                        if _eq_cv < 0.05:
+                            _eq_rv_score = 10
+                        elif _eq_cv < 0.10:
+                            _eq_rv_score = 8
+                        elif _eq_cv < 0.20:
+                            _eq_rv_score = 6
+                        elif _eq_cv < 0.35:
+                            _eq_rv_score = 4
+                        else:
+                            _eq_rv_score = 2
+                        _eq_scores.append(_eq_rv_score)
+                        _eq_details.append(("Revenue Consistency", f"CV: {_eq_cv:.2%}", _eq_rv_score))
+                except Exception:
+                    pass
+
+            if _eq_scores:
+                _eq_total = round(np.mean(_eq_scores))
+                _eq_color = "#10B981" if _eq_total >= 7 else "#F5A623" if _eq_total >= 5 else "#EF4444"
+                _eq_label = "High Quality" if _eq_total >= 7 else "Moderate" if _eq_total >= 5 else "Low Quality"
+
+                # Visual gauge
+                _eq_pct = _eq_total * 10
+                st.markdown(
+                    f'<div style="text-align:center; padding:1rem; background:rgba(255,255,255,0.03); border-radius:12px; margin-bottom:0.8rem;">'
+                    f'<div style="font-size:0.75rem; color:#8A85AD; text-transform:uppercase; letter-spacing:1px;">Earnings Quality</div>'
+                    f'<div style="font-size:2.5rem; font-weight:900; color:{_eq_color};">{_eq_total}<span style="font-size:1rem; color:#8A85AD;">/10</span></div>'
+                    f'<div style="font-size:0.8rem; font-weight:600; color:{_eq_color};">{_eq_label}</div>'
+                    f'<div style="background:rgba(255,255,255,0.08); border-radius:8px; height:10px; margin:0.8rem 2rem 0 2rem; overflow:hidden;">'
+                    f'<div style="background:{_eq_color}; height:100%; width:{_eq_pct}%; border-radius:8px;"></div></div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+                # Detail breakdown
+                _eq_cols = st.columns(len(_eq_details))
+                for _eq_col, (_eq_name, _eq_val, _eq_s) in zip(_eq_cols, _eq_details):
+                    _eq_sc = "#10B981" if _eq_s >= 7 else "#F5A623" if _eq_s >= 5 else "#EF4444"
+                    _eq_col.markdown(
+                        f'<div style="text-align:center; padding:0.5rem; background:rgba(255,255,255,0.02); border-radius:8px;">'
+                        f'<div style="font-size:0.65rem; color:#8A85AD;">{_eq_name}</div>'
+                        f'<div style="font-size:0.85rem; color:#B8B3D7;">{_eq_val}</div>'
+                        f'<div style="font-size:1rem; font-weight:700; color:{_eq_sc};">{_eq_s}/10</div></div>',
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.info("Insufficient data to calculate Earnings Quality Score.")
+        except Exception:
+            st.info("Earnings Quality analysis unavailable.")
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
     # 10d-ii. ALTMAN Z-SCORE
     # ══════════════════════════════════════════════════════
     with _safe_section("Altman Z-Score"):
@@ -8634,6 +8853,158 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 '<div style="font-size:0.8rem; color:#8A85AD; padding:0.5rem;">Intelligence data temporarily unavailable.</div>',
                 unsafe_allow_html=True,
             )
+
+    # ══════════════════════════════════════════════════════
+    # ⚠️ RISK MATRIX
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Risk Matrix"):
+        _divider()
+        _section("Risk Matrix", "⚠️")
+        try:
+            _rm_scores = {}
+            _rm_commentary = []
+
+            # 1. Market Risk (Beta-based)
+            _rm_beta = getattr(cd, 'beta', None)
+            if _rm_beta is not None:
+                if _rm_beta >= 1.8:
+                    _rm_scores["Market Risk"] = 5
+                elif _rm_beta >= 1.5:
+                    _rm_scores["Market Risk"] = 4
+                elif _rm_beta >= 1.2:
+                    _rm_scores["Market Risk"] = 3
+                elif _rm_beta >= 0.8:
+                    _rm_scores["Market Risk"] = 2
+                else:
+                    _rm_scores["Market Risk"] = 1
+                _rm_commentary.append(f"Beta of {_rm_beta:.2f} indicates {'high' if _rm_beta > 1.5 else 'moderate' if _rm_beta > 0.8 else 'low'} market sensitivity.")
+            else:
+                _rm_scores["Market Risk"] = 3
+
+            # 2. Financial Risk (D/E based)
+            _rm_de = getattr(cd, 'debt_to_equity', None)
+            if _rm_de is not None:
+                _rm_de_val = float(_rm_de) if not hasattr(_rm_de, 'iloc') else float(_rm_de.iloc[0])
+                if _rm_de_val > 200:
+                    _rm_scores["Financial Risk"] = 5
+                elif _rm_de_val > 100:
+                    _rm_scores["Financial Risk"] = 4
+                elif _rm_de_val > 50:
+                    _rm_scores["Financial Risk"] = 3
+                elif _rm_de_val > 20:
+                    _rm_scores["Financial Risk"] = 2
+                else:
+                    _rm_scores["Financial Risk"] = 1
+                _rm_commentary.append(f"Debt/Equity of {_rm_de_val:.0f}% — {'highly leveraged' if _rm_de_val > 100 else 'moderate leverage' if _rm_de_val > 50 else 'conservative balance sheet'}.")
+            else:
+                _rm_scores["Financial Risk"] = 3
+
+            # 3. Valuation Risk
+            _rm_price = getattr(cd, 'current_price', None) or 0
+            _rm_52hi = getattr(cd, 'fifty_two_week_high', None) or 0
+            _rm_pe = getattr(cd, 'trailing_pe', None)
+            _rm_val_score = 3
+            if _rm_52hi > 0 and _rm_price > 0:
+                _rm_pct_from_hi = (_rm_52hi - _rm_price) / _rm_52hi
+                if _rm_pct_from_hi < 0.05:
+                    _rm_val_score = 4  # Near high = more valuation risk
+                elif _rm_pct_from_hi > 0.30:
+                    _rm_val_score = 2  # Well below high
+            if _rm_pe is not None and _rm_pe > 40:
+                _rm_val_score = min(_rm_val_score + 1, 5)
+            elif _rm_pe is not None and _rm_pe < 15:
+                _rm_val_score = max(_rm_val_score - 1, 1)
+            _rm_scores["Valuation Risk"] = _rm_val_score
+            if _rm_52hi > 0:
+                _rm_commentary.append(f"Trading {((_rm_52hi - _rm_price) / _rm_52hi * 100):.0f}% below 52-week high{f', P/E {_rm_pe:.0f}x' if _rm_pe else ''}.")
+
+            # 4. Liquidity Risk
+            _rm_cr = getattr(cd, 'current_ratio', None)
+            _rm_cr_val = float(_rm_cr) if _rm_cr is not None and not hasattr(_rm_cr, 'iloc') else (float(_rm_cr.iloc[0]) if _rm_cr is not None else None)
+            _rm_liq_score = 3
+            if _rm_cr_val is not None:
+                if _rm_cr_val >= 2.0:
+                    _rm_liq_score = 1
+                elif _rm_cr_val >= 1.5:
+                    _rm_liq_score = 2
+                elif _rm_cr_val >= 1.0:
+                    _rm_liq_score = 3
+                elif _rm_cr_val >= 0.5:
+                    _rm_liq_score = 4
+                else:
+                    _rm_liq_score = 5
+                _rm_commentary.append(f"Current ratio of {_rm_cr_val:.2f} — {'strong' if _rm_cr_val >= 1.5 else 'adequate' if _rm_cr_val >= 1.0 else 'weak'} liquidity.")
+            _rm_scores["Liquidity Risk"] = _rm_liq_score
+
+            # 5. Concentration Risk
+            _rm_inst = getattr(cd, 'institutional_holders_pct', None) or getattr(cd, 'held_percent_institutions', None)
+            _rm_conc_score = 3
+            if _rm_inst is not None:
+                _rm_inst_val = float(_rm_inst) * 100 if float(_rm_inst) <= 1 else float(_rm_inst)
+                if _rm_inst_val > 80:
+                    _rm_conc_score = 4
+                elif _rm_inst_val > 60:
+                    _rm_conc_score = 3
+                elif _rm_inst_val > 30:
+                    _rm_conc_score = 2
+                else:
+                    _rm_conc_score = 2
+                _rm_commentary.append(f"Institutional ownership at {_rm_inst_val:.0f}%.")
+            _rm_scores["Concentration Risk"] = _rm_conc_score
+
+            if _rm_scores:
+                _rm_categories = list(_rm_scores.keys())
+                _rm_values = list(_rm_scores.values())
+                _rm_total = sum(_rm_values)
+                _rm_total_color = "#10B981" if _rm_total <= 10 else "#F5A623" if _rm_total <= 17 else "#EF4444"
+                _rm_total_label = "LOW RISK" if _rm_total <= 10 else "MODERATE RISK" if _rm_total <= 17 else "HIGH RISK"
+
+                # Radar chart
+                fig_rm = go.Figure()
+                fig_rm.add_trace(go.Scatterpolar(
+                    r=_rm_values + [_rm_values[0]],  # close the polygon
+                    theta=_rm_categories + [_rm_categories[0]],
+                    fill='toself',
+                    fillcolor='rgba(107,92,231,0.15)',
+                    line=dict(color='#6B5CE7', width=2),
+                    marker=dict(size=6, color='#6B5CE7'),
+                    name='Risk Profile',
+                ))
+                fig_rm.update_layout(
+                    **_CHART_LAYOUT_BASE, height=380,
+                    margin=dict(t=40, b=40, l=80, r=80),
+                    polar=dict(
+                        radialaxis=dict(visible=True, range=[0, 5], tickfont=dict(size=8, color="#8A85AD"),
+                                       gridcolor="rgba(138,133,173,0.15)"),
+                        angularaxis=dict(tickfont=dict(size=10, color="#B8B3D7"),
+                                        gridcolor="rgba(138,133,173,0.15)"),
+                        bgcolor="rgba(0,0,0,0)",
+                    ),
+                    showlegend=False,
+                )
+                st.plotly_chart(fig_rm, use_container_width=True, key="risk_matrix_radar")
+
+                # Overall score
+                st.markdown(
+                    f'<div style="text-align:center; padding:1rem; background:rgba(255,255,255,0.03); border-radius:12px; margin:0.5rem 0;">'
+                    f'<div style="font-size:0.75rem; color:#8A85AD; text-transform:uppercase; letter-spacing:1px;">Overall Risk Score</div>'
+                    f'<div style="font-size:2.5rem; font-weight:900; color:{_rm_total_color};">{_rm_total}<span style="font-size:1rem; color:#8A85AD;">/25</span></div>'
+                    f'<div style="font-size:0.85rem; font-weight:700; color:{_rm_total_color};">{_rm_total_label}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+                # Commentary
+                if _rm_commentary:
+                    _rm_comm_html = "".join(f'<div style="font-size:0.78rem; color:#B8B3D7; margin:0.2rem 0;">• {c}</div>' for c in _rm_commentary)
+                    st.markdown(
+                        f'<div style="background:rgba(107,92,231,0.04); border-radius:10px; padding:0.8rem; margin-top:0.5rem;">'
+                        f'<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF; margin-bottom:0.4rem;">Risk Commentary</div>'
+                        f'{_rm_comm_html}</div>',
+                        unsafe_allow_html=True,
+                    )
+        except Exception:
+            st.info("Risk matrix analysis unavailable.")
 
     # ══════════════════════════════════════════════════════
     # EXPORT SUMMARY (copy-paste friendly)
@@ -10780,12 +11151,13 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
         _section("Monte Carlo Simulation", "🎲")
         st.markdown(
             '<div style="font-size:0.85rem; color:#B8B3D7; margin-bottom:1rem;">'
-            '1,000 simulations with randomized growth rate and WACC to generate a probability distribution of fair value.'
+            '1,000 simulations with randomized growth rate, WACC, and terminal multiple to generate a probability distribution of fair value.'
             '</div>',
             unsafe_allow_html=True,
         )
         
-        try:
+        if st.button("▶ Run Monte Carlo Simulation", key="mc_run_btn", type="primary"):
+          try:
             n_sims = 1000
             base_growth = dcf_result["growth_rate"]
             base_wacc = dcf_result["discount_rate"]
@@ -10800,6 +11172,8 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
                 sim_growth = np.random.normal(base_growth, 0.03)  # ±3% std
                 sim_wacc = np.random.normal(base_wacc, 0.015)  # ±1.5% std
                 sim_wacc = max(sim_wacc, 0.04)  # Floor at 4%
+                sim_terminal_multiple = np.random.normal(15, 3)  # Terminal EV/FCF multiple
+                sim_terminal_multiple = max(sim_terminal_multiple, 5)  # Floor at 5x
                 
                 # Project FCF
                 sim_fcfs = []
@@ -10808,12 +11182,9 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
                     fcf = fcf * (1 + sim_growth)
                     sim_fcfs.append(fcf / (1 + sim_wacc) ** yr)
                 
-                # Terminal value
-                if sim_wacc > term_growth:
-                    tv = (fcf * (1 + term_growth)) / (sim_wacc - term_growth)
-                    pv_tv = tv / (1 + sim_wacc) ** years
-                else:
-                    pv_tv = 0
+                # Terminal value using exit multiple approach
+                tv = fcf * sim_terminal_multiple
+                pv_tv = tv / (1 + sim_wacc) ** years
                 
                 ev = sum(sim_fcfs) + pv_tv
                 eq = ev - net_debt
@@ -10824,6 +11195,7 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
             
             if mc_results:
                 mc_arr = np.array(mc_results)
+                p5 = np.percentile(mc_arr, 5)
                 p10 = np.percentile(mc_arr, 10)
                 p25 = np.percentile(mc_arr, 25)
                 p50 = np.percentile(mc_arr, 50)
@@ -10879,11 +11251,21 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
                     f'<span style="font-size:0.75rem; color:#8A85AD;">Probability stock is undervalued: </span>'
                     f'<span style="font-size:1.3rem; font-weight:800; color:{prob_color};">{upside_prob:.0f}%</span>'
                     f'<div style="font-size:0.6rem; color:#8A85AD; margin-top:0.2rem;">'
-                    f'Based on {len(mc_results):,} simulations (growth ±3%, WACC ±1.5%)</div>'
+                    f'Based on {len(mc_results):,} simulations (growth ±3%, WACC ±1.5%, terminal multiple ~15x±3)</div>'
                     f'</div>',
                     unsafe_allow_html=True,
                 )
-        except Exception:
+                
+                # VaR-style metric
+                st.markdown(
+                    f'<div style="text-align:center; padding:0.6rem; background:rgba(16,185,129,0.06); '
+                    f'border-radius:10px; margin-top:0.5rem; border:1px solid rgba(16,185,129,0.15);">'
+                    f'<span style="font-size:0.75rem; color:#8A85AD;">95% confidence the intrinsic value is above </span>'
+                    f'<span style="font-size:1.2rem; font-weight:800; color:#10B981;">{cs}{p5:,.2f}</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+          except Exception:
             st.info("Could not run Monte Carlo simulation.")
         
         _divider()
