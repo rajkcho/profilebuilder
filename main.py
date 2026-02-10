@@ -7568,6 +7568,317 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             pass
 
     # ══════════════════════════════════════════════════════
+    # 🎯 M&A TARGET SCREENING SCORE
+    # ══════════════════════════════════════════════════════
+    with _safe_section("M&A Target Screening Score"):
+        try:
+            _ma_score = 0
+            _ma_bull = []
+            _ma_bear = []
+
+            # 1) Recurring Revenue % estimate (0-20 pts)
+            _ma_sector_lower = (cd.sector or "").lower()
+            _ma_industry_lower = (cd.industry or "").lower()
+            _ma_recurring_est = 0.3  # default
+            if any(kw in _ma_industry_lower for kw in ["software", "saas", "cloud", "subscription"]):
+                _ma_recurring_est = 0.85
+            elif any(kw in _ma_industry_lower for kw in ["internet", "platform", "digital"]):
+                _ma_recurring_est = 0.60
+            elif "tech" in _ma_sector_lower:
+                _ma_recurring_est = 0.45
+            elif any(kw in _ma_industry_lower for kw in ["insurance", "utility", "telecom"]):
+                _ma_recurring_est = 0.70
+            _ma_rec_pts = _ma_recurring_est * 20
+            _ma_score += _ma_rec_pts
+            if _ma_recurring_est >= 0.6:
+                _ma_bull.append(f"High estimated recurring revenue (~{_ma_recurring_est*100:.0f}%) provides predictable cash flows")
+            else:
+                _ma_bear.append(f"Low recurring revenue (~{_ma_recurring_est*100:.0f}%) increases integration risk")
+
+            # 2) EBITDA Margins (0-20 pts)
+            _ma_ebitda_margin = None
+            if cd.ebitda is not None and cd.revenue is not None:
+                try:
+                    _ma_eb = float(cd.ebitda.iloc[0]) if hasattr(cd.ebitda, 'iloc') and len(cd.ebitda) > 0 else (float(cd.ebitda) if isinstance(cd.ebitda, (int, float)) else None)
+                    _ma_rv = float(cd.revenue.iloc[0]) if len(cd.revenue) > 0 else None
+                    if _ma_eb and _ma_rv and _ma_rv > 0:
+                        _ma_ebitda_margin = _ma_eb / _ma_rv
+                except Exception:
+                    pass
+            if _ma_ebitda_margin is not None:
+                _ma_margin_pts = max(0, min(20, _ma_ebitda_margin * 60))
+                _ma_score += _ma_margin_pts
+                if _ma_ebitda_margin > 0.25:
+                    _ma_bull.append(f"Strong EBITDA margins ({_ma_ebitda_margin*100:.1f}%) — high cash conversion potential")
+                elif _ma_ebitda_margin < 0.10:
+                    _ma_bear.append(f"Thin EBITDA margins ({_ma_ebitda_margin*100:.1f}%) limit synergy extraction")
+
+            # 3) Revenue Growth Consistency (0-20 pts)
+            _ma_rev_std = None
+            if cd.revenue is not None and len(cd.revenue) >= 3:
+                _ma_rv_vals = [float(v) for v in cd.revenue.values if v is not None and float(v) > 0]
+                if len(_ma_rv_vals) >= 3:
+                    _ma_growths = [(_ma_rv_vals[i] / _ma_rv_vals[i+1] - 1) for i in range(len(_ma_rv_vals)-1)]
+                    _ma_rev_std = np.std(_ma_growths)
+                    _ma_avg_growth = np.mean(_ma_growths)
+                    _ma_consistency_pts = max(0, min(20, (0.15 - _ma_rev_std) * 133))
+                    _ma_score += _ma_consistency_pts
+                    if _ma_rev_std < 0.05 and _ma_avg_growth > 0:
+                        _ma_bull.append(f"Highly consistent revenue growth (σ={_ma_rev_std*100:.1f}%) — predictable trajectory")
+                    elif _ma_rev_std > 0.15:
+                        _ma_bear.append(f"Volatile revenue growth (σ={_ma_rev_std*100:.1f}%) adds forecasting risk")
+
+            # 4) Market Position — mcap relative to sector (0-20 pts)
+            if cd.market_cap and cd.market_cap > 0:
+                # Sweet spot: $1B-$50B (acquirable but meaningful)
+                _ma_mcap_b = cd.market_cap / 1e9
+                if 1 <= _ma_mcap_b <= 50:
+                    _ma_pos_pts = 20
+                    _ma_bull.append(f"Market cap (${_ma_mcap_b:.1f}B) in acquisition sweet spot — large enough to be meaningful, small enough to acquire")
+                elif _ma_mcap_b < 1:
+                    _ma_pos_pts = max(5, 15 * _ma_mcap_b)
+                    _ma_bear.append(f"Small market cap (${_ma_mcap_b:.1f}B) may lack scale for strategic acquirers")
+                else:
+                    _ma_pos_pts = max(5, 20 - (_ma_mcap_b - 50) * 0.15)
+                    _ma_bear.append(f"Large market cap (${_ma_mcap_b:.1f}B) limits potential acquirer pool")
+                _ma_score += _ma_pos_pts
+
+            # 5) Debt Levels (0-20 pts)
+            _ma_de = cd.debt_to_equity
+            if _ma_de is not None:
+                _ma_de_norm = _ma_de / 100 if _ma_de > 5 else _ma_de
+                _ma_debt_pts = max(0, min(20, (2.0 - _ma_de_norm) * 10))
+                _ma_score += _ma_debt_pts
+                if _ma_de_norm < 0.5:
+                    _ma_bull.append(f"Low leverage (D/E={_ma_de_norm:.2f}x) — clean balance sheet for acquirer")
+                elif _ma_de_norm > 1.5:
+                    _ma_bear.append(f"High leverage (D/E={_ma_de_norm:.2f}x) complicates acquisition financing")
+            else:
+                _ma_score += 10  # neutral
+
+            _ma_score = round(max(0, min(100, _ma_score)))
+
+            # Rating
+            if _ma_score >= 75:
+                _ma_label = "Highly Attractive"
+                _ma_color = "#10B981"
+            elif _ma_score >= 55:
+                _ma_label = "Attractive"
+                _ma_color = "#34D399"
+            elif _ma_score >= 35:
+                _ma_label = "Moderate"
+                _ma_color = "#F59E0B"
+            else:
+                _ma_label = "Unattractive"
+                _ma_color = "#EF4444"
+
+            with st.expander(f"🎯 M&A Target Screening — {_ma_label} ({_ma_score}/100)", expanded=False):
+                # Large gauge
+                _ma_angle = (_ma_score / 100) * 180 - 90
+                _ma_gauge_html = f'''
+                <div style="text-align:center; margin:0.5rem 0 1.5rem 0;">
+                    <svg viewBox="0 0 220 130" width="220" height="130" style="margin:0 auto; display:block;">
+                        <defs>
+                            <linearGradient id="maGaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#EF4444"/>
+                                <stop offset="35%" style="stop-color:#F59E0B"/>
+                                <stop offset="55%" style="stop-color:#34D399"/>
+                                <stop offset="100%" style="stop-color:#10B981"/>
+                            </linearGradient>
+                        </defs>
+                        <path d="M 20 110 A 90 90 0 0 1 200 110" fill="none" stroke="url(#maGaugeGrad)" stroke-width="16" stroke-linecap="round"/>
+                        <line x1="110" y1="110" x2="{110 + 70 * np.cos(np.radians(_ma_angle + 180))}" y2="{110 + 70 * np.sin(np.radians(_ma_angle + 180))}"
+                            stroke="{_ma_color}" stroke-width="3" stroke-linecap="round"/>
+                        <circle cx="110" cy="110" r="6" fill="{_ma_color}"/>
+                        <text x="20" y="125" font-size="7" fill="#8A85AD">Unattractive</text>
+                        <text x="145" y="125" font-size="7" fill="#8A85AD">Highly Attractive</text>
+                    </svg>
+                    <div style="font-size:2.5rem; font-weight:800; color:{_ma_color}; margin-top:0.3rem;">{_ma_score}</div>
+                    <div style="font-size:1rem; font-weight:700; color:{_ma_color}; text-transform:uppercase; letter-spacing:1.5px;">{_ma_label}</div>
+                    <div style="font-size:0.65rem; color:#8A85AD; margin-top:0.2rem;">Acquisition Attractiveness Score</div>
+                </div>
+                '''
+                st.markdown(_ma_gauge_html, unsafe_allow_html=True)
+
+                # Bull/Bear bullets
+                if _ma_bull:
+                    st.markdown(
+                        '<div style="font-size:0.72rem; font-weight:700; color:#10B981; margin-bottom:0.3rem;">✅ Attractive Factors</div>',
+                        unsafe_allow_html=True,
+                    )
+                    for _b in _ma_bull:
+                        st.markdown(
+                            f'<div style="font-size:0.75rem; color:#B8B3D7; padding:0.15rem 0;">• {_b}</div>',
+                            unsafe_allow_html=True,
+                        )
+                if _ma_bear:
+                    st.markdown(
+                        '<div style="font-size:0.72rem; font-weight:700; color:#EF4444; margin-top:0.5rem; margin-bottom:0.3rem;">⚠️ Risk Factors</div>',
+                        unsafe_allow_html=True,
+                    )
+                    for _b in _ma_bear:
+                        st.markdown(
+                            f'<div style="font-size:0.75rem; color:#B8B3D7; padding:0.15rem 0;">• {_b}</div>',
+                            unsafe_allow_html=True,
+                        )
+        except Exception:
+            pass
+
+    # ══════════════════════════════════════════════════════
+    # 🛡️ COMPETITIVE MOAT ANALYSIS (5 dimensions, radar with sector overlay)
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Competitive Moat Analysis"):
+        try:
+            _cm_scores = {}
+            _cm_sector_avg = {}
+
+            # Sector benchmarks for overlay
+            _cm_bench = get_sector_benchmarks(cd.sector) if cd.sector else None
+
+            # 1) Gross Margins vs Sector (Pricing Power) — 0-5
+            _cm_gm = cd.gross_margins or 0
+            _cm_sector_gm = (_cm_bench["gross_margin"]["median"] if _cm_bench and "gross_margin" in _cm_bench else 0.35)
+            _cm_gm_score = min(5, max(0, (_cm_gm / max(_cm_sector_gm, 0.01)) * 2.5))
+            _cm_scores["Pricing Power"] = round(_cm_gm_score, 1)
+            _cm_sector_avg["Pricing Power"] = 2.5  # sector median = midpoint by definition
+
+            # 2) R&D Intensity (Innovation Moat) — 0-5
+            _cm_rd_pct = 0
+            if cd.income_stmt is not None:
+                try:
+                    for _rdl in ["ResearchAndDevelopment", "Research And Development", "ResearchDevelopment"]:
+                        if _rdl in cd.income_stmt.index:
+                            _rd_v = float(cd.income_stmt.loc[_rdl].iloc[0])
+                            _rv_v = float(cd.revenue.iloc[0]) if cd.revenue is not None and len(cd.revenue) > 0 else 0
+                            if _rv_v > 0 and _rd_v > 0:
+                                _cm_rd_pct = _rd_v / _rv_v
+                            break
+                except Exception:
+                    pass
+            _cm_rd_score = min(5, _cm_rd_pct * 25)  # 20% R&D = 5.0
+            _cm_scores["Innovation"] = round(_cm_rd_score, 1)
+            _cm_sector_avg["Innovation"] = 1.5  # typical sector avg
+
+            # 3) Market Share Proxy (revenue vs sector peers) — 0-5
+            _cm_ms_score = 1.0
+            if cd.peer_data and cd.revenue is not None and len(cd.revenue) > 0:
+                _cm_my_rev = float(cd.revenue.iloc[0])
+                _cm_peer_revs = [p.get("revenue", 0) for p in cd.peer_data if p.get("revenue", 0) > 0]
+                if _cm_peer_revs:
+                    _cm_total_rev = sum(_cm_peer_revs) + _cm_my_rev
+                    _cm_share = _cm_my_rev / _cm_total_rev if _cm_total_rev > 0 else 0
+                    _cm_ms_score = min(5, _cm_share * 25)  # 20% share = 5
+            _cm_scores["Market Share"] = round(_cm_ms_score, 1)
+            _cm_sector_avg["Market Share"] = 1.5
+
+            # 4) Customer Concentration Risk (inverse of revenue volatility) — 0-5
+            _cm_cc_score = 2.5
+            if cd.revenue is not None and len(cd.revenue) >= 3:
+                _cm_rv = [float(v) for v in cd.revenue.values if v is not None and float(v) > 0]
+                if len(_cm_rv) >= 3:
+                    _cm_rv_growths = [(_cm_rv[i] / _cm_rv[i+1] - 1) for i in range(len(_cm_rv)-1)]
+                    _cm_rv_std = np.std(_cm_rv_growths)
+                    _cm_cc_score = min(5, max(0, (0.20 - _cm_rv_std) * 25))
+            _cm_scores["Revenue Stability"] = round(_cm_cc_score, 1)
+            _cm_sector_avg["Revenue Stability"] = 2.5
+
+            # 5) Switching Costs Proxy (SG&A efficiency) — 0-5
+            _cm_sw_score = 2.0
+            if cd.income_stmt is not None and cd.revenue is not None and len(cd.revenue) > 0:
+                try:
+                    _sga_val = None
+                    for _sga_label in ["SellingGeneralAndAdministration", "Selling General And Administration", "SGA"]:
+                        if _sga_label in cd.income_stmt.index:
+                            _sga_val = float(cd.income_stmt.loc[_sga_label].iloc[0])
+                            break
+                    if _sga_val and _sga_val > 0:
+                        _cm_sga_ratio = _sga_val / float(cd.revenue.iloc[0])
+                        # Lower SGA/Rev = higher switching costs (customers come organically)
+                        _cm_sw_score = min(5, max(0, (0.5 - _cm_sga_ratio) * 10))
+                except Exception:
+                    pass
+            _cm_scores["Switching Costs"] = round(_cm_sw_score, 1)
+            _cm_sector_avg["Switching Costs"] = 2.0
+
+            _cm_total = sum(_cm_scores.values())
+            _cm_max = 25
+            if _cm_total >= 17:
+                _cm_rating = "Wide"
+                _cm_r_color = "#10B981"
+            elif _cm_total >= 10:
+                _cm_rating = "Narrow"
+                _cm_r_color = "#F59E0B"
+            else:
+                _cm_rating = "None"
+                _cm_r_color = "#EF4444"
+
+            with st.expander(f"🛡️ Competitive Moat Analysis — {_cm_rating} Moat ({_cm_total:.1f}/25)", expanded=False):
+                # Radar chart with sector overlay
+                _cm_cats = list(_cm_scores.keys())
+                _cm_vals = [_cm_scores[c] for c in _cm_cats]
+                _cm_sect = [_cm_sector_avg[c] for c in _cm_cats]
+                _cm_cats_r = _cm_cats + [_cm_cats[0]]
+                _cm_vals_r = _cm_vals + [_cm_vals[0]]
+                _cm_sect_r = _cm_sect + [_cm_sect[0]]
+
+                _cm_fig = go.Figure()
+                _cm_fig.add_trace(go.Scatterpolar(
+                    r=_cm_sect_r, theta=_cm_cats_r,
+                    fill='toself', fillcolor='rgba(138,133,173,0.1)',
+                    line=dict(color='#8A85AD', width=1, dash='dash'),
+                    marker=dict(size=4, color='#8A85AD'),
+                    name='Sector Average',
+                ))
+                _cm_fig.add_trace(go.Scatterpolar(
+                    r=_cm_vals_r, theta=_cm_cats_r,
+                    fill='toself', fillcolor=f'{_cm_r_color}22',
+                    line=dict(color=_cm_r_color, width=2),
+                    marker=dict(size=6, color=_cm_r_color),
+                    name=cd.ticker,
+                ))
+                _cm_fig.update_layout(
+                    **_CHART_LAYOUT_BASE, height=340,
+                    margin=dict(t=40, b=30, l=60, r=60),
+                    polar=dict(
+                        bgcolor="rgba(0,0,0,0)",
+                        radialaxis=dict(visible=True, range=[0, 5], showticklabels=True,
+                                       tickfont=dict(size=8, color="#6B6B80"),
+                                       gridcolor="rgba(255,255,255,0.06)"),
+                        angularaxis=dict(tickfont=dict(size=10, color="#B8B3D7"),
+                                        gridcolor="rgba(255,255,255,0.06)"),
+                    ),
+                    showlegend=True,
+                    legend=dict(font=dict(size=10, color="#B8B3D7"), bgcolor="rgba(0,0,0,0)"),
+                )
+                st.plotly_chart(_cm_fig, use_container_width=True, key="competitive_moat_radar")
+
+                # Overall rating badge
+                st.markdown(
+                    f'<div style="text-align:center; padding:0.8rem; background:rgba({",".join(str(int(c, 16)) for c in [_cm_r_color[1:3], _cm_r_color[3:5], _cm_r_color[5:7]])},0.1); '
+                    f'border-radius:12px; margin:0.5rem 0;">'
+                    f'<div style="font-size:1.4rem; font-weight:800; color:{_cm_r_color};">{_cm_rating} Moat</div>'
+                    f'<div style="font-size:0.75rem; color:#8A85AD;">Total Score: {_cm_total:.1f} / {_cm_max}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+                # Dimension bars
+                for _cm_d, _cm_v in _cm_scores.items():
+                    _cm_d_color = "#10B981" if _cm_v >= 3.5 else "#F59E0B" if _cm_v >= 2 else "#EF4444"
+                    _cm_d_w = max(5, _cm_v / 5 * 100)
+                    st.markdown(
+                        f'<div style="display:flex; align-items:center; margin:0.3rem 0; gap:0.5rem;">'
+                        f'<div style="width:110px; font-size:0.72rem; color:#B8B3D7; flex-shrink:0;">{_cm_d}</div>'
+                        f'<div style="flex:1; background:rgba(255,255,255,0.05); border-radius:6px; height:14px; overflow:hidden;">'
+                        f'<div style="width:{_cm_d_w}%; height:100%; background:{_cm_d_color}; border-radius:6px;"></div></div>'
+                        f'<div style="width:35px; font-size:0.72rem; color:{_cm_d_color}; font-weight:600; text-align:right;">{_cm_v:.1f}</div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+        except Exception:
+            pass
+
+    # ══════════════════════════════════════════════════════
     # 2c-ii. WHAT-IF SIMULATOR
     # ══════════════════════════════════════════════════════
     with _safe_section("What-If Simulator"):
@@ -13814,6 +14125,101 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
         except Exception:
             pass
 
+        # ── Peer Intelligence Cards ──
+        with _safe_section("Peer Intelligence Cards"):
+            try:
+                st.markdown(
+                    '<div style="font-size:1.2rem; font-weight:700; color:#E0DCF5; margin:1.5rem 0 1rem 0;">'
+                    '🃏 Peer Intelligence Cards</div>',
+                    unsafe_allow_html=True,
+                )
+                # Calculate group medians for relative valuation
+                _pic_ev_ebitda_vals = [p.ev_ebitda for p in comps_analysis.peers if p.ev_ebitda and p.ev_ebitda > 0]
+                _pic_ev_rev_vals = [p.ev_revenue for p in comps_analysis.peers if p.ev_revenue and p.ev_revenue > 0]
+                _pic_med_ebitda = np.median(_pic_ev_ebitda_vals) if _pic_ev_ebitda_vals else 0
+                _pic_med_rev = np.median(_pic_ev_rev_vals) if _pic_ev_rev_vals else 0
+
+                # Industry keywords for differentiators
+                _pic_diff_map = {
+                    "software": "Enterprise software platform",
+                    "cloud": "Cloud-native infrastructure",
+                    "semiconductor": "Chip design & fabrication",
+                    "payment": "Payment processing network",
+                    "bank": "Full-service banking",
+                    "insurance": "Risk management & underwriting",
+                    "pharma": "Drug discovery pipeline",
+                    "biotech": "Biological therapeutics",
+                    "retail": "Omnichannel retail distribution",
+                    "media": "Content & advertising platform",
+                    "auto": "Vehicle manufacturing & EV",
+                    "energy": "Energy production & distribution",
+                    "telecom": "Telecommunications infrastructure",
+                    "health": "Healthcare services & solutions",
+                }
+
+                _pic_cols = st.columns(min(3, len(comps_analysis.peers)))
+                for _pic_idx, _pic_peer in enumerate(comps_analysis.peers):
+                    with _pic_cols[_pic_idx % len(_pic_cols)]:
+                        # Relative valuation
+                        _pic_prem = ""
+                        _pic_prem_color = "#8A85AD"
+                        if _pic_peer.ev_ebitda and _pic_med_ebitda > 0:
+                            _pic_prem_pct = ((_pic_peer.ev_ebitda - _pic_med_ebitda) / _pic_med_ebitda) * 100
+                            if _pic_prem_pct > 5:
+                                _pic_prem = f"+{_pic_prem_pct:.0f}% premium"
+                                _pic_prem_color = "#EF4444"
+                            elif _pic_prem_pct < -5:
+                                _pic_prem = f"{_pic_prem_pct:.0f}% discount"
+                                _pic_prem_color = "#10B981"
+                            else:
+                                _pic_prem = "At median"
+                                _pic_prem_color = "#F59E0B"
+
+                        # Key differentiator
+                        _pic_diff = "Diversified operations"
+                        _pic_ind = (_pic_peer.industry or "").lower()
+                        for _dk, _dv in _pic_diff_map.items():
+                            if _dk in _pic_ind:
+                                _pic_diff = _dv
+                                break
+
+                        # 1-line description
+                        _pic_desc = f"{_pic_peer.sector} · {_pic_peer.industry}" if _pic_peer.industry else _pic_peer.sector or "—"
+
+                        # Logo placeholder (first letter)
+                        _pic_initial = (_pic_peer.name or _pic_peer.ticker)[0].upper()
+
+                        _pic_mcap_str = ""
+                        if _pic_peer.market_cap and _pic_peer.market_cap > 0:
+                            if _pic_peer.market_cap >= 1e12:
+                                _pic_mcap_str = f"${_pic_peer.market_cap/1e12:.1f}T"
+                            elif _pic_peer.market_cap >= 1e9:
+                                _pic_mcap_str = f"${_pic_peer.market_cap/1e9:.1f}B"
+                            else:
+                                _pic_mcap_str = f"${_pic_peer.market_cap/1e6:.0f}M"
+
+                        st.markdown(
+                            f'<div style="background:rgba(255,255,255,0.04); border:1px solid rgba(107,92,231,0.15); '
+                            f'border-radius:14px; padding:1.2rem; margin-bottom:0.8rem; position:relative; overflow:hidden;">'
+                            f'<div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:0.6rem;">'
+                            f'<div style="width:38px; height:38px; border-radius:10px; background:linear-gradient(135deg, #6B5CE7, #E8638B); '
+                            f'display:flex; align-items:center; justify-content:center; font-weight:800; color:white; font-size:1rem;">{_pic_initial}</div>'
+                            f'<div>'
+                            f'<div style="font-size:0.85rem; font-weight:700; color:#E0DCF5;">{_pic_peer.name or _pic_peer.ticker}</div>'
+                            f'<div style="font-size:0.65rem; color:#8A85AD;">{_pic_peer.ticker} · {_pic_mcap_str}</div>'
+                            f'</div></div>'
+                            f'<div style="font-size:0.7rem; color:#B8B3D7; margin-bottom:0.4rem; line-height:1.4;">{_pic_desc}</div>'
+                            f'<div style="font-size:0.68rem; color:#9B8AFF; font-weight:600; margin-bottom:0.5rem;">💡 {_pic_diff}</div>'
+                            f'<div style="display:flex; justify-content:space-between; align-items:center; '
+                            f'padding-top:0.5rem; border-top:1px solid rgba(255,255,255,0.06);">'
+                            f'<div style="font-size:0.68rem; color:#8A85AD;">EV/EBITDA: {_pic_peer.ev_ebitda:.1f}x</div>'
+                            f'<div style="font-size:0.72rem; font-weight:700; color:{_pic_prem_color};">{_pic_prem}</div>'
+                            f'</div></div>',
+                            unsafe_allow_html=True,
+                        )
+            except Exception:
+                pass
+
         # ── Comps Intelligence: Relative Value Map ──
         with _safe_section("Relative Value Map"):
             st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
@@ -16729,6 +17135,81 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
                                        yaxis=dict(tickprefix=cs, tickfont=dict(size=9, color="#8A85AD")))
                 _apply_space_grid(fig_scen)
                 st.plotly_chart(fig_scen, use_container_width=True, key="scenario_chart")
+
+            # ── Custom Scenario Builder ──
+            st.markdown(
+                '<div style="font-size:1rem; font-weight:700; color:#E0DCF5; margin:1.5rem 0 0.8rem 0;">'
+                '🔧 Custom Scenario Builder</div>'
+                '<div style="font-size:0.78rem; color:#B8B3D7; margin-bottom:1rem;">'
+                'Input your own assumptions to calculate an implied share price.</div>',
+                unsafe_allow_html=True,
+            )
+            _cs_c1, _cs_c2, _cs_c3 = st.columns(3)
+            with _cs_c1:
+                _cs_growth = st.number_input("Revenue Growth (%)", min_value=-30.0, max_value=50.0,
+                                              value=round(dcf_growth_rate * 100, 1), step=0.5, key="custom_scen_growth") / 100
+            with _cs_c2:
+                _cs_margin = st.number_input("EBITDA Margin (%)", min_value=0.0, max_value=80.0,
+                                              value=20.0, step=1.0, key="custom_scen_margin") / 100
+            with _cs_c3:
+                _cs_multiple = st.number_input("Exit EV/EBITDA", min_value=1.0, max_value=50.0,
+                                                value=float(dcf_cd.ev_to_ebitda or 12), step=0.5, key="custom_scen_mult")
+            _cs_c4, _cs_c5, _cs_c6 = st.columns(3)
+            with _cs_c4:
+                _cs_wacc = st.number_input("Discount Rate (%)", min_value=1.0, max_value=25.0,
+                                            value=round(dcf_discount_rate * 100, 1), step=0.5, key="custom_scen_wacc") / 100
+            with _cs_c5:
+                _cs_years = st.number_input("Projection Years", min_value=1, max_value=10,
+                                             value=dcf_years, step=1, key="custom_scen_years")
+            with _cs_c6:
+                _cs_prob = st.number_input("Probability (%)", min_value=0, max_value=100,
+                                            value=100, step=5, key="custom_scen_prob")
+
+            # Calculate custom scenario
+            try:
+                _cs_result = _calculate_dcf(
+                    dcf_cd,
+                    growth_rate=_cs_growth,
+                    terminal_growth=dcf_terminal_growth,
+                    discount_rate=_cs_wacc,
+                    projection_years=_cs_years,
+                )
+                if "error" not in _cs_result:
+                    _cs_price = _cs_result["implied_share_price"]
+                    _cs_upside = _cs_result["upside_pct"]
+                    _cs_ev = _cs_price * (dcf_cd.shares_outstanding or (dcf_cd.market_cap / dcf_cd.current_price if dcf_cd.current_price else 1))
+                    _cs_u_color = "#10B981" if _cs_upside >= 0 else "#EF4444"
+                    _cs_exp_val = _cs_price * (_cs_prob / 100)
+
+                    _csr1, _csr2, _csr3 = st.columns(3)
+                    _csr1.metric("Implied Price", f"{cs}{_cs_price:,.2f}", delta=f"{_cs_upside:+.1f}%")
+                    _csr2.metric("Probability-Weighted", f"{cs}{_cs_exp_val:,.2f}")
+                    _csr3.metric("Upside/Downside", f"{_cs_upside:+.1f}%")
+
+                    # Compare all scenarios including custom
+                    if scen_results:
+                        _all_scen_names = list(scen_results.keys()) + ["🔧 Custom"]
+                        _all_scen_prices = [scen_results[n].get("implied_share_price", 0) for n in scen_results if "error" not in scen_results[n]] + [_cs_price]
+                        _all_scen_colors = ["#EF4444", "#6B5CE7", "#10B981", "#F59E0B"][:len(_all_scen_prices)]
+                        _cs_fig = go.Figure()
+                        _cs_fig.add_trace(go.Bar(
+                            x=_all_scen_names[:len(_all_scen_prices)], y=_all_scen_prices,
+                            marker_color=_all_scen_colors,
+                            text=[f"{cs}{p:,.2f}" for p in _all_scen_prices],
+                            textposition="outside", textfont=dict(size=10, color="#B8B3D7"),
+                        ))
+                        _cs_fig.add_hline(y=dcf_cd.current_price, line_dash="dash",
+                                          line_color="#F59E0B", line_width=2,
+                                          annotation_text=f"Current: {cs}{dcf_cd.current_price:,.2f}",
+                                          annotation_font=dict(size=9, color="#F59E0B"))
+                        _cs_fig.update_layout(**_CHART_LAYOUT_BASE, height=280,
+                                              margin=dict(t=30, b=30, l=50, r=30), showlegend=False,
+                                              xaxis=dict(tickfont=dict(size=9, color="#8A85AD")),
+                                              yaxis=dict(tickprefix=cs, tickfont=dict(size=9, color="#8A85AD")))
+                        _apply_space_grid(_cs_fig)
+                        st.plotly_chart(_cs_fig, use_container_width=True, key="custom_scenario_chart")
+            except Exception:
+                pass
 
         _divider()
         
