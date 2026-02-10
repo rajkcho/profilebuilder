@@ -1131,6 +1131,102 @@ def _export_dcf_to_excel(dcf_cd, dcf_result, assumptions) -> bytes:
             pass
     return output.getvalue()
 
+def _generate_pdf_html(cd) -> str:
+    """Generate an HTML summary document that can be printed/saved as PDF."""
+    cs = cd.currency_symbol
+    _fetch_ts = datetime.now().strftime("%B %d, %Y at %H:%M UTC")
+
+    # Key metrics
+    metrics_rows = ""
+    metric_list = [
+        ("Market Cap", format_number(cd.market_cap, currency_symbol=cs)),
+        ("Enterprise Value", format_number(cd.enterprise_value, currency_symbol=cs)),
+        ("P/E (TTM)", f"{cd.trailing_pe:.1f}x" if cd.trailing_pe else "N/A"),
+        ("Forward P/E", f"{cd.forward_pe:.1f}x" if cd.forward_pe else "N/A"),
+        ("EV/EBITDA", f"{cd.ev_to_ebitda:.1f}x" if cd.ev_to_ebitda else "N/A"),
+        ("EV/Revenue", f"{cd.ev_to_revenue:.1f}x" if cd.ev_to_revenue else "N/A"),
+        ("P/B", f"{cd.price_to_book:.1f}x" if cd.price_to_book else "N/A"),
+        ("Gross Margin", f"{cd.gross_margins*100:.1f}%" if cd.gross_margins else "N/A"),
+        ("Operating Margin", f"{cd.operating_margins*100:.1f}%" if cd.operating_margins else "N/A"),
+        ("Net Margin", f"{cd.profit_margins*100:.1f}%" if cd.profit_margins else "N/A"),
+        ("ROE", f"{cd.return_on_equity*100:.1f}%" if cd.return_on_equity else "N/A"),
+        ("Debt/Equity", f"{cd.debt_to_equity:.0f}%" if cd.debt_to_equity else "N/A"),
+        ("Dividend Yield", f"{cd.dividend_yield*100:.2f}%" if cd.dividend_yield else "N/A"),
+        ("Beta", f"{cd.beta:.2f}" if cd.beta else "N/A"),
+        ("52-Week Range", f"{cs}{cd.fifty_two_week_low:,.2f} — {cs}{cd.fifty_two_week_high:,.2f}" if cd.fifty_two_week_low and cd.fifty_two_week_high else "N/A"),
+    ]
+    for name, val in metric_list:
+        metrics_rows += f"<tr><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:#B8B3D7; font-weight:600;'>{name}</td><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:#E0DCF5; text-align:right;'>{val}</td></tr>"
+
+    # Valuation summary
+    valuation_html = ""
+    try:
+        from data_engine import calculate_intrinsic_value as _calc_iv
+        iv = _calc_iv(cd)
+        if iv:
+            valuation_html = f"""
+            <h3 style="color:#9B8AFF; margin-top:24px;">Valuation Summary (DCF)</h3>
+            <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">
+            <tr><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:#B8B3D7;'>Intrinsic Value / Share</td><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:#E0DCF5; text-align:right;'>{cs}{iv['intrinsic_value_per_share']:.2f}</td></tr>
+            <tr><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:#B8B3D7;'>Upside / (Downside)</td><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:{"#10B981" if iv["upside_pct"] > 0 else "#EF4444"}; text-align:right; font-weight:700;'>{iv['upside_pct']:+.1f}%</td></tr>
+            <tr><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:#B8B3D7;'>Margin of Safety</td><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:#E0DCF5; text-align:right;'>{iv['margin_of_safety']:.1f}%</td></tr>
+            </table>"""
+    except Exception:
+        pass
+
+    # Analyst targets
+    analyst_html = ""
+    if cd.analyst_price_targets:
+        t = cd.analyst_price_targets
+        analyst_html = f"""
+        <h3 style="color:#9B8AFF; margin-top:24px;">Analyst Price Targets</h3>
+        <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">
+        <tr><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:#B8B3D7;'>Low</td><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:#E0DCF5; text-align:right;'>{cs}{t.get("low",0):.2f}</td></tr>
+        <tr><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:#B8B3D7;'>Mean</td><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:#E0DCF5; text-align:right;'>{cs}{t.get("mean",0):.2f}</td></tr>
+        <tr><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:#E0DCF5;'>High</td><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:#E0DCF5; text-align:right;'>{cs}{t.get("high",0):.2f}</td></tr>
+        </table>"""
+
+    # Description
+    _raw_desc = getattr(cd, 'description', None) or getattr(cd, 'long_business_summary', None) or ""
+    if hasattr(_raw_desc, 'iloc'):
+        _raw_desc = str(_raw_desc.iloc[0]) if len(_raw_desc) > 0 else ""
+    desc = str(_raw_desc)[:800] if _raw_desc else "Company description not available."
+
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>{cd.name} ({cd.ticker}) — Orbital Profile</title>
+<style>
+body {{ font-family: 'Inter', 'Segoe UI', sans-serif; background: #0B0E1A; color: #E0DCF5; max-width: 900px; margin: 0 auto; padding: 40px 30px; }}
+h1 {{ color: #fff; margin-bottom: 4px; }}
+h2 {{ color: #9B8AFF; border-bottom: 2px solid #6B5CE7; padding-bottom: 6px; margin-top: 32px; }}
+h3 {{ color: #9B8AFF; }}
+.subtitle {{ color: #8A85AD; font-size: 14px; margin-bottom: 24px; }}
+.price {{ font-size: 28px; font-weight: 800; color: #fff; }}
+.meta {{ color: #8A85AD; font-size: 12px; margin-top: 8px; }}
+table {{ width: 100%; border-collapse: collapse; margin-bottom: 16px; }}
+th {{ background: #6B5CE7; color: white; padding: 8px 12px; text-align: left; font-size: 12px; }}
+@media print {{ body {{ background: white; color: #333; }} h1, .price {{ color: #333; }} h2, h3 {{ color: #6B5CE7; }} }}
+</style></head><body>
+<h1>{cd.name} ({cd.ticker})</h1>
+<div class="subtitle">{cd.sector} | {cd.industry} | {cd.exchange}</div>
+<div class="price">{cs}{cd.current_price:,.2f}</div>
+<div class="meta">Data as of {_fetch_ts} | Generated by Orbital</div>
+
+<h2>Company Overview</h2>
+<p style="color:#B8B3D7; line-height:1.6;">{desc}</p>
+
+<h2>Key Metrics</h2>
+<table>{metrics_rows}</table>
+
+{valuation_html}
+{analyst_html}
+
+<div class="meta" style="margin-top:40px; text-align:center; border-top:1px solid #2A2D42; padding-top:16px;">
+CONFIDENTIAL — {cd.ticker} Orbital Profile — {_fetch_ts}
+</div>
+</body></html>"""
+    return html
+
+
 def _export_to_csv(cd) -> str:
     """Export key metrics to CSV."""
     data = {
@@ -6257,14 +6353,144 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
 
     cs = cd.currency_symbol  # shorthand
     _fetch_timestamp = datetime.now().strftime("%b %d, %Y at %H:%M UTC")
+    st.session_state["_data_fetch_timestamp"] = _fetch_timestamp
 
-    # Data freshness indicator
-    st.markdown(
-        f'<div style="text-align:right; padding:0.3rem 1rem; margin-bottom:-0.5rem;">'
-        f'<span style="font-size:0.6rem; color:#5A567A;">🔄 Data as of {_fetch_timestamp}</span>'
-        f'</div>',
-        unsafe_allow_html=True,
-    )
+    # Data freshness indicator + Refresh button
+    _fresh_col1, _fresh_col2 = st.columns([4, 1])
+    with _fresh_col1:
+        st.markdown(
+            f'<div style="text-align:right; padding:0.3rem 1rem; margin-bottom:-0.5rem;">'
+            f'<span style="font-size:0.6rem; color:#5A567A;">🔄 Data as of {_fetch_timestamp}</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    with _fresh_col2:
+        if st.button("🔄 Refresh", key="refresh_data_btn", help="Clear cached data and re-fetch"):
+            # Clear all cached data
+            for key in list(st.session_state.keys()):
+                if key.startswith("last_cd") or key.startswith("_data"):
+                    del st.session_state[key]
+            st.cache_data.clear()
+            st.rerun()
+
+    # ── Executive Dashboard Toggle ──
+    _exec_dashboard = st.checkbox("📋 Executive Dashboard (1-Pager)", value=False, key="exec_dashboard_toggle",
+                                   help="Condensed CIM cover page view with key metrics only")
+
+    if _exec_dashboard:
+        # ══════════════════════════════════════════════════
+        # EXECUTIVE DASHBOARD - Condensed 1-page view
+        # ══════════════════════════════════════════════════
+        st.markdown(
+            f'<div style="background:rgba(107,92,231,0.08); border:2px solid rgba(107,92,231,0.3); '
+            f'border-radius:16px; padding:1.5rem; margin:1rem 0;">'
+            f'<div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">'
+            f'<div style="font-size:1.6rem; font-weight:900; color:#fff;">{cd.name}</div>'
+            f'<span style="background:#6B5CE7; color:white; padding:0.2rem 0.8rem; border-radius:20px; '
+            f'font-size:0.7rem; font-weight:700;">{cd.ticker}</span>'
+            f'</div>'
+            f'<div style="font-size:2rem; font-weight:800; color:#fff;">{cs}{cd.current_price:,.2f}</div>'
+            f'<div style="color:#8A85AD; font-size:0.8rem; margin-top:0.3rem;">'
+            f'52W: {cs}{cd.fifty_two_week_low:,.2f} — {cs}{cd.fifty_two_week_high:,.2f}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        # Key ratios row
+        _ed_cols = st.columns(4)
+        _ed_metrics = [
+            ("P/E (TTM)", f"{cd.trailing_pe:.1f}x" if cd.trailing_pe else "N/A"),
+            ("EV/EBITDA", f"{cd.ev_to_ebitda:.1f}x" if cd.ev_to_ebitda else "N/A"),
+            ("ROE", f"{cd.return_on_equity*100:.1f}%" if cd.return_on_equity else "N/A"),
+            ("Div Yield", f"{cd.dividend_yield*100:.2f}%" if cd.dividend_yield else "N/A"),
+        ]
+        for i, (label, val) in enumerate(_ed_metrics):
+            with _ed_cols[i]:
+                st.markdown(
+                    f'<div style="background:rgba(255,255,255,0.04); border:1px solid rgba(107,92,231,0.15); '
+                    f'border-radius:12px; padding:0.8rem; text-align:center;">'
+                    f'<div style="font-size:0.65rem; color:#8A85AD; text-transform:uppercase; letter-spacing:0.5px;">{label}</div>'
+                    f'<div style="font-size:1.3rem; font-weight:700; color:#E0DCF5; margin-top:0.2rem;">{val}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+        # Valuation summary row
+        _ed_val_cols = st.columns(2)
+        with _ed_val_cols[0]:
+            try:
+                iv = calculate_intrinsic_value(cd)
+                if iv:
+                    _iv_color = "#10B981" if iv['upside_pct'] > 0 else "#EF4444"
+                    st.markdown(
+                        f'<div style="background:rgba(255,255,255,0.04); border:1px solid rgba(107,92,231,0.15); '
+                        f'border-radius:12px; padding:1rem; margin-top:0.5rem;">'
+                        f'<div style="font-size:0.7rem; color:#8A85AD; text-transform:uppercase;">DCF Implied Price</div>'
+                        f'<div style="font-size:1.5rem; font-weight:800; color:#E0DCF5;">{cs}{iv["intrinsic_value_per_share"]:.2f}</div>'
+                        f'<div style="font-size:0.85rem; color:{_iv_color}; font-weight:700;">{iv["upside_pct"]:+.1f}% vs Current</div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.markdown(
+                        '<div style="background:rgba(255,255,255,0.04); border:1px solid rgba(107,92,231,0.15); '
+                        'border-radius:12px; padding:1rem; margin-top:0.5rem;">'
+                        '<div style="font-size:0.7rem; color:#8A85AD;">DCF: Insufficient data</div></div>',
+                        unsafe_allow_html=True,
+                    )
+            except Exception:
+                pass
+
+        with _ed_val_cols[1]:
+            if cd.analyst_price_targets and cd.analyst_price_targets.get('mean'):
+                _apt = cd.analyst_price_targets
+                _apt_upside = ((_apt['mean'] / cd.current_price) - 1) * 100 if cd.current_price else 0
+                _apt_color = "#10B981" if _apt_upside > 0 else "#EF4444"
+                st.markdown(
+                    f'<div style="background:rgba(255,255,255,0.04); border:1px solid rgba(107,92,231,0.15); '
+                    f'border-radius:12px; padding:1rem; margin-top:0.5rem;">'
+                    f'<div style="font-size:0.7rem; color:#8A85AD; text-transform:uppercase;">Analyst Consensus</div>'
+                    f'<div style="font-size:1.5rem; font-weight:800; color:#E0DCF5;">{cs}{_apt["mean"]:.2f}</div>'
+                    f'<div style="font-size:0.85rem; color:{_apt_color}; font-weight:700;">{_apt_upside:+.1f}% Implied Upside</div>'
+                    f'<div style="font-size:0.65rem; color:#8A85AD;">{cs}{_apt.get("low",0):.2f} — {cs}{_apt.get("high",0):.2f}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+        # Mini price chart
+        try:
+            _ed_tk = yf.Ticker(cd.ticker)
+            _ed_hist = _ed_tk.history(period="1y")
+            if not _ed_hist.empty:
+                _ed_fig = go.Figure()
+                _ed_fig.add_trace(go.Scatter(
+                    x=_ed_hist.index, y=_ed_hist["Close"], mode="lines",
+                    line=dict(color="#6B5CE7", width=2), fill="tozeroy",
+                    fillcolor="rgba(107,92,231,0.1)", showlegend=False,
+                ))
+                _ed_fig.update_layout(
+                    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                    height=200, margin=dict(t=10, b=20, l=40, r=10),
+                    xaxis=dict(showgrid=False, tickfont=dict(size=8, color="#8A85AD")),
+                    yaxis=dict(gridcolor="rgba(107,92,231,0.1)", griddash="dot",
+                              tickfont=dict(size=8, color="#8A85AD"), tickprefix=cs),
+                )
+                st.plotly_chart(_ed_fig, use_container_width=True, key="exec_dash_chart")
+        except Exception:
+            pass
+
+        st.markdown(
+            f'<div style="text-align:center; font-size:0.6rem; color:#5A567A; margin-top:0.5rem;">'
+            f'Executive Dashboard — {cd.ticker} — {_fetch_timestamp}</div>',
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("---")
+        st.markdown(
+            '<div style="font-size:0.75rem; color:#8A85AD; text-align:center; margin-bottom:1rem;">'
+            '↓ Full analysis below ↓</div>',
+            unsafe_allow_html=True,
+        )
 
     # ══════════════════════════════════════════════════════
     # 1. COMPANY HEADER CARD (with logo)
@@ -12330,13 +12556,15 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             from create_template import build
             build()
 
-    with st.spinner("Building 8-slide PowerPoint presentation..."):
-        pptx_buf = generate_presentation(cd)
+    _pptx_confidential = st.checkbox("🔒 Add Confidential Watermark", value=False, key="pptx_confidential")
+
+    with st.spinner("Building 7-slide PowerPoint presentation..."):
+        pptx_buf = generate_presentation(cd, confidential=_pptx_confidential)
 
     dl1, dl2, dl3 = st.columns([1, 2, 1])
     with dl2:
         st.download_button(
-            label=f"Download {cd.ticker} Orbital Profile  (3 slides)",
+            label=f"Download {cd.ticker} Orbital Profile  (7 slides)",
             data=pptx_buf,
             file_name=f"{cd.ticker}_Orbital_Profile.pptx",
             mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -12344,11 +12572,30 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         )
         st.markdown(
             "<p style='text-align:center; font-size:0.72rem; color:#8A85AD; margin-top:0.3rem;'>"
-            "Professional IB-grade presentation &middot; Editable charts &middot; Navy/Gold palette"
+            "Professional IB-grade presentation &middot; Dark theme &middot; Purple accents &middot; 7 slides"
             "</p>",
             unsafe_allow_html=True,
         )
-    
+
+        # PDF / HTML Export
+        try:
+            pdf_html = _generate_pdf_html(cd)
+            st.download_button(
+                label=f"📄 Download {cd.ticker} Summary (PDF-Ready HTML)",
+                data=pdf_html,
+                file_name=f"{cd.ticker}_Orbital_Summary.html",
+                mime="text/html",
+                use_container_width=True,
+            )
+            st.markdown(
+                "<p style='text-align:center; font-size:0.72rem; color:#8A85AD; margin-top:0.3rem;'>"
+                "Open in browser → Print → Save as PDF &middot; Dark + print-friendly themes"
+                "</p>",
+                unsafe_allow_html=True,
+            )
+        except Exception:
+            pass
+
     # Excel Export
     _divider()
     _section("Export Financial Data", "📊")

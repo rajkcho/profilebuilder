@@ -31,16 +31,20 @@ from data_engine import (CompanyData, format_number, format_pct, format_multiple
 # GOLDMAN SACHS STYLE PALETTE
 # ══════════════════════════════════════════════════════════════
 
-NAVY = RGBColor(0x00, 0x32, 0x5B)  # Goldman dark blue
-LIGHT_NAVY = RGBColor(0x00, 0x4B, 0x87)
-GOLD = RGBColor(0xB5, 0x98, 0x5A)  # Goldman gold
+# Dark theme palette with purple accents (#6B5CE7)
+NAVY = RGBColor(0x0B, 0x0E, 0x1A)  # Dark background
+LIGHT_NAVY = RGBColor(0x15, 0x19, 0x33)  # Lighter dark
+GOLD = RGBColor(0x6B, 0x5C, 0xE7)  # Purple accent (matching #6B5CE7)
+PURPLE = RGBColor(0x6B, 0x5C, 0xE7)
+PURPLE_LIGHT = RGBColor(0x9B, 0x8A, 0xFF)
 WHITE = RGBColor(0xFF, 0xFF, 0xFF)
 BLACK = RGBColor(0x00, 0x00, 0x00)
-LIGHT_GRAY = RGBColor(0xF5, 0xF5, 0xF5)
-MED_GRAY = RGBColor(0xE0, 0xE0, 0xE0)
-DARK_GRAY = RGBColor(0x4A, 0x4A, 0x4A)
-GREEN = RGBColor(0x00, 0x6B, 0x3F)
-RED = RGBColor(0xA3, 0x1F, 0x34)
+LIGHT_GRAY = RGBColor(0x1E, 0x21, 0x36)  # Dark card bg
+MED_GRAY = RGBColor(0x2A, 0x2D, 0x42)
+DARK_GRAY = RGBColor(0xB8, 0xB3, 0xD7)  # Light text on dark
+TEXT_DIM = RGBColor(0x8A, 0x85, 0xAD)
+GREEN = RGBColor(0x10, 0xB9, 0x81)
+RED = RGBColor(0xEF, 0x44, 0x44)
 
 SLIDE_W = Inches(13.333)
 SLIDE_H = Inches(7.5)
@@ -50,7 +54,7 @@ SLIDE_H = Inches(7.5)
 # CORE HELPERS
 # ══════════════════════════════════════════════════════════════
 
-def _set_cell_text(cell, text, font_size=9, bold=False, color=BLACK, align=PP_ALIGN.LEFT):
+def _set_cell_text(cell, text, font_size=9, bold=False, color=DARK_GRAY, align=PP_ALIGN.LEFT):
     """Set cell text with consistent formatting."""
     cell.text = str(text) if text is not None else "—"
     for p in cell.text_frame.paragraphs:
@@ -64,7 +68,7 @@ def _set_cell_text(cell, text, font_size=9, bold=False, color=BLACK, align=PP_AL
 
 
 def _add_textbox(slide, left, top, width, height, text,
-                 font_size=10, bold=False, color=BLACK, align=PP_ALIGN.LEFT):
+                 font_size=10, bold=False, color=DARK_GRAY, align=PP_ALIGN.LEFT):
     """Add a textbox with specified formatting."""
     txBox = slide.shapes.add_textbox(left, top, width, height)
     tf = txBox.text_frame
@@ -92,37 +96,45 @@ def _add_rect(slide, left, top, width, height, fill_color, line_color=None):
 
 
 def _gs_header(slide, title, subtitle=""):
-    """Goldman Sachs style header - thin gold line, navy title."""
-    # Gold accent line at very top
-    _add_rect(slide, Inches(0), Inches(0), SLIDE_W, Inches(0.06), GOLD)
+    """Dark theme header with purple accent line."""
+    # Dark background fill for whole slide
+    bg = slide.background
+    bg.fill.solid()
+    bg.fill.fore_color.rgb = NAVY
+    # Purple accent line at very top
+    _add_rect(slide, Inches(0), Inches(0), SLIDE_W, Inches(0.06), PURPLE)
     # Title
     _add_textbox(slide, Inches(0.5), Inches(0.25), Inches(10), Inches(0.4),
-                 title.upper(), font_size=14, bold=True, color=NAVY)
+                 title.upper(), font_size=14, bold=True, color=WHITE)
     if subtitle:
         _add_textbox(slide, Inches(0.5), Inches(0.55), Inches(10), Inches(0.25),
-                     subtitle, font_size=9, color=DARK_GRAY)
+                     subtitle, font_size=9, color=TEXT_DIM)
     # Thin line under title
-    _add_rect(slide, Inches(0.5), Inches(0.85), Inches(12.333), Inches(0.015), NAVY)
+    _add_rect(slide, Inches(0.5), Inches(0.85), Inches(12.333), Inches(0.015), PURPLE)
 
 
-def _gs_footer(slide, left_text, right_text="ORBITAL"):
-    """Goldman Sachs style footer - minimal, professional."""
+def _gs_footer(slide, left_text, right_text="ORBITAL", slide_num=None):
+    """Dark theme footer with optional slide number."""
     # Thin line above footer
     _add_rect(slide, Inches(0.5), SLIDE_H - Inches(0.5), Inches(12.333), Inches(0.01), MED_GRAY)
     # Left text (confidential + date)
     _add_textbox(slide, Inches(0.5), SLIDE_H - Inches(0.4), Inches(8), Inches(0.3),
                  f"CONFIDENTIAL  |  {left_text}  |  {datetime.now().strftime('%B %Y')}",
-                 font_size=7, color=DARK_GRAY)
+                 font_size=7, color=TEXT_DIM)
+    # Slide number (center)
+    if slide_num is not None:
+        _add_textbox(slide, Inches(6), SLIDE_H - Inches(0.4), Inches(1.333), Inches(0.3),
+                     str(slide_num), font_size=7, color=TEXT_DIM, align=PP_ALIGN.CENTER)
     # Right text (brand)
     _add_textbox(slide, Inches(10), SLIDE_H - Inches(0.4), Inches(2.833), Inches(0.3),
-                 right_text, font_size=7, bold=True, color=NAVY, align=PP_ALIGN.RIGHT)
+                 right_text, font_size=7, bold=True, color=PURPLE, align=PP_ALIGN.RIGHT)
 
 
 def _gs_section_title(slide, text, top):
-    """Add a section title with gold underline."""
+    """Add a section title with purple underline."""
     _add_textbox(slide, Inches(0.5), top, Inches(5), Inches(0.3),
-                 text.upper(), font_size=9, bold=True, color=NAVY)
-    _add_rect(slide, Inches(0.5), top + Inches(0.25), Inches(1.5), Inches(0.02), GOLD)
+                 text.upper(), font_size=9, bold=True, color=PURPLE_LIGHT)
+    _add_rect(slide, Inches(0.5), top + Inches(0.25), Inches(1.5), Inches(0.02), PURPLE)
 
 
 def _gs_table(slide, headers, rows, left, top, width, height, col_widths=None):
@@ -137,24 +149,23 @@ def _gs_table(slide, headers, rows, left, top, width, height, col_widths=None):
             if i < n_cols:
                 table.columns[i].width = w
 
-    # Header row - navy background
+    # Header row - purple background
     for c, hdr in enumerate(headers):
         cell = table.cell(0, c)
         _set_cell_text(cell, hdr, font_size=8, bold=True, color=WHITE,
                        align=PP_ALIGN.CENTER if c > 0 else PP_ALIGN.LEFT)
         cell.fill.solid()
-        cell.fill.fore_color.rgb = NAVY
+        cell.fill.fore_color.rgb = PURPLE
 
-    # Data rows
+    # Data rows - dark theme alternating
     for r, row_data in enumerate(rows, start=1):
         for c, val in enumerate(row_data):
             cell = table.cell(r, c)
             is_first_col = (c == 0)
             _set_cell_text(cell, val, font_size=8, bold=is_first_col,
                            color=DARK_GRAY, align=PP_ALIGN.LEFT if is_first_col else PP_ALIGN.RIGHT)
-            # Alternating row colors
             cell.fill.solid()
-            cell.fill.fore_color.rgb = LIGHT_GRAY if r % 2 == 0 else WHITE
+            cell.fill.fore_color.rgb = LIGHT_GRAY if r % 2 == 0 else RGBColor(0x12, 0x15, 0x28)
 
     return shape
 
@@ -585,16 +596,290 @@ def _company_slide_valuation(prs, cd: CompanyData):
                  thesis_text, font_size=9, color=DARK_GRAY)
 
 
-def generate_presentation(cd: CompanyData, template_path: str = "assets/template.pptx") -> io.BytesIO:
-    """Build the 3-slide Goldman Sachs-style company profile."""
+def _add_confidential_watermark(slide):
+    """Add a diagonal 'CONFIDENTIAL' watermark to the slide."""
+    from pptx.oxml.ns import qn
+    txBox = slide.shapes.add_textbox(Inches(2), Inches(2.5), Inches(9), Inches(2.5))
+    tf = txBox.text_frame
+    p = tf.paragraphs[0]
+    p.text = "CONFIDENTIAL"
+    p.font.size = Pt(60)
+    p.font.bold = True
+    p.font.color.rgb = RGBColor(0x6B, 0x5C, 0xE7)
+    p.alignment = PP_ALIGN.CENTER
+    # Set rotation and transparency via XML
+    sp = txBox._element
+    sp.attrib['rot'] = '-2700000'  # -45 degrees in EMUs
+    # Set transparency via solidFill alpha
+    for run_elem in sp.iter(qn('a:solidFill')):
+        srgb = run_elem.find(qn('a:srgbClr'))
+        if srgb is not None:
+            alpha = srgb.makeelement(qn('a:alpha'), {'val': '15000'})
+            srgb.append(alpha)
+
+
+def _add_slide_numbers(prs):
+    """Add slide numbers to all slides."""
+    for i, slide in enumerate(prs.slides, start=1):
+        _add_textbox(slide, Inches(6), SLIDE_H - Inches(0.4), Inches(1.333), Inches(0.3),
+                     str(i), font_size=7, color=TEXT_DIM, align=PP_ALIGN.CENTER)
+
+
+def _company_slide_esg(prs, cd: CompanyData, slide_num=None):
+    """ESG Summary slide."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    cs = cd.currency_symbol
+
+    _gs_header(slide, "ESG Summary", f"{cd.name} ({cd.ticker})")
+    _gs_footer(slide, cd.ticker, slide_num=slide_num)
+
+    # ESG scores (use available data or show framework)
+    _gs_section_title(slide, "Environmental, Social & Governance", Inches(1.0))
+
+    esg_score = getattr(cd, 'esg_score', None)
+    env_score = getattr(cd, 'environmental_score', None)
+    soc_score = getattr(cd, 'social_score', None)
+    gov_score = getattr(cd, 'governance_score', None)
+
+    esg_rows = [
+        ["Overall ESG Score", f"{esg_score:.0f}/100" if esg_score else "Not Rated"],
+        ["Environmental", f"{env_score:.0f}/100" if env_score else "N/A"],
+        ["Social", f"{soc_score:.0f}/100" if soc_score else "N/A"],
+        ["Governance", f"{gov_score:.0f}/100" if gov_score else "N/A"],
+    ]
+    _gs_table(slide, ["Category", "Score"], esg_rows,
+              Inches(0.5), Inches(1.35), Inches(5.5), Inches(1.5),
+              col_widths=[Inches(2.8), Inches(2.7)])
+
+    # ESG Risk Assessment
+    _gs_section_title(slide, "ESG Risk Assessment", Inches(3.2))
+
+    controversy_level = getattr(cd, 'controversy_level', None)
+    risk_items = [
+        ["Controversy Level", f"Level {controversy_level}" if controversy_level else "N/A"],
+        ["Sector", cd.sector or "N/A"],
+        ["Industry ESG Profile", "High Scrutiny" if cd.sector in ["Energy", "Utilities", "Basic Materials"] else "Standard"],
+    ]
+    _gs_table(slide, ["Risk Factor", "Assessment"], risk_items,
+              Inches(0.5), Inches(3.55), Inches(5.5), Inches(1.1),
+              col_widths=[Inches(2.8), Inches(2.7)])
+
+    # ESG Framework (right side)
+    _gs_section_title(slide, "ESG Integration Framework", Inches(1.0))
+    framework_text = (
+        "• Environmental: Carbon footprint, resource efficiency, waste management\n"
+        "• Social: Employee relations, diversity, supply chain labor standards\n"
+        "• Governance: Board independence, executive compensation, shareholder rights\n"
+        "• Regulatory: Compliance with local and international ESG standards"
+    )
+    _add_textbox(slide, Inches(6.8), Inches(1.35), Inches(6), Inches(3.0),
+                 framework_text, font_size=9, color=DARK_GRAY)
+
+    # Employee & Social Metrics
+    _gs_section_title(slide, "Social Metrics", Inches(4.8))
+    social_rows = [
+        ["Full-Time Employees", f"{cd.employees:,}" if cd.employees else "N/A"],
+        ["Revenue per Employee", f"{cs}{cd.revenue.iloc[0]/cd.employees:,.0f}" if cd.employees and cd.revenue is not None and len(cd.revenue) > 0 and cd.employees > 0 else "N/A"],
+    ]
+    _gs_table(slide, ["Metric", "Value"], social_rows,
+              Inches(6.8), Inches(5.15), Inches(6), Inches(0.8),
+              col_widths=[Inches(3), Inches(3)])
+
+
+def _company_slide_lbo(prs, cd: CompanyData, slide_num=None):
+    """LBO Returns Analysis slide."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    cs = cd.currency_symbol
+
+    _gs_header(slide, "LBO Returns Analysis", f"{cd.name} ({cd.ticker})")
+    _gs_footer(slide, cd.ticker, slide_num=slide_num)
+
+    # LBO Assumptions
+    _gs_section_title(slide, "LBO Assumptions", Inches(1.0))
+
+    ev = cd.enterprise_value or 0
+    ebitda_val = cd.ebitda.iloc[0] if cd.ebitda is not None and len(cd.ebitda) > 0 else 0
+    entry_multiple = (ev / ebitda_val) if ebitda_val and ebitda_val > 0 else 0
+    leverage = 5.0  # Assumed 5x leverage
+    equity_pct = max(0, ev - leverage * ebitda_val) / ev * 100 if ev > 0 and ebitda_val > 0 else 40
+
+    assumptions = [
+        ["Enterprise Value", format_number(ev, currency_symbol=cs)],
+        ["Entry EV/EBITDA", f"{entry_multiple:.1f}x" if entry_multiple else "N/A"],
+        ["LTM EBITDA", format_number(ebitda_val, currency_symbol=cs)],
+        ["Assumed Leverage", f"{leverage:.1f}x EBITDA"],
+        ["Equity Contribution", f"~{equity_pct:.0f}% of EV"],
+    ]
+    _gs_table(slide, ["Parameter", "Value"], assumptions,
+              Inches(0.5), Inches(1.35), Inches(5.8), Inches(1.8),
+              col_widths=[Inches(2.8), Inches(3.0)])
+
+    # Returns Sensitivity
+    _gs_section_title(slide, "Returns Sensitivity (5-Year Hold)", Inches(3.5))
+
+    exit_multiples = [entry_multiple * 0.8, entry_multiple, entry_multiple * 1.2] if entry_multiple > 0 else [8, 10, 12]
+    ebitda_growth_rates = [0.05, 0.08, 0.12]
+
+    returns_rows = []
+    for growth in ebitda_growth_rates:
+        row = [f"{growth*100:.0f}% EBITDA Growth"]
+        for exit_m in exit_multiples:
+            exit_ebitda = ebitda_val * (1 + growth) ** 5 if ebitda_val > 0 else 0
+            exit_ev = exit_ebitda * exit_m
+            equity_in = ev * (equity_pct / 100) if ev > 0 else 1
+            debt_paydown = ebitda_val * 0.3 * 5 if ebitda_val > 0 else 0  # 30% FCF conversion
+            equity_out = max(0, exit_ev - (leverage * ebitda_val - debt_paydown))
+            moic = equity_out / equity_in if equity_in > 0 else 0
+            irr = (moic ** (1/5) - 1) * 100 if moic > 0 else 0
+            row.append(f"{irr:.1f}% / {moic:.1f}x")
+        returns_rows.append(row)
+
+    exit_labels = [f"{m:.1f}x" for m in exit_multiples]
+    _gs_table(slide, ["Scenario"] + [f"Exit {l}" for l in exit_labels], returns_rows,
+              Inches(0.5), Inches(3.85), Inches(12.333), Inches(1.2),
+              col_widths=[Inches(3)] + [Inches(3.111)] * 3)
+
+    # Key LBO Considerations (right)
+    _gs_section_title(slide, "Key LBO Considerations", Inches(1.0))
+
+    fcf_yield = None
+    if cd.free_cashflow_series is not None and len(cd.free_cashflow_series) > 0 and ev > 0:
+        fcf_yield = cd.free_cashflow_series.iloc[0] / ev * 100
+
+    considerations = [
+        ["FCF Yield", f"{fcf_yield:.1f}%" if fcf_yield else "N/A"],
+        ["Interest Coverage", f"{cd.interest_coverage:.1f}x" if cd.interest_coverage else "N/A"],
+        ["Debt / EBITDA (Current)", f"{cd.net_debt_to_ebitda:.1f}x" if cd.net_debt_to_ebitda else "N/A"],
+        ["Capital Intensity", "High" if (cd.capital_expenditure is not None and len(cd.capital_expenditure) > 0 and ebitda_val > 0 and abs(cd.capital_expenditure.iloc[0]) / ebitda_val > 0.3) else "Moderate"],
+    ]
+    _gs_table(slide, ["Factor", "Value"], considerations,
+              Inches(6.8), Inches(1.35), Inches(6), Inches(1.5),
+              col_widths=[Inches(3), Inches(3)])
+
+    # Verdict
+    _gs_section_title(slide, "LBO Viability", Inches(5.3))
+    viable = "ATTRACTIVE" if (fcf_yield and fcf_yield > 5 and entry_multiple and entry_multiple < 12) else "MODERATE" if entry_multiple and entry_multiple < 15 else "CHALLENGING"
+    v_color = GREEN if viable == "ATTRACTIVE" else (RGBColor(0xF5, 0xA6, 0x23) if viable == "MODERATE" else RED)
+    _add_textbox(slide, Inches(0.5), Inches(5.65), Inches(5), Inches(0.5),
+                 f"LBO Candidacy: {viable}", font_size=14, bold=True, color=v_color)
+
+
+def _company_slide_mgmt(prs, cd: CompanyData, slide_num=None):
+    """Management Effectiveness slide."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    cs = cd.currency_symbol
+
+    _gs_header(slide, "Management Effectiveness", f"{cd.name} ({cd.ticker})")
+    _gs_footer(slide, cd.ticker, slide_num=slide_num)
+
+    # Returns on Capital
+    _gs_section_title(slide, "Returns on Capital", Inches(1.0))
+
+    roe = cd.return_on_equity
+    roa = getattr(cd, 'return_on_assets', None)
+    roic = getattr(cd, 'return_on_invested_capital', None)
+
+    returns_rows = [
+        ["Return on Equity (ROE)", f"{roe*100:.1f}%" if roe else "N/A"],
+        ["Return on Assets (ROA)", f"{roa*100:.1f}%" if roa else "N/A"],
+        ["Return on Invested Capital (ROIC)", f"{roic*100:.1f}%" if roic else "N/A"],
+    ]
+    _gs_table(slide, ["Metric", "Value"], returns_rows,
+              Inches(0.5), Inches(1.35), Inches(5.8), Inches(1.1),
+              col_widths=[Inches(3.3), Inches(2.5)])
+
+    # Efficiency Metrics
+    _gs_section_title(slide, "Operational Efficiency", Inches(2.7))
+
+    asset_turnover = getattr(cd, 'asset_turnover', None)
+    inventory_turnover = getattr(cd, 'inventory_turnover', None)
+    receivables_turnover = getattr(cd, 'receivables_turnover', None)
+
+    eff_rows = [
+        ["Asset Turnover", f"{asset_turnover:.2f}x" if asset_turnover else "N/A"],
+        ["Inventory Turnover", f"{inventory_turnover:.1f}x" if inventory_turnover else "N/A"],
+        ["Receivables Turnover", f"{receivables_turnover:.1f}x" if receivables_turnover else "N/A"],
+        ["Gross Margin", f"{cd.gross_margins*100:.1f}%" if cd.gross_margins else "N/A"],
+        ["Operating Margin", f"{cd.operating_margins*100:.1f}%" if cd.operating_margins else "N/A"],
+    ]
+    _gs_table(slide, ["Metric", "Value"], eff_rows,
+              Inches(0.5), Inches(3.05), Inches(5.8), Inches(1.8),
+              col_widths=[Inches(3.3), Inches(2.5)])
+
+    # DuPont Decomposition (right side)
+    _gs_section_title(slide, "DuPont Analysis (ROE Decomposition)", Inches(1.0))
+
+    net_margin = cd.profit_margins or 0
+    at = asset_turnover or 0
+    # Equity multiplier approximation
+    total_assets_val = cd.total_assets.iloc[0] if cd.total_assets is not None and len(cd.total_assets) > 0 else 0
+    total_equity_val = cd.total_equity.iloc[0] if cd.total_equity is not None and len(cd.total_equity) > 0 else 0
+    equity_mult = total_assets_val / total_equity_val if total_equity_val and total_equity_val > 0 else 0
+
+    dupont_rows = [
+        ["Net Profit Margin", f"{net_margin*100:.1f}%" if net_margin else "N/A"],
+        ["× Asset Turnover", f"{at:.2f}x" if at else "N/A"],
+        ["× Equity Multiplier", f"{equity_mult:.2f}x" if equity_mult else "N/A"],
+        ["= ROE", f"{net_margin * at * equity_mult * 100:.1f}%" if all([net_margin, at, equity_mult]) else "N/A"],
+    ]
+    _gs_table(slide, ["Component", "Value"], dupont_rows,
+              Inches(6.8), Inches(1.35), Inches(6), Inches(1.5),
+              col_widths=[Inches(3), Inches(3)])
+
+    # Capital Allocation
+    _gs_section_title(slide, "Capital Allocation", Inches(3.0))
+
+    div_yield = cd.dividend_yield
+    payout = getattr(cd, 'payout_ratio', None)
+    buyback = getattr(cd, 'share_buyback_yield', None)
+
+    alloc_rows = [
+        ["Dividend Yield", f"{div_yield*100:.2f}%" if div_yield else "N/A"],
+        ["Payout Ratio", f"{payout*100:.1f}%" if payout else "N/A"],
+        ["CapEx / Revenue", f"{abs(cd.capital_expenditure.iloc[0]) / cd.revenue.iloc[0] * 100:.1f}%" if cd.capital_expenditure is not None and len(cd.capital_expenditure) > 0 and cd.revenue is not None and len(cd.revenue) > 0 and cd.revenue.iloc[0] > 0 else "N/A"],
+    ]
+    _gs_table(slide, ["Metric", "Value"], alloc_rows,
+              Inches(6.8), Inches(3.35), Inches(6), Inches(1.1),
+              col_widths=[Inches(3), Inches(3)])
+
+    # Piotroski Score
+    _gs_section_title(slide, "Financial Health Score", Inches(5.0))
+    try:
+        piotroski = calculate_piotroski_score(cd)
+        if piotroski:
+            score = piotroski['score']
+            score_color = GREEN if score >= 7 else (RED if score <= 3 else DARK_GRAY)
+            label = "Strong" if score >= 7 else ("Weak" if score <= 3 else "Neutral")
+            _add_textbox(slide, Inches(0.5), Inches(5.35), Inches(5), Inches(0.5),
+                         f"Piotroski F-Score: {score} / 9  ({label})", font_size=16, bold=True, color=score_color)
+    except Exception:
+        _add_textbox(slide, Inches(0.5), Inches(5.35), Inches(5), Inches(0.5),
+                     "Piotroski F-Score: N/A", font_size=12, color=TEXT_DIM)
+
+
+def generate_presentation(cd: CompanyData, template_path: str = "assets/template.pptx", confidential: bool = False) -> io.BytesIO:
+    """Build the 7-slide dark-theme company profile with purple accents."""
     prs = Presentation(template_path)
     prs.slide_width = SLIDE_W
     prs.slide_height = SLIDE_H
 
-    _company_slide_1(prs, cd)  # Executive Summary
-    _company_slide_2(prs, cd)  # Financial Overview
-    _company_slide_3(prs, cd)  # Peer Comparison
-    _company_slide_valuation(prs, cd)  # Valuation Summary
+    _company_slide_1(prs, cd)           # Executive Summary
+    _company_slide_2(prs, cd)           # Financial Overview
+    _company_slide_3(prs, cd)           # Peer Comparison
+    _company_slide_valuation(prs, cd)   # Valuation Summary
+    _company_slide_esg(prs, cd)         # ESG Summary
+    _company_slide_lbo(prs, cd)         # LBO Returns
+    _company_slide_mgmt(prs, cd)        # Management Effectiveness
+
+    # Add slide numbers to all slides
+    for i, slide in enumerate(prs.slides, start=1):
+        _add_textbox(slide, Inches(6), SLIDE_H - Inches(0.4), Inches(1.333), Inches(0.3),
+                     str(i), font_size=7, color=TEXT_DIM, align=PP_ALIGN.CENTER)
+
+    # Add confidential watermark if requested
+    if confidential:
+        for slide in prs.slides:
+            _add_confidential_watermark(slide)
 
     buf = io.BytesIO()
     prs.save(buf)
@@ -828,8 +1113,8 @@ def _deal_slide_3(prs, acq, tgt, pf, assumptions, football_field):
 
 
 def generate_deal_book(acq_cd, tgt_cd, pro_forma, merger_insights, assumptions,
-                       template_path: str = "assets/template.pptx") -> io.BytesIO:
-    """Build the 3-slide Goldman Sachs-style deal book."""
+                       template_path: str = "assets/template.pptx", confidential: bool = False) -> io.BytesIO:
+    """Build the 3-slide dark-theme deal book with purple accents."""
     prs = Presentation(template_path)
     prs.slide_width = SLIDE_W
     prs.slide_height = SLIDE_H
@@ -837,6 +1122,15 @@ def generate_deal_book(acq_cd, tgt_cd, pro_forma, merger_insights, assumptions,
     _deal_slide_1(prs, acq_cd, tgt_cd, pro_forma, assumptions)  # Transaction Overview
     _deal_slide_2(prs, acq_cd, tgt_cd, pro_forma, assumptions)  # Financial Impact
     _deal_slide_3(prs, acq_cd, tgt_cd, pro_forma, assumptions, pro_forma.football_field)  # Valuation
+
+    # Add slide numbers
+    for i, slide in enumerate(prs.slides, start=1):
+        _add_textbox(slide, Inches(6), SLIDE_H - Inches(0.4), Inches(1.333), Inches(0.3),
+                     str(i), font_size=7, color=TEXT_DIM, align=PP_ALIGN.CENTER)
+
+    if confidential:
+        for slide in prs.slides:
+            _add_confidential_watermark(slide)
 
     buf = io.BytesIO()
     prs.save(buf)
