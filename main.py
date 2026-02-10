@@ -13528,6 +13528,328 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     )
 
     # ══════════════════════════════════════════════════════
+    # 14d. EARNINGS SURPRISE HISTORY (yfinance)
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Earnings Surprise History (yfinance)"):
+        try:
+            _yf_ticker = yf.Ticker(cd.ticker)
+            _eh = getattr(_yf_ticker, "earnings_history", None)
+            if _eh is None or (isinstance(_eh, pd.DataFrame) and _eh.empty):
+                _eh = getattr(_yf_ticker, "quarterly_earnings", None)
+            if _eh is not None and isinstance(_eh, pd.DataFrame) and not _eh.empty:
+                _section("Earnings Surprise History", "📊")
+                _eh_df = _eh.tail(8).copy()
+                _eh_df = _eh_df.reset_index()
+                # Detect column names (varies by yfinance version)
+                _actual_col = None
+                _est_col = None
+                for c in _eh_df.columns:
+                    cl = str(c).lower()
+                    if "actual" in cl or "reported" in cl:
+                        _actual_col = c
+                    elif "estim" in cl or "expected" in cl:
+                        _est_col = c
+                # quarterly_earnings uses "Actual" and "Estimate" or "Revenue"/"Earnings"
+                if _actual_col is None:
+                    for c in _eh_df.columns:
+                        cl = str(c).lower()
+                        if "earning" in cl and "surprise" not in cl:
+                            _actual_col = c
+                if _actual_col is not None:
+                    _qtr_labels = [str(idx) for idx in _eh_df.iloc[:, 0]]
+                    _actuals = pd.to_numeric(_eh_df[_actual_col], errors="coerce").tolist()
+                    _estimates = pd.to_numeric(_eh_df[_est_col], errors="coerce").tolist() if _est_col else [None]*len(_actuals)
+
+                    # Beat rate
+                    _beats = sum(1 for a, e in zip(_actuals, _estimates) if a is not None and e is not None and a >= e)
+                    _total_valid = sum(1 for a, e in zip(_actuals, _estimates) if a is not None and e is not None)
+                    _beat_rate = (_beats / _total_valid * 100) if _total_valid > 0 else 0
+
+                    _bar_colors = []
+                    for a, e in zip(_actuals, _estimates):
+                        if a is not None and e is not None:
+                            _bar_colors.append("#10B981" if a >= e else "#EF4444")
+                        else:
+                            _bar_colors.append("#8A85AD")
+
+                    fig_esh = go.Figure()
+                    if _est_col:
+                        fig_esh.add_trace(go.Bar(
+                            x=_qtr_labels, y=_estimates, name="Estimate",
+                            marker=dict(color="rgba(138,133,173,0.15)", line=dict(color="rgba(138,133,173,0.5)", width=1.5)),
+                            text=[f"{v:.2f}" if v is not None and not np.isnan(v) else "" for v in _estimates],
+                            textposition="outside", textfont=dict(size=9, color="#8A85AD"),
+                        ))
+                    fig_esh.add_trace(go.Bar(
+                        x=_qtr_labels, y=_actuals, name="Actual",
+                        marker=dict(color=_bar_colors, line=dict(color="rgba(255,255,255,0.2)", width=1)),
+                        text=[f"{v:.2f}" if v is not None and not np.isnan(v) else "" for v in _actuals],
+                        textposition="outside", textfont=dict(size=9, color="#B8B3D7"),
+                    ))
+                    fig_esh.update_layout(
+                        **_CHART_LAYOUT_BASE, height=420, barmode="group",
+                        margin=dict(t=40, b=40, l=60, r=40),
+                        xaxis=dict(tickfont=dict(size=11, color="#8A85AD"), showgrid=False),
+                        yaxis=dict(title=dict(text="EPS", font=dict(size=12, color="#8A85AD")),
+                                   tickfont=dict(size=11, color="#8A85AD"), tickprefix=cs),
+                        legend=dict(font=dict(size=11, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
+                    )
+                    _apply_space_grid(fig_esh)
+                    st.plotly_chart(fig_esh, use_container_width=True, key="yf_earnings_surprise_hist")
+
+                    # Beat rate badge
+                    _br_color = "#10B981" if _beat_rate >= 75 else "#F5A623" if _beat_rate >= 50 else "#EF4444"
+                    st.markdown(
+                        f'<div style="text-align:center; margin-top:0.5rem;">'
+                        f'<span style="background:rgba(107,92,231,0.08); border:1px solid {_br_color}; '
+                        f'border-radius:20px; padding:0.4rem 1.2rem; font-size:0.85rem; font-weight:700; color:{_br_color};">'
+                        f'Beat Rate: {_beat_rate:.0f}% ({_beats}/{_total_valid} quarters)</span></div>',
+                        unsafe_allow_html=True,
+                    )
+        except Exception:
+            pass
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # 14e. INSIDER TRANSACTION TIMELINE ON PRICE (yfinance)
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Insider Transaction Timeline"):
+        try:
+            _yf_ticker2 = yf.Ticker(cd.ticker)
+            _ins_txn = getattr(_yf_ticker2, "insider_transactions", None)
+            if _ins_txn is None or (isinstance(_ins_txn, pd.DataFrame) and _ins_txn.empty):
+                _ins_txn = getattr(_yf_ticker2, "insider_purchases", None)
+            if _ins_txn is not None and isinstance(_ins_txn, pd.DataFrame) and not _ins_txn.empty:
+                _section("Insider Transaction Timeline", "🕵️")
+                _price_hist = cd.hist_1y if cd.hist_1y is not None and not cd.hist_1y.empty else None
+                if _price_hist is not None and len(_price_hist) > 5:
+                    fig_itp = go.Figure()
+                    # Price line
+                    fig_itp.add_trace(go.Scatter(
+                        x=_price_hist.index, y=_price_hist["Close"],
+                        mode="lines", name="Price",
+                        line=dict(color="#6B5CE7", width=2),
+                    ))
+                    # Parse insider transactions
+                    _itdf = _ins_txn.reset_index() if _ins_txn.index.name else _ins_txn.copy()
+                    # Find date, shares, value, transaction type columns
+                    _date_c = _val_c = _shares_c = _type_c = _insider_c = None
+                    for c in _itdf.columns:
+                        cl = str(c).lower()
+                        if "date" in cl or "start" in cl:
+                            _date_c = c
+                        elif "value" in cl or "amount" in cl or "cost" in cl:
+                            _val_c = c
+                        elif "share" in cl:
+                            _shares_c = c
+                        elif "transaction" in cl or "type" in cl or "text" in cl:
+                            _type_c = c
+                        elif "insider" in cl or "name" in cl or "holder" in cl:
+                            _insider_c = c
+
+                    if _date_c:
+                        _itdf["_dt"] = pd.to_datetime(_itdf[_date_c], errors="coerce")
+                        _itdf = _itdf.dropna(subset=["_dt"])
+                        if _val_c:
+                            _itdf["_val"] = pd.to_numeric(_itdf[_val_c], errors="coerce").abs().fillna(0)
+                        elif _shares_c:
+                            _itdf["_val"] = pd.to_numeric(_itdf[_shares_c], errors="coerce").abs().fillna(0) * cd.current_price
+                        else:
+                            _itdf["_val"] = 1000  # default
+
+                        # Classify buys vs sells
+                        def _classify_txn(row):
+                            if _type_c and pd.notna(row.get(_type_c)):
+                                t = str(row[_type_c]).lower()
+                                if any(w in t for w in ["buy", "purchase", "acquisition", "award"]):
+                                    return "buy"
+                                elif any(w in t for w in ["sell", "sale", "dispos"]):
+                                    return "sell"
+                            if _shares_c and pd.notna(row.get(_shares_c)):
+                                return "buy" if float(row[_shares_c]) > 0 else "sell"
+                            return "buy"
+
+                        _itdf["_side"] = _itdf.apply(_classify_txn, axis=1)
+
+                        # Get price at insider dates
+                        _price_s = _price_hist["Close"]
+                        for side, color, name in [("buy", "#10B981", "Insider Buy"), ("sell", "#EF4444", "Insider Sell")]:
+                            _sub = _itdf[_itdf["_side"] == side]
+                            if len(_sub) == 0:
+                                continue
+                            # Map to closest price
+                            _y_vals = []
+                            for dt in _sub["_dt"]:
+                                idx = _price_s.index.get_indexer([dt], method="nearest")[0]
+                                _y_vals.append(_price_s.iloc[idx] if 0 <= idx < len(_price_s) else cd.current_price)
+                            _sizes = np.clip(_sub["_val"].values / (max(_sub["_val"].max(), 1)) * 25 + 6, 6, 35)
+                            _hover = [f"{r.get(_insider_c, 'Insider') if _insider_c else 'Insider'}<br>{cs}{r['_val']:,.0f}" for _, r in _sub.iterrows()]
+                            fig_itp.add_trace(go.Scatter(
+                                x=_sub["_dt"], y=_y_vals, mode="markers", name=name,
+                                marker=dict(color=color, size=_sizes, opacity=0.8,
+                                            line=dict(width=1.5, color="rgba(255,255,255,0.3)"),
+                                            symbol="circle"),
+                                text=_hover, hoverinfo="text+x",
+                            ))
+
+                    fig_itp.update_layout(
+                        **_CHART_LAYOUT_BASE, height=450,
+                        margin=dict(t=20, b=30, l=60, r=40),
+                        yaxis=dict(title="Price", tickprefix=cs, tickfont=dict(size=10, color="#8A85AD")),
+                        xaxis=dict(tickfont=dict(size=10, color="#8A85AD"), showgrid=False),
+                        legend=dict(font=dict(size=11, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
+                    )
+                    _apply_space_grid(fig_itp)
+                    st.plotly_chart(fig_itp, use_container_width=True, key="insider_price_timeline")
+        except Exception:
+            pass
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # 14f. RISK-ADJUSTED RETURNS TABLE (Stock vs S&P 500)
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Risk-Adjusted Returns"):
+        try:
+            _ra_hist = cd.hist_1y if cd.hist_1y is not None and not cd.hist_1y.empty else None
+            if _ra_hist is not None and len(_ra_hist) > 60:
+                _section("Risk-Adjusted Returns", "📐")
+                _spy_hist = yf.Ticker("SPY").history(period="1y")
+
+                def _calc_risk_metrics(prices):
+                    """Calculate Sharpe, Sortino, Max Drawdown, Calmar for a price series."""
+                    rets = prices.pct_change().dropna()
+                    if len(rets) < 20:
+                        return {"sharpe": None, "sortino": None, "max_dd": None, "calmar": None, "ann_ret": None}
+                    ann_ret = rets.mean() * 252
+                    ann_vol = rets.std() * np.sqrt(252)
+                    rf = 0.05
+                    sharpe = (ann_ret - rf) / ann_vol if ann_vol > 0 else 0
+                    # Sortino
+                    neg_rets = rets[rets < 0]
+                    downside_vol = neg_rets.std() * np.sqrt(252) if len(neg_rets) > 0 else ann_vol
+                    sortino = (ann_ret - rf) / downside_vol if downside_vol > 0 else 0
+                    # Max drawdown
+                    cum = (1 + rets).cumprod()
+                    max_dd = (cum / cum.cummax() - 1).min()
+                    # Calmar
+                    calmar = ann_ret / abs(max_dd) if max_dd != 0 else 0
+                    return {"sharpe": sharpe, "sortino": sortino, "max_dd": max_dd * 100, "calmar": calmar, "ann_ret": ann_ret * 100}
+
+                _stock_m = _calc_risk_metrics(_ra_hist["Close"])
+                _spy_m = _calc_risk_metrics(_spy_hist["Close"]) if _spy_hist is not None and not _spy_hist.empty else {}
+
+                _metrics_list = [
+                    ("Annualized Return", "ann_ret", "%", True),
+                    ("Sharpe Ratio", "sharpe", "", True),
+                    ("Sortino Ratio", "sortino", "", True),
+                    ("Max Drawdown", "max_dd", "%", False),
+                    ("Calmar Ratio", "calmar", "", True),
+                ]
+
+                _rows = ""
+                for label, key, suffix, higher_better in _metrics_list:
+                    sv = _stock_m.get(key)
+                    spv = _spy_m.get(key)
+                    sv_str = f"{sv:.2f}{suffix}" if sv is not None else "N/A"
+                    spv_str = f"{spv:.2f}{suffix}" if spv is not None else "N/A"
+                    # Color: compare stock vs S&P
+                    if sv is not None and spv is not None:
+                        if key == "max_dd":
+                            better = sv > spv  # less negative = better
+                        else:
+                            better = sv > spv if higher_better else sv < spv
+                        s_color = "#10B981" if better else "#EF4444"
+                    else:
+                        s_color = "#E0DCF5"
+                    _rows += (
+                        f'<tr>'
+                        f'<td style="font-weight:600; color:#B8B3D7;">{label}</td>'
+                        f'<td style="text-align:center; color:{s_color}; font-weight:700;">{sv_str}</td>'
+                        f'<td style="text-align:center; color:#E0DCF5;">{spv_str}</td>'
+                        f'</tr>'
+                    )
+
+                st.markdown(
+                    f'<table style="width:100%; border-collapse:collapse; background:rgba(107,92,231,0.04); border-radius:12px; overflow:hidden;">'
+                    f'<thead><tr style="border-bottom:2px solid rgba(107,92,231,0.2);">'
+                    f'<th style="text-align:left; padding:0.7rem 1rem; color:#9B8AFF; font-size:0.75rem; text-transform:uppercase;">Metric</th>'
+                    f'<th style="text-align:center; padding:0.7rem 1rem; color:#9B8AFF; font-size:0.75rem; text-transform:uppercase;">{cd.ticker}</th>'
+                    f'<th style="text-align:center; padding:0.7rem 1rem; color:#9B8AFF; font-size:0.75rem; text-transform:uppercase;">S&P 500</th>'
+                    f'</tr></thead>'
+                    f'<tbody style="font-size:0.85rem;">{_rows}</tbody></table>',
+                    unsafe_allow_html=True,
+                )
+        except Exception:
+            pass
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # 14g. SECTOR PERFORMANCE CONTEXT
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Sector Performance Context"):
+        try:
+            _SECTOR_ETF_MAP = {
+                "Technology": "XLK", "Communication Services": "XLC", "Healthcare": "XLV",
+                "Financials": "XLF", "Consumer Cyclical": "XLY", "Consumer Defensive": "XLP",
+                "Industrials": "XLI", "Energy": "XLE", "Utilities": "XLU",
+                "Real Estate": "XLRE", "Basic Materials": "XLB",
+            }
+            _sector_etf = _SECTOR_ETF_MAP.get(cd.sector)
+            if _sector_etf:
+                _section("Sector Relative Performance", "📊")
+                _periods = {"1M": 21, "3M": 63, "6M": 126, "1Y": 252}
+                _stock_hist_full = yf.Ticker(cd.ticker).history(period="1y")
+                _etf_hist_full = yf.Ticker(_sector_etf).history(period="1y")
+
+                if not _stock_hist_full.empty and not _etf_hist_full.empty:
+                    _perf_data = []
+                    for plabel, pdays in _periods.items():
+                        try:
+                            _sh = _stock_hist_full["Close"]
+                            _eh = _etf_hist_full["Close"]
+                            if len(_sh) >= pdays and len(_eh) >= pdays:
+                                s_ret = (_sh.iloc[-1] / _sh.iloc[-pdays] - 1) * 100
+                                e_ret = (_eh.iloc[-1] / _eh.iloc[-pdays] - 1) * 100
+                                _perf_data.append({"period": plabel, "stock": s_ret, "etf": e_ret, "relative": s_ret - e_ret})
+                        except Exception:
+                            pass
+
+                    if _perf_data:
+                        fig_sp = go.Figure()
+                        _p_labels = [d["period"] for d in _perf_data]
+                        _s_vals = [d["stock"] for d in _perf_data]
+                        _e_vals = [d["etf"] for d in _perf_data]
+                        _r_vals = [d["relative"] for d in _perf_data]
+                        _r_colors = ["#10B981" if v >= 0 else "#EF4444" for v in _r_vals]
+
+                        fig_sp.add_trace(go.Bar(x=_p_labels, y=_s_vals, name=cd.ticker,
+                            marker=dict(color="#6B5CE7", line=dict(width=0)), width=0.25, offset=-0.15))
+                        fig_sp.add_trace(go.Bar(x=_p_labels, y=_e_vals, name=_sector_etf,
+                            marker=dict(color="rgba(138,133,173,0.4)", line=dict(color="#8A85AD", width=1)), width=0.25, offset=0.15))
+                        # Relative performance markers
+                        fig_sp.add_trace(go.Scatter(x=_p_labels, y=_r_vals, name="Relative",
+                            mode="markers+text", marker=dict(color=_r_colors, size=12, symbol="diamond"),
+                            text=[f"{v:+.1f}%" for v in _r_vals], textposition="top center",
+                            textfont=dict(size=10, color="#E0DCF5")))
+
+                        fig_sp.update_layout(
+                            **_CHART_LAYOUT_BASE, height=380, barmode="group",
+                            margin=dict(t=40, b=40, l=60, r=40),
+                            yaxis=dict(title="Return %", ticksuffix="%", tickfont=dict(size=11, color="#8A85AD")),
+                            xaxis=dict(tickfont=dict(size=12, color="#8A85AD")),
+                            legend=dict(font=dict(size=11, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
+                        )
+                        _apply_space_grid(fig_sp)
+                        st.plotly_chart(fig_sp, use_container_width=True, key="sector_rel_perf")
+        except Exception:
+            pass
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
     # 15. INSIGHTS — 7 Rich Tabs
     # ══════════════════════════════════════════════════════
     _section("Insights")
@@ -19395,7 +19717,7 @@ st.markdown(
     '<a href="#">Documentation</a>'
     '<a href="#">API</a>'
     '</div>'
-    '<div class="orbital-footer-version">v5.8 · Built with Streamlit · Data from Yahoo Finance & Alpha Vantage</div>'
+    '<div class="orbital-footer-version">v6.0 · Built with Streamlit · Data from Yahoo Finance & Alpha Vantage</div>'
     '<div style="font-size:0.6rem; color:#6B6588; margin-top:0.5rem; max-width:600px; margin-left:auto; margin-right:auto;">'
     'This tool is for educational and research purposes only. Not financial advice. Data sourced from Yahoo Finance.'
     '</div>'
