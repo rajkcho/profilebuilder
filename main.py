@@ -6454,6 +6454,91 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             pass
 
     # ══════════════════════════════════════════════════════
+    # 2c-ii. SUM-OF-THE-PARTS (SOTP) VALUATION
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Sum-of-the-Parts"):
+        try:
+            _sotp_revenue = None
+            if cd.revenue is not None and len(cd.revenue) > 0:
+                _sotp_revenue = float(cd.revenue.iloc[0])
+            _sotp_mcap = cd.market_cap
+            if _sotp_revenue and _sotp_revenue > 0 and _sotp_mcap and _sotp_mcap > 0:
+                with st.expander("🧩 Sum-of-the-Parts (SOTP) Valuation", expanded=False):
+                    st.markdown(
+                        '<div style="font-size:0.75rem; color:#B8B3D7; margin-bottom:0.8rem;">'
+                        'Break down the company into business segments and value each separately '
+                        'to identify a potential conglomerate discount or premium.</div>',
+                        unsafe_allow_html=True,
+                    )
+                    _sotp_n = st.slider("Number of segments", 2, 4, 2, 1, key="sotp_n_segments")
+                    _sotp_segments = []
+                    _sotp_cols = st.columns(_sotp_n)
+                    _default_names = ["Core Business", "Growth Division", "Services", "Other"]
+                    _default_pcts = [60, 40, 0, 0]
+                    _remaining = 100
+                    for i in range(_sotp_n):
+                        with _sotp_cols[i]:
+                            _sname = st.text_input("Segment", _default_names[i], key=f"sotp_name_{i}")
+                            _dpct = _default_pcts[i] if i < len(_default_pcts) else 0
+                            if i == _sotp_n - 1:
+                                _dpct = _remaining
+                            _spct = st.number_input("Revenue %", 0, 100, min(_dpct, 100), 5, key=f"sotp_pct_{i}")
+                            _smult = st.number_input("EV/Revenue", 0.5, 30.0, 3.0, 0.5, key=f"sotp_mult_{i}")
+                            _sotp_segments.append({"name": _sname, "pct": _spct, "mult": _smult})
+                            _remaining -= _spct
+
+                    _sotp_total_pct = sum(s["pct"] for s in _sotp_segments)
+                    if _sotp_total_pct > 0:
+                        _sotp_results = []
+                        _sotp_total_ev = 0
+                        for s in _sotp_segments:
+                            _seg_rev = _sotp_revenue * (s["pct"] / 100)
+                            _seg_ev = _seg_rev * s["mult"]
+                            _sotp_total_ev += _seg_ev
+                            _sotp_results.append({"name": s["name"], "revenue": _seg_rev, "ev": _seg_ev, "mult": s["mult"]})
+
+                        _sotp_discount = ((_sotp_total_ev / _sotp_mcap) - 1) * 100
+
+                        # Metrics
+                        _sm1, _sm2, _sm3 = st.columns(3)
+                        _sm1.metric("SOTP Value", f"{cd.currency_symbol}{_sotp_total_ev / 1e9:.2f}B" if _sotp_total_ev > 1e9 else f"{cd.currency_symbol}{_sotp_total_ev / 1e6:.0f}M")
+                        _sm2.metric("Market Cap", f"{cd.currency_symbol}{_sotp_mcap / 1e9:.2f}B" if _sotp_mcap > 1e9 else f"{cd.currency_symbol}{_sotp_mcap / 1e6:.0f}M")
+                        _disc_label = "Premium" if _sotp_discount > 0 else "Discount"
+                        _sm3.metric(f"Conglomerate {_disc_label}", f"{abs(_sotp_discount):.1f}%",
+                                   delta=f"{_sotp_discount:+.1f}%")
+
+                        # Stacked bar chart
+                        fig_sotp = go.Figure()
+                        _sotp_colors = ["#6B5CE7", "#10B981", "#F59E0B", "#EF4444"]
+                        for idx, sr in enumerate(_sotp_results):
+                            fig_sotp.add_trace(go.Bar(
+                                x=["SOTP Valuation"], y=[sr["ev"]],
+                                name=f'{sr["name"]} ({sr["mult"]:.1f}x)',
+                                marker_color=_sotp_colors[idx % len(_sotp_colors)],
+                                text=[f'{cd.currency_symbol}{sr["ev"] / 1e9:.1f}B' if sr["ev"] > 1e9 else f'{cd.currency_symbol}{sr["ev"] / 1e6:.0f}M'],
+                                textposition="inside", textfont=dict(size=10, color="#E0DCF5"),
+                            ))
+                        # Market cap comparison bar
+                        fig_sotp.add_trace(go.Bar(
+                            x=["Market Cap"], y=[_sotp_mcap],
+                            name="Market Cap", marker_color="#8A85AD",
+                            text=[f'{cd.currency_symbol}{_sotp_mcap / 1e9:.1f}B' if _sotp_mcap > 1e9 else f'{cd.currency_symbol}{_sotp_mcap / 1e6:.0f}M'],
+                            textposition="inside", textfont=dict(size=10, color="#E0DCF5"),
+                        ))
+                        fig_sotp.update_layout(
+                            **_CHART_LAYOUT_BASE, height=320, barmode="stack",
+                            margin=dict(t=30, b=30, l=50, r=20),
+                            yaxis=dict(tickprefix=cd.currency_symbol, tickfont=dict(size=10, color="#8A85AD"),
+                                      showgrid=True, gridcolor="rgba(255,255,255,0.05)"),
+                            xaxis=dict(tickfont=dict(size=11, color="#B8B3D7")),
+                            legend=dict(font=dict(size=10, color="#B8B3D7")),
+                        )
+                        _apply_space_grid(fig_sotp)
+                        st.plotly_chart(fig_sotp, use_container_width=True, key="sotp_bar")
+        except Exception:
+            pass
+
+    # ══════════════════════════════════════════════════════
     # 2d. BULL / BEAR INVESTMENT THESIS
     # ══════════════════════════════════════════════════════
     with _safe_section("Investment Thesis"):
@@ -8741,6 +8826,116 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             )
     except Exception:
         pass
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # 10d-i-b. DEBT COVENANT MONITOR
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Debt Covenant Monitor"):
+        _section("Debt Covenant Monitor", "📋")
+        try:
+            _cov_ebitda = _safe_val(getattr(cd, 'ebitda', None))
+            _cov_ebit = _safe_val(getattr(cd, 'ebit', None))
+            _cov_interest = _safe_val(getattr(cd, 'interest_expense', None))
+            _cov_total_debt = _safe_val(getattr(cd, 'total_debt', None))
+            _cov_cash = _safe_val(getattr(cd, 'total_cash', getattr(cd, 'cash', None)))
+            _cov_cr = _safe_val(getattr(cd, 'current_ratio', None))
+            _cov_capex = _safe_val(getattr(cd, 'capital_expenditures', getattr(cd, 'capex', None)))
+            if _cov_capex and _cov_capex < 0:
+                _cov_capex = abs(_cov_capex)
+            if _cov_interest and _cov_interest < 0:
+                _cov_interest = abs(_cov_interest)
+
+            _cov_net_debt = (((_cov_total_debt or 0) - (_cov_cash or 0))) if _cov_total_debt else None
+            _cov_metrics = []
+
+            # 1. Net Debt / EBITDA (leverage)
+            if _cov_net_debt is not None and _cov_ebitda and _cov_ebitda > 0:
+                _lev = _cov_net_debt / _cov_ebitda
+                if _lev < 2.0:
+                    _lev_status, _lev_color, _lev_icon = "Safe", "#10B981", "🟢"
+                elif _lev < 3.5:
+                    _lev_status, _lev_color, _lev_icon = "Watch", "#F59E0B", "🟡"
+                else:
+                    _lev_status, _lev_color, _lev_icon = "Breach Risk", "#EF4444", "🔴"
+                _cov_metrics.append(("Net Debt / EBITDA", f"{_lev:.2f}x", "< 3.5x", _lev_status, _lev_color, _lev_icon, _lev, 3.5))
+
+            # 2. Interest Coverage = EBIT / Interest Expense
+            if _cov_ebit and _cov_interest and _cov_interest > 0:
+                _icr = _cov_ebit / _cov_interest
+                if _icr > 5.0:
+                    _icr_status, _icr_color, _icr_icon = "Safe", "#10B981", "🟢"
+                elif _icr > 3.0:
+                    _icr_status, _icr_color, _icr_icon = "Watch", "#F59E0B", "🟡"
+                else:
+                    _icr_status, _icr_color, _icr_icon = "Breach Risk", "#EF4444", "🔴"
+                _cov_metrics.append(("Interest Coverage", f"{_icr:.2f}x", "> 3.0x", _icr_status, _icr_color, _icr_icon, _icr, 3.0))
+
+            # 3. Current Ratio
+            if _cov_cr is not None:
+                if _cov_cr > 1.5:
+                    _cr_status, _cr_color, _cr_icon = "Safe", "#10B981", "🟢"
+                elif _cov_cr > 1.0:
+                    _cr_status, _cr_color, _cr_icon = "Watch", "#F59E0B", "🟡"
+                else:
+                    _cr_status, _cr_color, _cr_icon = "Breach Risk", "#EF4444", "🔴"
+                _cov_metrics.append(("Current Ratio", f"{_cov_cr:.2f}x", "> 1.0x", _cr_status, _cr_color, _cr_icon, _cov_cr, 1.0))
+
+            # 4. Debt Service Coverage = (EBITDA - CapEx) / (Interest + Principal estimate)
+            if _cov_ebitda and _cov_ebitda > 0 and _cov_interest and _cov_interest > 0:
+                _capex_use = _cov_capex if _cov_capex else 0
+                _principal_est = (_cov_total_debt or 0) * 0.05  # assume 5% annual principal
+                _dscr_denom = _cov_interest + _principal_est
+                if _dscr_denom > 0:
+                    _dscr = (_cov_ebitda - _capex_use) / _dscr_denom
+                    if _dscr > 2.0:
+                        _dscr_status, _dscr_color, _dscr_icon = "Safe", "#10B981", "🟢"
+                    elif _dscr > 1.2:
+                        _dscr_status, _dscr_color, _dscr_icon = "Watch", "#F59E0B", "🟡"
+                    else:
+                        _dscr_status, _dscr_color, _dscr_icon = "Breach Risk", "#EF4444", "🔴"
+                    _cov_metrics.append(("Debt Service Coverage", f"{_dscr:.2f}x", "> 1.2x", _dscr_status, _dscr_color, _dscr_icon, _dscr, 1.2))
+
+            if _cov_metrics:
+                # Traffic light summary
+                _tl_icons = " ".join(m[5] for m in _cov_metrics)
+                st.markdown(
+                    f'<div style="text-align:center; padding:0.6rem; background:rgba(107,92,231,0.05); '
+                    f'border-radius:12px; margin-bottom:1rem; border:1px solid rgba(107,92,231,0.15);">'
+                    f'<span style="font-size:1.5rem; letter-spacing:0.3rem;">{_tl_icons}</span>'
+                    f'<div style="font-size:0.7rem; color:#8A85AD; margin-top:0.3rem;">Covenant Health Summary</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+                # Gauge-style display for each metric
+                _cov_gauge_cols = st.columns(len(_cov_metrics))
+                for idx, (_name, _val_str, _thresh_str, _status, _color, _icon, _raw_val, _thresh) in enumerate(_cov_metrics):
+                    with _cov_gauge_cols[idx]:
+                        # Determine gauge fill (normalize to 0-100 for display)
+                        if "Net Debt" in _name:
+                            _fill_pct = max(0, min(100, (1 - _raw_val / 5.0) * 100))  # inverse - lower is better
+                        else:
+                            _fill_pct = max(0, min(100, (_raw_val / (_thresh * 2)) * 100))
+                        st.markdown(
+                            f'<div style="text-align:center; padding:0.8rem; background:rgba(107,92,231,0.04); '
+                            f'border-radius:12px; border:1px solid {_color}33;">'
+                            f'<div style="font-size:0.7rem; color:#8A85AD; margin-bottom:0.3rem;">{_name}</div>'
+                            f'<div style="font-size:1.5rem; font-weight:900; color:{_color};">{_val_str}</div>'
+                            f'<div style="margin:0.5rem auto; width:80%; background:rgba(255,255,255,0.05); '
+                            f'border-radius:6px; height:6px; overflow:hidden;">'
+                            f'<div style="width:{_fill_pct}%; height:100%; background:{_color}; border-radius:6px;"></div>'
+                            f'</div>'
+                            f'<div style="font-size:0.65rem; color:#8A85AD;">Threshold: {_thresh_str}</div>'
+                            f'<div style="font-size:0.7rem; font-weight:700; color:{_color};">{_icon} {_status}</div>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
+            else:
+                st.info("Insufficient financial data for covenant analysis.")
+        except Exception:
+            st.info("Could not compute covenant metrics.")
 
     _divider()
 
@@ -11876,6 +12071,156 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         _divider()
 
     # ══════════════════════════════════════════════════════
+    # M6c. TRANSACTION MULTIPLES TREND
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Transaction Multiples Trend"):
+        _all_deals_for_trend = []
+        if precedent and precedent.deals:
+            _all_deals_for_trend.extend(precedent.deals)
+        _all_deals_for_trend.extend(all_ma if all_ma else [])
+        # Filter deals with dates and at least one multiple
+        _trend_deals = []
+        for _td in _all_deals_for_trend:
+            _td_date = _td.get("date", _td.get("year", ""))
+            _td_ev_eb = _td.get("ev_ebitda")
+            _td_ev_rev = _td.get("ev_revenue")
+            if _td_date and (_td_ev_eb or _td_ev_rev):
+                try:
+                    import dateutil.parser as _dp
+                    _parsed = _dp.parse(str(_td_date))
+                    _trend_deals.append({"date": _parsed, "ev_ebitda": _td_ev_eb, "ev_revenue": _td_ev_rev,
+                                         "name": _td.get("name", _td.get("target", ""))})
+                except Exception:
+                    pass
+        if len(_trend_deals) >= 3:
+            _section("Transaction Multiples Trend", "📈")
+            st.markdown(
+                '<div style="font-size:0.8rem; color:#B8B3D7; margin-bottom:0.8rem;">'
+                'Are sector deal multiples compressing or expanding over time?</div>',
+                unsafe_allow_html=True,
+            )
+            _trend_deals.sort(key=lambda x: x["date"])
+            _t_dates = [d["date"] for d in _trend_deals]
+            _t_ev_eb = [d["ev_ebitda"] for d in _trend_deals]
+            _t_ev_rev = [d["ev_revenue"] for d in _trend_deals]
+            _t_names = [d["name"] for d in _trend_deals]
+
+            fig_trend = go.Figure()
+            _has_eb = any(v is not None for v in _t_ev_eb)
+            _has_rev = any(v is not None for v in _t_ev_rev)
+            if _has_eb:
+                _valid_eb = [(d, v, n) for d, v, n in zip(_t_dates, _t_ev_eb, _t_names) if v is not None]
+                fig_trend.add_trace(go.Scatter(
+                    x=[d for d, v, n in _valid_eb], y=[v for d, v, n in _valid_eb],
+                    mode="markers+lines", name="EV/EBITDA",
+                    text=[n for d, v, n in _valid_eb], hovertemplate="%{text}<br>%{x|%Y-%m}<br>%{y:.1f}x",
+                    marker=dict(color="#6B5CE7", size=8), line=dict(color="#6B5CE7", width=1, dash="dot"),
+                ))
+                # Trendline
+                if len(_valid_eb) >= 3:
+                    import numpy as np
+                    _eb_x_num = np.array([(d - _valid_eb[0][0]).days for d, v, n in _valid_eb], dtype=float)
+                    _eb_y_vals = np.array([v for d, v, n in _valid_eb])
+                    _eb_coeffs = np.polyfit(_eb_x_num, _eb_y_vals, 1)
+                    _eb_trend_y = np.polyval(_eb_coeffs, _eb_x_num)
+                    fig_trend.add_trace(go.Scatter(
+                        x=[d for d, v, n in _valid_eb], y=_eb_trend_y,
+                        mode="lines", name="EV/EBITDA Trend",
+                        line=dict(color="#6B5CE7", width=2), showlegend=True,
+                    ))
+            if _has_rev:
+                _valid_rev = [(d, v, n) for d, v, n in zip(_t_dates, _t_ev_rev, _t_names) if v is not None]
+                fig_trend.add_trace(go.Scatter(
+                    x=[d for d, v, n in _valid_rev], y=[v for d, v, n in _valid_rev],
+                    mode="markers+lines", name="EV/Revenue",
+                    text=[n for d, v, n in _valid_rev], hovertemplate="%{text}<br>%{x|%Y-%m}<br>%{y:.1f}x",
+                    marker=dict(color="#10B981", size=8), line=dict(color="#10B981", width=1, dash="dot"),
+                ))
+                if len(_valid_rev) >= 3:
+                    _rv_x_num = np.array([(d - _valid_rev[0][0]).days for d, v, n in _valid_rev], dtype=float)
+                    _rv_y_vals = np.array([v for d, v, n in _valid_rev])
+                    _rv_coeffs = np.polyfit(_rv_x_num, _rv_y_vals, 1)
+                    _rv_trend_y = np.polyval(_rv_coeffs, _rv_x_num)
+                    fig_trend.add_trace(go.Scatter(
+                        x=[d for d, v, n in _valid_rev], y=_rv_trend_y,
+                        mode="lines", name="EV/Revenue Trend",
+                        line=dict(color="#10B981", width=2), showlegend=True,
+                    ))
+            fig_trend.update_layout(
+                **_CHART_LAYOUT_BASE, height=350,
+                margin=dict(t=30, b=40, l=50, r=30),
+                yaxis=dict(title=dict(text="Multiple (x)", font=dict(size=11, color="#8A85AD")),
+                          tickfont=dict(size=10, color="#8A85AD")),
+                xaxis=dict(tickfont=dict(size=10, color="#B8B3D7")),
+                legend=dict(font=dict(size=10, color="#B8B3D7")),
+            )
+            _apply_space_grid(fig_trend)
+            st.plotly_chart(fig_trend, use_container_width=True, key="txn_multiples_trend")
+            _divider()
+
+    # ══════════════════════════════════════════════════════
+    # M6d. DEAL STRUCTURE ANALYSIS
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Deal Structure Analysis"):
+        _section("Deal Structure Analysis", "💼")
+        st.markdown(
+            '<div style="font-size:0.8rem; color:#B8B3D7; margin-bottom:0.8rem;">'
+            'Typical M&A deal structure breakdown in the sector — Cash vs Stock vs Mixed consideration.</div>',
+            unsafe_allow_html=True,
+        )
+        _ds_sector = getattr(tgt_cd, 'sector', 'Technology')
+        # Industry-average deal structure approximations by sector
+        _deal_structures = {
+            "Technology": {"Cash": 55, "Stock": 30, "Mixed": 15},
+            "Healthcare": {"Cash": 60, "Stock": 25, "Mixed": 15},
+            "Financial Services": {"Cash": 50, "Stock": 35, "Mixed": 15},
+            "Consumer Cyclical": {"Cash": 45, "Stock": 35, "Mixed": 20},
+            "Industrials": {"Cash": 50, "Stock": 30, "Mixed": 20},
+            "Energy": {"Cash": 40, "Stock": 40, "Mixed": 20},
+            "Communication Services": {"Cash": 50, "Stock": 35, "Mixed": 15},
+            "Consumer Defensive": {"Cash": 55, "Stock": 30, "Mixed": 15},
+            "Basic Materials": {"Cash": 45, "Stock": 35, "Mixed": 20},
+            "Real Estate": {"Cash": 35, "Stock": 45, "Mixed": 20},
+            "Utilities": {"Cash": 50, "Stock": 35, "Mixed": 15},
+        }
+        _ds = _deal_structures.get(_ds_sector, {"Cash": 50, "Stock": 35, "Mixed": 15})
+        _ds_c1, _ds_c2 = st.columns([1, 1])
+        with _ds_c1:
+            fig_ds = go.Figure(data=[go.Pie(
+                labels=list(_ds.keys()), values=list(_ds.values()),
+                hole=0.45, textinfo="label+percent",
+                marker=dict(colors=["#6B5CE7", "#10B981", "#F59E0B"]),
+                textfont=dict(size=11, color="#E0DCF5"),
+            )])
+            fig_ds.update_layout(
+                **_CHART_LAYOUT_BASE, height=280,
+                margin=dict(t=20, b=20, l=20, r=20),
+                showlegend=False,
+                annotations=[dict(text=_ds_sector[:12], x=0.5, y=0.5, font_size=11,
+                                 font_color="#8A85AD", showarrow=False)],
+            )
+            st.plotly_chart(fig_ds, use_container_width=True, key="deal_structure_pie")
+        with _ds_c2:
+            st.markdown(
+                f'<div style="padding:1rem; background:rgba(107,92,231,0.05); border-radius:12px; '
+                f'border:1px solid rgba(107,92,231,0.15);">'
+                f'<div style="font-size:0.85rem; font-weight:700; color:#E0DCF5; margin-bottom:0.5rem;">'
+                f'Sector: {_ds_sector}</div>'
+                f'<div style="font-size:0.78rem; color:#B8B3D7; line-height:1.7;">'
+                f'💵 <b>Cash deals</b> ({_ds["Cash"]}%) — Faster close, taxable to target shareholders<br>'
+                f'📊 <b>Stock deals</b> ({_ds["Stock"]}%) — Tax-deferred, shared upside/downside<br>'
+                f'🔀 <b>Mixed</b> ({_ds["Mixed"]}%) — Balance of certainty and upside participation<br><br>'
+                f'<span style="font-size:0.72rem; color:#8A85AD;">'
+                f'💡 <b>Earnouts & Contingent Consideration:</b> Common in {_ds_sector.lower()} deals where '
+                f'future performance is uncertain. Typically 10-30% of deal value tied to milestones '
+                f'(revenue targets, product approvals, customer retention). Bridges valuation gaps between '
+                f'buyer and seller expectations.</span>'
+                f'</div></div>',
+                unsafe_allow_html=True,
+            )
+        _divider()
+
+    # ══════════════════════════════════════════════════════
     # M7. SOURCES & USES
     # ══════════════════════════════════════════════════════
     _section("Sources & Uses")
@@ -12931,6 +13276,166 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
           except Exception:
             st.info("Could not run Monte Carlo simulation.")
         
+        _divider()
+
+        # ══════════════════════════════════════════════════════
+        # LBO MODEL (Leveraged Buyout)
+        # ══════════════════════════════════════════════════════
+        with _safe_section("LBO Model"):
+            _section("Simple LBO Model", "🏦")
+            st.markdown(
+                '<div style="font-size:0.85rem; color:#B8B3D7; margin-bottom:1rem;">'
+                'Leveraged buyout returns analysis — estimate equity IRR and MOIC under an LBO scenario.'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+            try:
+                _lbo_ebitda_val = None
+                if dcf_result.get("base_fcf") and dcf_result["base_fcf"] > 0:
+                    _lbo_ebitda_val = dcf_result["base_fcf"]
+                if hasattr(cd, 'ebitda'):
+                    _eb = cd.ebitda
+                    if hasattr(_eb, 'iloc') and len(_eb) > 0:
+                        _lbo_ebitda_val = float(_eb.iloc[0])
+                    elif isinstance(_eb, (int, float)) and _eb > 0:
+                        _lbo_ebitda_val = float(_eb)
+
+                if _lbo_ebitda_val and _lbo_ebitda_val > 0:
+                    with st.expander("🏦 LBO Analysis", expanded=False):
+                        _lbo_c1, _lbo_c2, _lbo_c3 = st.columns(3)
+                        with _lbo_c1:
+                            lbo_entry_mult = st.number_input("Entry EV/EBITDA", 4.0, 25.0, 10.0, 0.5, key="lbo_entry_mult")
+                            lbo_hold = st.number_input("Hold Period (yrs)", 3, 10, 5, 1, key="lbo_hold")
+                        with _lbo_c2:
+                            lbo_debt_pct = st.slider("Debt %", 30, 80, 60, 5, key="lbo_debt_pct") / 100.0
+                            lbo_int_rate = st.number_input("Interest Rate (%)", 2.0, 15.0, 6.0, 0.5, key="lbo_int_rate") / 100.0
+                        with _lbo_c3:
+                            lbo_exit_mult = st.number_input("Exit EV/EBITDA", 4.0, 25.0, lbo_entry_mult, 0.5, key="lbo_exit_mult")
+                            lbo_ebitda_growth = st.number_input("EBITDA Growth (%/yr)", -5.0, 20.0, 5.0, 1.0, key="lbo_ebitda_gr") / 100.0
+
+                        # LBO Calculations
+                        lbo_entry_ev = _lbo_ebitda_val * lbo_entry_mult
+                        lbo_entry_debt = lbo_entry_ev * lbo_debt_pct
+                        lbo_entry_equity = lbo_entry_ev * (1 - lbo_debt_pct)
+
+                        # Annual projection: EBITDA grows, FCF pays down debt
+                        _lbo_debt_remaining = lbo_entry_debt
+                        _lbo_ebitda_yr = _lbo_ebitda_val
+                        _lbo_annual = []
+                        for yr in range(1, lbo_hold + 1):
+                            _lbo_ebitda_yr *= (1 + lbo_ebitda_growth)
+                            _lbo_interest = _lbo_debt_remaining * lbo_int_rate
+                            _lbo_fcf = _lbo_ebitda_yr * 0.5 - _lbo_interest  # assume ~50% EBITDA-to-FCF conversion
+                            _lbo_paydown = max(0, _lbo_fcf)
+                            _lbo_debt_remaining = max(0, _lbo_debt_remaining - _lbo_paydown)
+                            _lbo_annual.append({
+                                "year": yr, "ebitda": _lbo_ebitda_yr, "interest": _lbo_interest,
+                                "fcf": _lbo_fcf, "paydown": _lbo_paydown, "debt": _lbo_debt_remaining
+                            })
+
+                        lbo_exit_ev = _lbo_ebitda_yr * lbo_exit_mult
+                        lbo_exit_equity = lbo_exit_ev - _lbo_debt_remaining
+                        lbo_moic = lbo_exit_equity / lbo_entry_equity if lbo_entry_equity > 0 else 0
+                        lbo_total_debt_paydown = lbo_entry_debt - _lbo_debt_remaining
+
+                        # IRR calculation
+                        try:
+                            _lbo_cashflows = [-lbo_entry_equity] + [0] * (lbo_hold - 1) + [lbo_exit_equity]
+                            lbo_irr = np.irr(_lbo_cashflows) if hasattr(np, 'irr') else None
+                            if lbo_irr is None:
+                                import numpy_financial as npf
+                                lbo_irr = npf.irr(_lbo_cashflows)
+                        except Exception:
+                            lbo_irr = (lbo_moic ** (1.0 / lbo_hold) - 1) if lbo_moic > 0 and lbo_hold > 0 else 0
+
+                        # Display metrics
+                        _lm1, _lm2, _lm3, _lm4 = st.columns(4)
+                        _lm1.metric("Entry Equity", f"{cs}{lbo_entry_equity / 1e9:.2f}B" if lbo_entry_equity > 1e9 else f"{cs}{lbo_entry_equity / 1e6:.0f}M")
+                        _lm2.metric("Exit Equity", f"{cs}{lbo_exit_equity / 1e9:.2f}B" if lbo_exit_equity > 1e9 else f"{cs}{lbo_exit_equity / 1e6:.0f}M")
+                        _lm3.metric("MOIC", f"{lbo_moic:.2f}x")
+                        _irr_color = "#10B981" if lbo_irr and lbo_irr > 0.20 else "#F59E0B" if lbo_irr and lbo_irr > 0.10 else "#EF4444"
+                        _lm4.metric("IRR", f"{lbo_irr * 100:.1f}%" if lbo_irr else "N/A")
+
+                        # Waterfall chart
+                        _lbo_wf_labels = ["Entry Equity", "EBITDA Growth", "Multiple Expansion", "Debt Paydown", "Exit Equity"]
+                        _ebitda_growth_val = (lbo_exit_mult * (_lbo_ebitda_yr - _lbo_ebitda_val))
+                        _mult_expansion_val = (_lbo_ebitda_yr * (lbo_exit_mult - lbo_entry_mult))
+                        _lbo_wf_values = [lbo_entry_equity, _ebitda_growth_val, _mult_expansion_val, lbo_total_debt_paydown, 0]
+                        _lbo_wf_measures = ["absolute", "relative", "relative", "relative", "total"]
+
+                        fig_lbo_wf = go.Figure(go.Waterfall(
+                            x=_lbo_wf_labels, y=_lbo_wf_values, measure=_lbo_wf_measures,
+                            connector=dict(line=dict(color="rgba(138,133,173,0.3)", width=1)),
+                            increasing=dict(marker=dict(color="#10B981")),
+                            decreasing=dict(marker=dict(color="#EF4444")),
+                            totals=dict(marker=dict(color="#6B5CE7")),
+                            textposition="outside",
+                            text=[f"{cs}{v / 1e9:.2f}B" if abs(v) > 1e9 else f"{cs}{v / 1e6:.0f}M" for v in
+                                  [lbo_entry_equity, _ebitda_growth_val, _mult_expansion_val, lbo_total_debt_paydown, lbo_exit_equity]],
+                            textfont=dict(size=10, color="#E0DCF5"),
+                        ))
+                        fig_lbo_wf.update_layout(
+                            **_CHART_LAYOUT_BASE, height=350,
+                            margin=dict(t=30, b=40, l=50, r=30),
+                            yaxis=dict(tickprefix=cs, tickfont=dict(size=10, color="#8A85AD"), showgrid=True,
+                                      gridcolor="rgba(255,255,255,0.05)"),
+                            xaxis=dict(tickfont=dict(size=10, color="#B8B3D7")),
+                            showlegend=False,
+                        )
+                        _apply_space_grid(fig_lbo_wf)
+                        st.plotly_chart(fig_lbo_wf, use_container_width=True, key="lbo_waterfall")
+
+                        # Sensitivity matrix: IRR vs Entry Multiple vs Exit Multiple
+                        st.markdown(
+                            '<div style="font-size:0.8rem; color:#B8B3D7; margin-top:1rem; margin-bottom:0.5rem;">'
+                            '<b>IRR Sensitivity Matrix</b> — Entry Multiple vs Exit Multiple</div>',
+                            unsafe_allow_html=True,
+                        )
+                        _entry_range = [lbo_entry_mult + d for d in [-2, -1, 0, 1, 2]]
+                        _exit_range = [lbo_exit_mult + d for d in [-2, -1, 0, 1, 2]]
+                        _irr_matrix = []
+                        for em in _entry_range:
+                            row = []
+                            for xm in _exit_range:
+                                _e_ev = _lbo_ebitda_val * em
+                                _e_eq = _e_ev * (1 - lbo_debt_pct)
+                                _e_debt = _e_ev * lbo_debt_pct
+                                _d_rem = _e_debt
+                                _eb_y = _lbo_ebitda_val
+                                for _ in range(lbo_hold):
+                                    _eb_y *= (1 + lbo_ebitda_growth)
+                                    _int = _d_rem * lbo_int_rate
+                                    _fcf_y = _eb_y * 0.5 - _int
+                                    _d_rem = max(0, _d_rem - max(0, _fcf_y))
+                                _x_ev = _eb_y * xm
+                                _x_eq = _x_ev - _d_rem
+                                _m = _x_eq / _e_eq if _e_eq > 0 else 0
+                                _i = (_m ** (1.0 / lbo_hold) - 1) if _m > 0 and lbo_hold > 0 else -1
+                                row.append(_i * 100)
+                            _irr_matrix.append(row)
+
+                        fig_irr_heat = go.Figure(data=go.Heatmap(
+                            z=_irr_matrix,
+                            x=[f"{x:.1f}x" for x in _exit_range],
+                            y=[f"{e:.1f}x" for e in _entry_range],
+                            text=[[f"{v:.1f}%" for v in row] for row in _irr_matrix],
+                            texttemplate="%{text}", textfont=dict(size=10, color="#E0DCF5"),
+                            colorscale=[[0, "#EF4444"], [0.5, "#F59E0B"], [1, "#10B981"]],
+                            colorbar=dict(title=dict(text="IRR %", font=dict(size=10, color="#8A85AD")),
+                                         tickfont=dict(size=9, color="#8A85AD")),
+                        ))
+                        fig_irr_heat.update_layout(
+                            **_CHART_LAYOUT_BASE, height=320,
+                            margin=dict(t=30, b=50, l=60, r=30),
+                            xaxis=dict(title=dict(text="Exit Multiple", font=dict(size=11, color="#8A85AD")),
+                                      tickfont=dict(size=10, color="#B8B3D7")),
+                            yaxis=dict(title=dict(text="Entry Multiple", font=dict(size=11, color="#8A85AD")),
+                                      tickfont=dict(size=10, color="#B8B3D7")),
+                        )
+                        st.plotly_chart(fig_irr_heat, use_container_width=True, key="lbo_irr_sensitivity")
+            except Exception as e:
+                st.info(f"LBO model requires EBITDA data. {str(e)[:80]}")
+
         _divider()
 
         # ══════════════════════════════════════════════════════
