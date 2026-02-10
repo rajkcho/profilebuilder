@@ -134,6 +134,37 @@ def _fetch_vms_screening_data(tickers_tuple):
             ev_rev = (ev / revenue) if revenue > 0 else 0
             ev_ebitda = (ev / ebitda) if ebitda > 0 else 0
             rev_growth_pct = (rev_growth * 100) if rev_growth is not None else 0
+            # Rule of 40 = Revenue Growth % + EBITDA Margin %
+            rule_of_40 = round(rev_growth_pct + ebitda_margin, 1)
+
+            # Acquisition Attractiveness Score (0-100)
+            _attr_score = 0
+            # Recurring revenue / SaaS premium (up to 25 pts)
+            _sector = (info.get("sector", "") or "").lower()
+            _industry = (info.get("industry", "") or "").lower()
+            if "software" in _industry or "saas" in _industry or "cloud" in _industry:
+                _attr_score += 25
+            elif "tech" in _sector:
+                _attr_score += 15
+            else:
+                _attr_score += 8
+            # Rule of 40 component (up to 25 pts)
+            _attr_score += max(0, min(25, rule_of_40 * 0.625))
+            # Market cap / revenue ratio - lower = cheaper = more attractive (up to 25 pts)
+            mcap = info.get("marketCap", 0) or 0
+            rev_m = revenue / 1e6 if revenue > 0 else 0
+            if rev_m > 0:
+                _ps = mcap / revenue
+                _attr_score += max(0, min(25, (5 - _ps) * 5))
+            # Revenue size sweet spot $5-200M (up to 25 pts)
+            if 5 <= rev_m <= 200:
+                _attr_score += 25
+            elif rev_m < 5:
+                _attr_score += max(0, rev_m * 5)
+            else:
+                _attr_score += max(0, 25 - (rev_m - 200) * 0.05)
+            _attr_score = round(max(0, min(100, _attr_score)), 0)
+
             results.append({
                 "Company": item["name"],
                 "Ticker": item["ticker"],
@@ -144,6 +175,8 @@ def _fetch_vms_screening_data(tickers_tuple):
                 "Revenue Growth (%)": round(rev_growth_pct, 1),
                 "EV/Revenue": round(ev_rev, 2),
                 "EV/EBITDA": round(ev_ebitda, 1),
+                "Rule of 40": rule_of_40,
+                "Attractiveness": int(_attr_score),
             })
         except Exception:
             pass
@@ -4990,6 +5023,64 @@ with st.sidebar:
     # MODE-SPECIFIC SIDEBAR CONTENT
     # ══════════════════════════════════════════════════════
     
+    # ── Global Exchange Detection ──
+    _EXCHANGE_MAP = {
+        ".TO": ("Toronto Stock Exchange (TSX)", "CAD", "C$"),
+        ".V": ("TSX Venture Exchange", "CAD", "C$"),
+        ".L": ("London Stock Exchange", "GBP", "£"),
+        ".T": ("Tokyo Stock Exchange", "JPY", "¥"),
+        ".HK": ("Hong Kong Stock Exchange", "HKD", "HK$"),
+        ".DE": ("Frankfurt Stock Exchange", "EUR", "€"),
+        ".PA": ("Euronext Paris", "EUR", "€"),
+        ".AX": ("Australian Securities Exchange", "AUD", "A$"),
+        ".MI": ("Borsa Italiana", "EUR", "€"),
+        ".AS": ("Euronext Amsterdam", "EUR", "€"),
+        ".SW": ("SIX Swiss Exchange", "CHF", "CHF "),
+        ".SI": ("Singapore Exchange", "SGD", "S$"),
+    }
+
+    def _detect_exchange(ticker_str):
+        """Detect exchange from ticker suffix. Returns (exchange_name, currency_code, currency_symbol) or None."""
+        if not ticker_str:
+            return None
+        for suffix, info in _EXCHANGE_MAP.items():
+            if ticker_str.upper().endswith(suffix.upper()):
+                return info
+        return ("US Exchange (NYSE/NASDAQ)", "USD", "$")
+
+    def _show_exchange_info(ticker_str):
+        """Show detected exchange info in sidebar."""
+        if not ticker_str:
+            return
+        exch = _detect_exchange(ticker_str)
+        if exch:
+            st.markdown(
+                f'<div style="background:rgba(107,92,231,0.06); border-radius:8px; padding:0.5rem; '
+                f'margin:0.3rem 0; font-size:0.72rem; color:#B8B3D7;">'
+                f'🏦 <b>{exch[0]}</b> · {exch[1]} ({exch[2]})</div>',
+                unsafe_allow_html=True,
+            )
+
+    # Exchange Guide (shown once in sidebar)
+    with st.expander("🌍 Exchange Guide", expanded=False):
+        st.markdown(
+            '<div style="font-size:0.7rem; color:#8A85AD; line-height:1.8;">'
+            '<b>Common ticker suffixes:</b><br>'
+            '🇨🇦 <code>.TO</code> → TSX (Toronto) · CAD<br>'
+            '🇬🇧 <code>.L</code> → LSE (London) · GBP<br>'
+            '🇯🇵 <code>.T</code> → JPX (Tokyo) · JPY<br>'
+            '🇭🇰 <code>.HK</code> → HKEX · HKD<br>'
+            '🇩🇪 <code>.DE</code> → Frankfurt · EUR<br>'
+            '🇫🇷 <code>.PA</code> → Paris · EUR<br>'
+            '🇦🇺 <code>.AX</code> → ASX (Sydney) · AUD<br>'
+            '🇨🇭 <code>.SW</code> → SIX (Zurich) · CHF<br>'
+            '🇺🇸 No suffix → NYSE/NASDAQ · USD'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+    st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
+
     # Initialize all variables with defaults
     ticker_input = ""
     generate_btn = False
@@ -5025,6 +5116,7 @@ with st.sidebar:
 
         # Show company preview card
         if ticker_input:
+            _show_exchange_info(ticker_input)
             _render_company_card(ticker_input)
             # Add to watchlist button
             if not _is_in_watchlist(ticker_input):
@@ -5069,6 +5161,7 @@ with st.sidebar:
         ).strip().upper()
 
         if comps_ticker_input:
+            _show_exchange_info(comps_ticker_input)
             _render_company_card(comps_ticker_input)
 
         st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
@@ -5189,6 +5282,7 @@ with st.sidebar:
         ).strip().upper()
         
         if dcf_ticker_input:
+            _show_exchange_info(dcf_ticker_input)
             _render_company_card(dcf_ticker_input)
         
         st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
@@ -5440,24 +5534,59 @@ with st.sidebar:
     vms_rev_max = 500
     vms_ebitda_min = 0
     vms_growth_min = 0
+    vms_rule40_min = -50
     vms_industries = []
     vms_geographies = []
+    vms_target_profile = "Custom"
 
     if analysis_mode == "VMS Screener":
         # ── VMS Screener Mode ──
+
+        # Target Profiles — pre-built screens
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">🎯</span> TARGET PROFILE</div>',
+            unsafe_allow_html=True,
+        )
+        vms_target_profile = st.selectbox(
+            "Target Profile",
+            ["Custom", "Classic CSU Target", "Growth VMS", "Turnaround Opportunity", "Cash Cow"],
+            key="vms_target_profile_sel",
+            label_visibility="collapsed",
+        )
+
+        # Set defaults based on profile
+        _vms_defaults = {
+            "Custom": {"rev_min": 1, "rev_max": 500, "ebitda_min": 0, "growth_min": -20, "rule40_min": -50},
+            "Classic CSU Target": {"rev_min": 5, "rev_max": 50, "ebitda_min": 15, "growth_min": -20, "rule40_min": -50},
+            "Growth VMS": {"rev_min": 1, "rev_max": 500, "ebitda_min": 0, "growth_min": 20, "rule40_min": 40},
+            "Turnaround Opportunity": {"rev_min": 1, "rev_max": 500, "ebitda_min": 10, "growth_min": -20, "rule40_min": -50},
+            "Cash Cow": {"rev_min": 1, "rev_max": 500, "ebitda_min": 25, "growth_min": -20, "rule40_min": -50},
+        }
+        _vd = _vms_defaults.get(vms_target_profile, _vms_defaults["Custom"])
+
+        if vms_target_profile != "Custom":
+            st.markdown(
+                f'<div style="background:rgba(107,92,231,0.08); border-radius:8px; padding:0.6rem; '
+                f'font-size:0.72rem; color:#9B8AFF; margin-bottom:0.5rem;">'
+                f'🎯 <b>{vms_target_profile}</b> preset applied. Adjust sliders to customize.</div>',
+                unsafe_allow_html=True,
+            )
+
         st.markdown(
             '<div class="sb-section"><span class="sb-section-icon">🔍</span> SCREENING CRITERIA</div>',
             unsafe_allow_html=True,
         )
         st.markdown('<div style="font-size:0.7rem; color:#8A85AD; margin-bottom:0.5rem;">Revenue Range ($M)</div>', unsafe_allow_html=True)
-        vms_rev_min = st.slider("Min Revenue ($M)", 1, 500, 1, 1, key="vms_rev_min_sl")
-        vms_rev_max = st.slider("Max Revenue ($M)", 1, 500, 500, 1, key="vms_rev_max_sl")
+        vms_rev_min = st.slider("Min Revenue ($M)", 1, 500, _vd["rev_min"], 1, key="vms_rev_min_sl")
+        vms_rev_max = st.slider("Max Revenue ($M)", 1, 500, min(500, max(_vd["rev_max"], _vd["rev_min"] + 1)), 1, key="vms_rev_max_sl")
         if vms_rev_min > vms_rev_max:
             vms_rev_min, vms_rev_max = vms_rev_max, vms_rev_min
 
         st.markdown('<div style="font-size:0.7rem; color:#8A85AD; margin-top:0.5rem;">Profitability & Growth</div>', unsafe_allow_html=True)
-        vms_ebitda_min = st.slider("Min EBITDA Margin (%)", 0, 50, 10, 1, key="vms_ebitda_sl")
-        vms_growth_min = st.slider("Min Revenue Growth (%)", -20, 50, 0, 1, key="vms_growth_sl")
+        vms_ebitda_min = st.slider("Min EBITDA Margin (%)", 0, 50, _vd["ebitda_min"], 1, key="vms_ebitda_sl")
+        vms_growth_min = st.slider("Min Revenue Growth (%)", -20, 50, max(-20, _vd["growth_min"]), 1, key="vms_growth_sl")
+        vms_rule40_min = st.slider("Min Rule of 40", -50, 80, _vd["rule40_min"], 1, key="vms_rule40_sl",
+                                    help="Rule of 40 = Revenue Growth % + EBITDA Margin %")
 
         st.markdown(
             '<div class="sb-section"><span class="sb-section-icon">🏭</span> INDUSTRY FILTER</div>',
@@ -10907,11 +11036,101 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
         )
         
         comps_df = generate_comps_table(comps_analysis)
+
+        # Conditional formatting on raw numeric data before display formatting
+        _val_cols = ["EV/Rev", "EV/EBITDA", "P/E"]
+
+        def _comps_highlight(df_raw):
+            """Apply green (cheapest) to red (most expensive) gradient on valuation cols."""
+            styles = pd.DataFrame("", index=df_raw.index, columns=df_raw.columns)
+            # Only style peer rows (skip target row 0, and summary rows at end)
+            _peer_start = 1
+            _peer_end = len(df_raw) - 2  # last 2 are median/mean
+            for col in _val_cols:
+                if col not in df_raw.columns:
+                    continue
+                vals = pd.to_numeric(df_raw[col].iloc[_peer_start:_peer_end], errors="coerce")
+                if vals.dropna().empty:
+                    continue
+                _min, _max = vals.min(), vals.max()
+                if _min == _max:
+                    continue
+                for i in range(_peer_start, _peer_end):
+                    v = vals.get(i)
+                    if pd.isna(v):
+                        continue
+                    # Normalize 0-1 (0=cheapest=green, 1=expensive=red)
+                    pct = (v - _min) / (_max - _min)
+                    if pct < 0.33:
+                        styles.iloc[i, df_raw.columns.get_loc(col)] = "background-color: rgba(16,185,129,0.2)"
+                    elif pct > 0.66:
+                        styles.iloc[i, df_raw.columns.get_loc(col)] = "background-color: rgba(239,68,68,0.2)"
+            # Bold summary rows
+            for i in range(max(0, len(df_raw) - 2), len(df_raw)):
+                styles.iloc[i] = ["font-weight:700; background-color: rgba(107,92,231,0.08)"] * len(df_raw.columns)
+            return styles
+
         display_df = format_comps_for_display(comps_df)
-        
-        # Style the dataframe
+        styled_comps = comps_df.style.apply(_comps_highlight, axis=None)
+
+        # Format for display while keeping sort capability
+        display_df = format_comps_for_display(comps_df)
+
+        # Sort option
+        _comps_sort_col = st.selectbox(
+            "Sort by", ["Default", "EV/Rev ↑", "EV/Rev ↓", "EV/EBITDA ↑", "EV/EBITDA ↓",
+                        "P/E ↑", "P/E ↓", "Market Cap ↑", "Market Cap ↓"],
+            key="comps_sort_col", label_visibility="collapsed",
+        )
+        if _comps_sort_col != "Default":
+            _sort_map = {
+                "EV/Rev ↑": ("EV/Rev", True), "EV/Rev ↓": ("EV/Rev", False),
+                "EV/EBITDA ↑": ("EV/EBITDA", True), "EV/EBITDA ↓": ("EV/EBITDA", False),
+                "P/E ↑": ("P/E", True), "P/E ↓": ("P/E", False),
+                "Market Cap ↑": ("Market Cap", True), "Market Cap ↓": ("Market Cap", False),
+            }
+            _scol, _sasc = _sort_map[_comps_sort_col]
+            if _scol in comps_df.columns:
+                # Separate target (row 0), peers, and summary rows (last 2)
+                _target_row = comps_df.iloc[:1]
+                _summary_rows = comps_df.iloc[-2:]
+                _peer_rows = comps_df.iloc[1:-2].copy()
+                _peer_rows["_sort_key"] = pd.to_numeric(_peer_rows[_scol], errors="coerce")
+                _peer_rows = _peer_rows.sort_values("_sort_key", ascending=_sasc, na_position="last").drop(columns=["_sort_key"])
+                comps_df = pd.concat([_target_row, _peer_rows, _summary_rows], ignore_index=True)
+                display_df = format_comps_for_display(comps_df)
+
+        # Re-apply highlight on potentially re-sorted data
+        styled_comps = comps_df.style.apply(_comps_highlight, axis=None)
+        # Apply display formatting on styled object
+        def _fmt_m(x):
+            if pd.isna(x) or x == 0: return "—"
+            if abs(x) >= 1e12: return f"${x/1e12:.1f}T"
+            if abs(x) >= 1e9: return f"${x/1e9:.1f}B"
+            if abs(x) >= 1e6: return f"${x/1e6:.0f}M"
+            return f"${x:,.0f}"
+        def _fmt_x(x):
+            if pd.isna(x) or x == 0: return "—"
+            return f"{x:.1f}x"
+        def _fmt_pct(x):
+            if pd.isna(x): return "—"
+            return f"{x*100:.1f}%"
+        def _fmt_r40(x):
+            if pd.isna(x): return "—"
+            return f"{x:.0f}"
+        _comps_formatters = {}
+        for c in ["Market Cap", "EV", "Revenue", "EBITDA"]:
+            if c in comps_df.columns: _comps_formatters[c] = _fmt_m
+        for c in ["EV/Rev", "EV/EBITDA", "P/E"]:
+            if c in comps_df.columns: _comps_formatters[c] = _fmt_x
+        for c in ["Rev Growth", "EBITDA Margin"]:
+            if c in comps_df.columns: _comps_formatters[c] = _fmt_pct
+        if "Rule of 40" in comps_df.columns:
+            _comps_formatters["Rule of 40"] = _fmt_r40
+        styled_comps = styled_comps.format(_comps_formatters)
+
         st.dataframe(
-            display_df,
+            styled_comps,
             use_container_width=True,
             hide_index=True,
             column_config={
@@ -14278,13 +14497,22 @@ elif analysis_mode == "VMS Screener" and vms_screen_btn:
         if raw_results:
             df = pd.DataFrame(raw_results)
 
-            # Apply filters
+            # Apply filters (including Rule of 40 and profile-specific)
             mask = (
                 (df["Revenue ($M)"] >= vms_rev_min) &
                 (df["Revenue ($M)"] <= vms_rev_max) &
                 (df["EBITDA Margin (%)"] >= vms_ebitda_min) &
-                (df["Revenue Growth (%)"] >= vms_growth_min)
+                (df["Revenue Growth (%)"] >= vms_growth_min) &
+                (df["Rule of 40"] >= vms_rule40_min)
             )
+            # Profile-specific extra filters
+            if vms_target_profile == "Classic CSU Target":
+                mask &= (df["Revenue Growth (%)"] < 10) & (df["EV/Revenue"] < 3)
+            elif vms_target_profile == "Turnaround Opportunity":
+                mask &= (df["Revenue Growth (%)"] < 0)
+            elif vms_target_profile == "Cash Cow":
+                mask &= (df["Revenue Growth (%)"] < 5)
+
             if vms_industries:
                 mask &= df["Vertical"].isin(vms_industries)
             if vms_geographies:
@@ -14292,7 +14520,7 @@ elif analysis_mode == "VMS Screener" and vms_screen_btn:
 
             df["Pass"] = mask
             df_display = df[["Company", "Ticker", "Vertical", "Revenue ($M)", "EBITDA Margin (%)",
-                             "Revenue Growth (%)", "EV/Revenue", "EV/EBITDA", "Pass"]].copy()
+                             "Revenue Growth (%)", "Rule of 40", "Attractiveness", "EV/Revenue", "EV/EBITDA", "Pass"]].copy()
 
             # Summary
             n_pass = mask.sum()
@@ -14303,15 +14531,48 @@ elif analysis_mode == "VMS Screener" and vms_screen_btn:
                 unsafe_allow_html=True,
             )
 
-            def _color_pass(row):
-                if row["Pass"]:
-                    return ["background-color: rgba(16,185,129,0.12)"] * len(row)
-                return [""] * len(row)
+            # Attractiveness score tooltip
+            st.markdown(
+                '<div style="font-size:0.7rem; color:#8A85AD; margin-bottom:0.5rem;">'
+                '💡 <b>Attractiveness Score</b> (0-100): Recurring revenue characteristics (SaaS premium), '
+                'Rule of 40, revenue size sweet spot ($5-200M), and market cap relative to revenue (cheaper = better).</div>',
+                unsafe_allow_html=True,
+            )
 
-            styled = df_display.style.apply(_color_pass, axis=1).format({
+            def _color_vms_row(row):
+                styles = [""] * len(row)
+                cols = list(row.index)
+                # Pass row background
+                if row["Pass"]:
+                    styles = ["background-color: rgba(16,185,129,0.08)"] * len(row)
+                # Rule of 40 coloring
+                if "Rule of 40" in cols:
+                    r40_idx = cols.index("Rule of 40")
+                    r40 = row["Rule of 40"]
+                    if r40 > 40:
+                        styles[r40_idx] = "background-color: rgba(16,185,129,0.25); color: #10B981; font-weight:700"
+                    elif r40 >= 30:
+                        styles[r40_idx] = "background-color: rgba(245,166,35,0.25); color: #F5A623; font-weight:700"
+                    else:
+                        styles[r40_idx] = "background-color: rgba(239,68,68,0.2); color: #EF4444; font-weight:700"
+                # Attractiveness coloring
+                if "Attractiveness" in cols:
+                    a_idx = cols.index("Attractiveness")
+                    a_val = row["Attractiveness"]
+                    if a_val >= 70:
+                        styles[a_idx] = "background-color: rgba(16,185,129,0.25); color: #10B981; font-weight:700"
+                    elif a_val >= 50:
+                        styles[a_idx] = "background-color: rgba(245,166,35,0.25); color: #F5A623; font-weight:700"
+                    else:
+                        styles[a_idx] = "background-color: rgba(239,68,68,0.15); color: #EF4444"
+                return styles
+
+            styled = df_display.style.apply(_color_vms_row, axis=1).format({
                 "Revenue ($M)": "${:,.1f}M",
                 "EBITDA Margin (%)": "{:.1f}%",
                 "Revenue Growth (%)": "{:.1f}%",
+                "Rule of 40": "{:.1f}",
+                "Attractiveness": "{:.0f}",
                 "EV/Revenue": "{:.2f}x",
                 "EV/EBITDA": "{:.1f}x",
             })

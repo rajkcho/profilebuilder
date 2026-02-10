@@ -432,22 +432,49 @@ def generate_comps_table(analysis: CompsAnalysis) -> pd.DataFrame:
             "Rule of 40": p.rule_of_40,
         })
     
-    # Add summary row
+    # Helper for safe stats
+    def _safe_median(vals):
+        v = [x for x in vals if x is not None and not (isinstance(x, float) and np.isnan(x))]
+        return np.median(v) if v else None
+
+    def _safe_mean(vals):
+        v = [x for x in vals if x is not None and not (isinstance(x, float) and np.isnan(x))]
+        return np.mean(v) if v else None
+
+    _peer_vals = lambda attr: [getattr(p, attr) for p in analysis.peers]
+
+    # Add Median summary row
     data.append({
-        "Company": "**Peer Median**",
+        "Company": "📊 Peer Median",
         "Ticker": "",
-        "Market Cap": np.median([p.market_cap for p in analysis.peers]),
-        "EV": np.median([p.enterprise_value for p in analysis.peers if p.enterprise_value]),
-        "Revenue": np.median([p.revenue_ltm for p in analysis.peers if p.revenue_ltm]),
-        "EBITDA": np.median([p.ebitda_ltm for p in analysis.peers if p.ebitda_ltm]),
+        "Market Cap": _safe_median(_peer_vals("market_cap")),
+        "EV": _safe_median([p.enterprise_value for p in analysis.peers]),
+        "Revenue": _safe_median([p.revenue_ltm for p in analysis.peers]),
+        "EBITDA": _safe_median([p.ebitda_ltm for p in analysis.peers]),
         "EV/Rev": analysis.median_ev_revenue,
         "EV/EBITDA": analysis.median_ev_ebitda,
         "P/E": analysis.median_pe,
-        "Rev Growth": np.median([p.revenue_growth for p in analysis.peers if p.revenue_growth is not None]),
-        "EBITDA Margin": np.median([p.ebitda_margin for p in analysis.peers if p.ebitda_margin is not None]),
-        "Rule of 40": np.median([p.rule_of_40 for p in analysis.peers if p.rule_of_40 is not None]),
+        "Rev Growth": _safe_median(_peer_vals("revenue_growth")),
+        "EBITDA Margin": _safe_median(_peer_vals("ebitda_margin")),
+        "Rule of 40": _safe_median(_peer_vals("rule_of_40")),
     })
-    
+
+    # Add Mean summary row
+    data.append({
+        "Company": "📈 Peer Mean",
+        "Ticker": "",
+        "Market Cap": _safe_mean(_peer_vals("market_cap")),
+        "EV": _safe_mean([p.enterprise_value for p in analysis.peers]),
+        "Revenue": _safe_mean([p.revenue_ltm for p in analysis.peers]),
+        "EBITDA": _safe_mean([p.ebitda_ltm for p in analysis.peers]),
+        "EV/Rev": _safe_mean([p.ev_revenue for p in analysis.peers]),
+        "EV/EBITDA": _safe_mean([p.ev_ebitda for p in analysis.peers]),
+        "P/E": _safe_mean([p.pe_ratio for p in analysis.peers]),
+        "Rev Growth": _safe_mean(_peer_vals("revenue_growth")),
+        "EBITDA Margin": _safe_mean(_peer_vals("ebitda_margin")),
+        "Rule of 40": _safe_mean(_peer_vals("rule_of_40")),
+    })
+
     return pd.DataFrame(data)
 
 
