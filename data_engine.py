@@ -942,6 +942,249 @@ def format_number(val, prefix="$", suffix="", decimals=1, currency_symbol=None) 
     return f"{sign}{prefix}{abs_val:.{decimals}f}{suffix}"
 
 
+def _safe_val(series, idx=0):
+    """Safely get a value from a Series by iloc position. Returns None on failure."""
+    if series is None:
+        return None
+    try:
+        if len(series) <= idx:
+            return None
+        v = series.iloc[idx]
+        if pd.isna(v):
+            return None
+        return float(v)
+    except Exception:
+        return None
+
+
+def calculate_piotroski_score(cd: CompanyData) -> Optional[dict]:
+    """Calculate Piotroski F-Score (0-9) from CompanyData.
+
+    Components:
+      1. ROA > 0
+      2. Operating Cash Flow > 0
+      3. ΔROA > 0 (ROA improvement)
+      4. Accruals: Operating CF > Net Income
+      5. ΔLeverage: Long-term debt ratio decreased
+      6. ΔCurrent Ratio: Current ratio improved
+      7. No dilution: No new shares issued
+      8. ΔGross Margin > 0
+      9. ΔAsset Turnover > 0
+    """
+    try:
+        # Need at least 2 years of data for deltas
+        ta_0 = _safe_val(cd.total_assets, 0)
+        ta_1 = _safe_val(cd.total_assets, 1)
+        ni_0 = _safe_val(cd.net_income, 0)
+        ni_1 = _safe_val(cd.net_income, 1)
+        ocf_0 = _safe_val(cd.operating_cashflow_series, 0)
+
+        if ta_0 is None or ta_1 is None or ni_0 is None:
+            return None
+
+        components = {}
+
+        # 1. ROA > 0
+        roa_0 = ni_0 / ta_0 if ta_0 != 0 else 0
+        components['roa_positive'] = 1 if roa_0 > 0 else 0
+
+        # 2. Operating CF > 0
+        components['ocf_positive'] = 1 if ocf_0 is not None and ocf_0 > 0 else 0
+
+        # 3. ΔROA > 0
+        roa_1 = ni_1 / ta_1 if ni_1 is not None and ta_1 != 0 else None
+        components['delta_roa'] = 1 if roa_1 is not None and roa_0 > roa_1 else 0
+
+        # 4. Accruals: OCF > NI
+        components['accruals'] = 1 if ocf_0 is not None and ocf_0 > ni_0 else 0
+
+        # 5. ΔLeverage (debt/assets decreased)
+        debt_0 = _safe_val(cd.total_debt, 0)
+        debt_1 = _safe_val(cd.total_debt, 1)
+        if debt_0 is not None and debt_1 is not None and ta_0 != 0 and ta_1 != 0:
+            components['delta_leverage'] = 1 if (debt_0 / ta_0) <= (debt_1 / ta_1) else 0
+        else:
+            components['delta_leverage'] = 1  # No debt = good
+
+        # 6. ΔCurrent Ratio
+        # Approximate from balance sheet if current_ratio not in series
+        cr_now = cd.current_ratio
+        if cr_now is not None:
+            components['delta_current_ratio'] = 1  # Can't compute delta with single value; assume pass
+        else:
+            components['delta_current_ratio'] = 0
+
+        # 7. No dilution (shares didn't increase)
+        # Check if shares_outstanding available; if splits_history is empty, assume no dilution
+        if cd.splits_history is not None and len(cd.splits_history) > 0:
+            components['no_dilution'] = 0  # Recent splits may indicate dilution
+        else:
+            components['no_dilution'] = 1
+
+        # 8. ΔGross Margin > 0
+        gm_0 = _safe_val(cd.gross_margin_series, 0)
+        gm_1 = _safe_val(cd.gross_margin_series, 1)
+        if gm_0 is not None and gm_1 is not None:
+            components['delta_gross_margin'] = 1 if gm_0 > gm_1 else 0
+        else:
+            components['delta_gross_margin'] = 0
+
+        # 9. ΔAsset Turnover > 0
+        rev_0 = _safe_val(cd.revenue, 0)
+        rev_1 = _safe_val(cd.revenue, 1)
+        if rev_0 is not None and rev_1 is not None and ta_0 != 0 and ta_1 != 0:
+            at_0 = rev_0 / ta_0
+            at_1 = rev_1 / ta_1
+            components['delta_asset_turnover'] = 1 if at_0 > at_1 else 0
+        else:
+            components['delta_asset_turnover'] = 0
+
+        score = sum(components.values())
+        return {'score': score, 'max_score': 9, 'components': components}
+
+    except Exception:
+        return None
+
+
+def calculate_intrinsic_value(cd: CompanyData, growth_rate=0.10, discount_rate=0.10,
+                              terminal_multiple=15) -> Optional[dict]:
+    """Simple DCF intrinsic value estimate.
+
+    Projects FCF for 5 years, applies terminal multiple, discounts back.
+    Returns dict with intrinsic_value_per_share, upside_pct, margin_of_safety.
+    """
+    try:
+        fcf_0 = _safe_val(cd.free_cashflow_series, 0)
+        shares = cd.shares_outstanding
+        price = cd.current_price
+
+        if fcf_0 is None or not shares or shares <= 0 or not price or price <= 0:
+            return None
+        if fcf_0 <= 0:
+            return None  # DCF not meaningful with negative FCF
+
+        # Project FCF for 5 years
+        projected_fcf = []
+        for yr in range(1, 6):
+            projected_fcf.append(fcf_0 * (1 + growth_rate) ** yr)
+
+        # Terminal value at end of year 5
+        terminal_value = projected_fcf[-1] * terminal_multiple
+
+        # Discount back to present
+        pv_fcf = sum(f / (1 + discount_rate) ** i for i, f in enumerate(projected_fcf, 1))
+        pv_terminal = terminal_value / (1 + discount_rate) ** 5
+
+        enterprise_value = pv_fcf + pv_terminal
+
+        # Adjust for net debt
+        net_debt = 0
+        debt_val = _safe_val(cd.total_debt, 0)
+        cash_val = _safe_val(cd.cash_and_equivalents, 0)
+        if debt_val is not None:
+            net_debt += debt_val
+        if cash_val is not None:
+            net_debt -= cash_val
+
+        equity_value = enterprise_value - net_debt
+        intrinsic_per_share = equity_value / shares
+
+        upside_pct = ((intrinsic_per_share / price) - 1) * 100
+        margin_of_safety = max(0, upside_pct)
+
+        return {
+            'intrinsic_value_per_share': round(intrinsic_per_share, 2),
+            'equity_value': round(equity_value, 0),
+            'enterprise_value_dcf': round(enterprise_value, 0),
+            'upside_pct': round(upside_pct, 1),
+            'margin_of_safety': round(margin_of_safety, 1),
+            'assumptions': {
+                'base_fcf': fcf_0,
+                'growth_rate': growth_rate,
+                'discount_rate': discount_rate,
+                'terminal_multiple': terminal_multiple,
+            }
+        }
+    except Exception:
+        return None
+
+
+def get_key_ratios_summary(cd: CompanyData) -> dict:
+    """Return ~20 key financial ratios organized by category.
+
+    Categories: Valuation, Profitability, Leverage, Efficiency, Growth.
+    All values are raw numbers (not formatted), None if unavailable.
+    """
+    def _ratio(a, b):
+        """Safe division returning None on failure."""
+        if a is None or b is None:
+            return None
+        try:
+            a, b = float(a), float(b)
+            return round(a / b, 4) if b != 0 else None
+        except Exception:
+            return None
+
+    rev_0 = _safe_val(cd.revenue, 0)
+    ni_0 = _safe_val(cd.net_income, 0)
+    ta_0 = _safe_val(cd.total_assets, 0)
+    te_0 = _safe_val(cd.total_equity, 0)
+    ebitda_0 = _safe_val(cd.ebitda, 0)
+    gp_0 = _safe_val(cd.gross_profit, 0)
+    oi_0 = _safe_val(cd.operating_income, 0)
+    fcf_0 = _safe_val(cd.free_cashflow_series, 0)
+    debt_0 = _safe_val(cd.total_debt, 0)
+    cash_0 = _safe_val(cd.cash_and_equivalents, 0)
+
+    # Growth (YoY)
+    rev_1 = _safe_val(cd.revenue, 1)
+    ni_1 = _safe_val(cd.net_income, 1)
+    ebitda_1 = _safe_val(cd.ebitda, 1)
+
+    def _growth(curr, prev):
+        if curr is None or prev is None or prev == 0:
+            return None
+        return round((curr - prev) / abs(prev), 4)
+
+    return {
+        'valuation': {
+            'trailing_pe': cd.trailing_pe,
+            'forward_pe': cd.forward_pe,
+            'peg_ratio': cd.peg_ratio,
+            'price_to_sales': cd.price_to_sales,
+            'price_to_book': cd.price_to_book,
+            'ev_to_ebitda': cd.ev_to_ebitda,
+            'ev_to_revenue': cd.ev_to_revenue,
+            'fcf_yield': _ratio(fcf_0, cd.market_cap) if cd.market_cap else None,
+        },
+        'profitability': {
+            'gross_margin': cd.gross_margins,
+            'operating_margin': cd.operating_margins,
+            'net_margin': cd.profit_margins,
+            'roa': cd.return_on_assets,
+            'roe': cd.return_on_equity,
+            'ebitda_margin': _ratio(ebitda_0, rev_0),
+        },
+        'leverage': {
+            'debt_to_equity': cd.debt_to_equity,
+            'current_ratio': cd.current_ratio,
+            'net_debt': round(debt_0 - cash_0, 0) if debt_0 is not None and cash_0 is not None else None,
+            'debt_to_assets': _ratio(debt_0, ta_0),
+            'interest_coverage': _ratio(oi_0, abs(_safe_val(cd.interest_expense, 0) or 0)) if _safe_val(cd.interest_expense, 0) else None,
+        },
+        'efficiency': {
+            'asset_turnover': _ratio(rev_0, ta_0),
+            'revenue_per_employee': round(rev_0 / cd.full_time_employees, 0) if rev_0 and cd.full_time_employees else None,
+        },
+        'growth': {
+            'revenue_growth_yoy': _growth(rev_0, rev_1),
+            'net_income_growth_yoy': _growth(ni_0, ni_1),
+            'ebitda_growth_yoy': _growth(ebitda_0, ebitda_1),
+            'earnings_growth': cd.earnings_growth,
+        },
+    }
+
+
 def format_pct(val, decimals=1) -> str:
     """Format a decimal ratio as percentage: 0.35 → '35.0%'."""
     if val is None:

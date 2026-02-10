@@ -16,7 +16,10 @@ Enter a ticker symbol and get:
 - **Options overview** — put/call ratio, volume, open interest
 - **Dividend analysis** — yield, payout ratio, history charts, ex-dates
 - **Financial health scorecard** — Piotroski-inspired A-D grading
-- **14-section dashboard** — Yahoo Finance-style UI with interactive charts
+- **Bull/Bear investment thesis** — auto-generated from financials
+- **Altman Z-Score** — distress prediction with gauge visualization
+- **DuPont Analysis** — 3-factor and 5-factor ROE decomposition
+- **30+ section dashboard** — institutional-quality with interactive charts
 - **8-slide PowerPoint** — professional IB pitch book layout
 - **Excel export** — multi-sheet workbook with all financial data
 
@@ -56,6 +59,10 @@ Model a hypothetical acquisition:
 - **Accretion/dilution analysis** — impact on acquirer EPS with waterfall chart
 - **Football field valuation** — multi-method range analysis
 - **Sources & uses** — classic IB deal structure breakdown
+- **Synergy realization schedule** — 3-year ramp with visualization
+- **Debt paydown schedule** — 5-year with leverage tracking
+- **Break-even synergies** — minimum synergies for EPS neutrality
+- **Deal IRR estimate** — 5-year simplified return calculation
 - **AI deal intelligence** — strategic rationale, risk factors, deal grade
 - **10-slide deal book** — professional PowerPoint export
 
@@ -100,6 +107,7 @@ ALPHA_VANTAGE_KEY=...      # Earnings data
 Hosted on Streamlit Cloud: [profilebuilder.streamlit.app](https://profilebuilder.streamlit.app)
 
 ## Version History
+- **v5.0** — VC-ready upgrade: Bull/Bear thesis, Altman Z-Score, DuPont Analysis (3+5 factor), WACC Calculator (auto CAPM), Scenario Analysis (probability-weighted), enhanced institutional ownership, synergy realization schedule, debt paydown, break-even synergies, deal IRR
 - **v4.4** — Percentile ranking, peer comparison bars, key takeaways, ESG scores, comps football field, scrolling market ticker, JSON export
 - **v4.0** — Help tooltips, reverse DCF, Monte Carlo simulation, premium sensitivity, deal scorecard, contribution analysis, goodwill/PPA, synergy NPV
 - **v3.5** — Enhanced M&A (implied multiples, contribution analysis, goodwill waterfall, synergy phase-in), sidebar redesign with emoji mode labels

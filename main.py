@@ -6,7 +6,7 @@ Generates an 8-slide investment-banker-grade PowerPoint tear sheet.
 
 Run:  streamlit run main.py
 
-v3.0 - Full Feature Suite:
+v5.0 - Full Feature Suite:
 - Watchlist with session persistence & notes
 - Excel/CSV export for all financial data
 - DCF Valuation with sensitivity analysis
@@ -39,7 +39,8 @@ load_dotenv()
 
 from data_engine import (
     fetch_company_data, fetch_peer_data,
-    format_number, format_pct, format_multiple
+    format_number, format_pct, format_multiple,
+    calculate_piotroski_score, calculate_intrinsic_value, get_key_ratios_summary
 )
 from ai_insights import generate_insights, generate_merger_insights
 from pptx_generator import generate_presentation, generate_deal_book
@@ -89,6 +90,63 @@ def _get_watchlist() -> list:
     """Get current watchlist."""
     _init_watchlist()
     return st.session_state.watchlist
+
+# ══════════════════════════════════════════════════════════════
+# VMS SCREENER UNIVERSE & DATA
+# ══════════════════════════════════════════════════════════════
+VMS_UNIVERSE = [
+    {"ticker": "OTEX.TO", "name": "Open Text Corp", "vertical": "Legal Tech", "geo": "North America"},
+    {"ticker": "DSGX", "name": "Descartes Systems", "vertical": "Transportation", "geo": "North America"},
+    {"ticker": "CSGP", "name": "CoStar Group", "vertical": "Real Estate Tech", "geo": "North America"},
+    {"ticker": "ENV", "name": "Envestnet", "vertical": "Financial Services Tech", "geo": "North America"},
+    {"ticker": "PCTY", "name": "Paylocity", "vertical": "Financial Services Tech", "geo": "North America"},
+    {"ticker": "PAYC", "name": "Paycom Software", "vertical": "Financial Services Tech", "geo": "North America"},
+    {"ticker": "GWRE", "name": "Guidewire Software", "vertical": "Financial Services Tech", "geo": "North America"},
+    {"ticker": "BSY", "name": "Bentley Systems", "vertical": "Construction Tech", "geo": "North America"},
+    {"ticker": "ALRM", "name": "Alarm.com", "vertical": "Real Estate Tech", "geo": "North America"},
+    {"ticker": "CCSI", "name": "Consensus Cloud", "vertical": "Healthcare IT", "geo": "North America"},
+    {"ticker": "POWI", "name": "Power Integrations", "vertical": "Utilities", "geo": "North America"},
+    {"ticker": "TYLT.TO", "name": "Tyler Technologies", "vertical": "GovTech", "geo": "North America"},
+    {"ticker": "TYL", "name": "Tyler Technologies", "vertical": "GovTech", "geo": "North America"},
+    {"ticker": "SSNC", "name": "SS&C Technologies", "vertical": "Financial Services Tech", "geo": "North America"},
+    {"ticker": "APPF", "name": "AppFolio", "vertical": "Real Estate Tech", "geo": "North America"},
+    {"ticker": "PRGS", "name": "Progress Software", "vertical": "Education Tech", "geo": "North America"},
+    {"ticker": "IIIV", "name": "i3 Verticals", "vertical": "Financial Services Tech", "geo": "North America"},
+    {"ticker": "RNG", "name": "RingCentral", "vertical": "Utilities", "geo": "North America"},
+    {"ticker": "ADSK", "name": "Autodesk", "vertical": "Construction Tech", "geo": "North America"},
+    {"ticker": "POWL", "name": "Powell Industries", "vertical": "Utilities", "geo": "North America"},
+]
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _fetch_vms_screening_data(tickers_tuple):
+    """Fetch financial data for VMS screening candidates."""
+    results = []
+    for item in tickers_tuple:
+        try:
+            t = yf.Ticker(item["ticker"])
+            info = t.info or {}
+            revenue = info.get("totalRevenue", 0) or 0
+            ebitda = info.get("ebitda", 0) or 0
+            rev_growth = info.get("revenueGrowth", None)
+            ev = info.get("enterpriseValue", 0) or 0
+            ebitda_margin = (ebitda / revenue * 100) if revenue > 0 else 0
+            ev_rev = (ev / revenue) if revenue > 0 else 0
+            ev_ebitda = (ev / ebitda) if ebitda > 0 else 0
+            rev_growth_pct = (rev_growth * 100) if rev_growth is not None else 0
+            results.append({
+                "Company": item["name"],
+                "Ticker": item["ticker"],
+                "Vertical": item["vertical"],
+                "Geography": item["geo"],
+                "Revenue ($M)": round(revenue / 1e6, 1),
+                "EBITDA Margin (%)": round(ebitda_margin, 1),
+                "Revenue Growth (%)": round(rev_growth_pct, 1),
+                "EV/Revenue": round(ev_rev, 2),
+                "EV/EBITDA": round(ev_ebitda, 1),
+            })
+        except Exception:
+            pass
+    return results
 
 # ══════════════════════════════════════════════════════════════
 # SEARCH HISTORY
@@ -1322,12 +1380,16 @@ def _quick_ticker_lookup(ticker: str) -> dict:
         currency = info.get("currency", "USD")
         market_cap = info.get("marketCap")
         change_pct = info.get("regularMarketChangePercent")
+        w52_high = info.get("fiftyTwoWeekHigh")
+        w52_low = info.get("fiftyTwoWeekLow")
         return {
             "name": name,
             "price": price,
             "currency": currency,
             "market_cap": market_cap,
             "change_pct": change_pct,
+            "52w_high": w52_high,
+            "52w_low": w52_low,
             "valid": True,
         }
     except Exception:
@@ -4358,7 +4420,7 @@ with st.sidebar:
         'letter-spacing:1.5px; margin-bottom:0.3rem;">Analysis Mode</div>',
         unsafe_allow_html=True,
     )
-    _mode_options = ["📊 Company Profile", "📈 Comps Analysis", "💹 DCF Valuation", "⚖️ Quick Compare", "🤝 Merger Analysis"]
+    _mode_options = ["📊 Company Profile", "📈 Comps Analysis", "💹 DCF Valuation", "⚖️ Quick Compare", "🤝 Merger Analysis", "🔍 VMS Screener"]
     _mode_selection = st.radio(
         "Mode", 
         _mode_options, 
@@ -4379,6 +4441,34 @@ with st.sidebar:
     if watchlist:
         with st.expander(f"📋 Watchlist ({len(watchlist)})", expanded=False):
             _init_watchlist_notes()
+
+            # ── Watchlist Dashboard ──
+            try:
+                total_mcap = 0
+                best_perf = ("", -999)
+                worst_perf = ("", 999)
+                for _wt in watchlist:
+                    _wi = st.session_state.watchlist_data.get(_wt, {})
+                    _wmc = _wi.get("market_cap", 0) or 0
+                    total_mcap += _wmc
+                    _wch = _wi.get("change_pct", 0) or 0
+                    if _wch > best_perf[1]:
+                        best_perf = (_wt, _wch)
+                    if _wch < worst_perf[1]:
+                        worst_perf = (_wt, _wch)
+                _mcap_str = f"${total_mcap/1e9:,.1f}B" if total_mcap >= 1e9 else f"${total_mcap/1e6:,.0f}M" if total_mcap >= 1e6 else "N/A"
+                st.markdown(
+                    f'<div style="background:rgba(107,92,231,0.06); border-radius:8px; padding:0.6rem; margin-bottom:0.5rem; font-size:0.72rem;">'
+                    f'<div style="color:#8A85AD; font-weight:700; margin-bottom:0.3rem;">📊 PORTFOLIO SNAPSHOT</div>'
+                    f'<div style="color:#B8B3D7;">Total Mkt Cap: <b style="color:#E0DCF5;">{_mcap_str}</b></div>'
+                    f'<div style="color:#10B981;">Best: <b>{best_perf[0]}</b> ({best_perf[1]:+.2f}%)</div>'
+                    f'<div style="color:#EF4444;">Worst: <b>{worst_perf[0]}</b> ({worst_perf[1]:+.2f}%)</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            except Exception:
+                pass
+
             for wl_ticker in watchlist:
                 wl_col1, wl_col2 = st.columns([4, 1])
                 with wl_col1:
@@ -4386,9 +4476,22 @@ with st.sidebar:
                     wl_price = wl_info.get("price", 0)
                     wl_change = wl_info.get("change_pct", 0)
                     change_color = "#10B981" if wl_change and wl_change >= 0 else "#EF4444"
+
+                    # 52-week high/low alert
+                    _52h = wl_info.get("52w_high", 0) or 0
+                    _52l = wl_info.get("52w_low", 0) or 0
+                    _alert_html = ""
+                    if wl_price and _52l and _52l > 0:
+                        _pct_from_low = (wl_price - _52l) / _52l * 100
+                        _pct_from_high = (_52h - wl_price) / _52h * 100 if _52h > 0 else 100
+                        if _pct_from_low <= 5:
+                            _alert_html = '<span style="font-size:0.6rem; color:#10B981; margin-left:4px;">🟢 Near 52w Low</span>'
+                        elif _pct_from_high <= 5:
+                            _alert_html = '<span style="font-size:0.6rem; color:#F59E0B; margin-left:4px;">🟡 Near 52w High</span>'
+
                     st.markdown(
                         f'<div style="display:flex; justify-content:space-between; align-items:center; padding:0.3rem 0;">'
-                        f'<span style="font-weight:700; color:#E0DCF5;">{wl_ticker}</span>'
+                        f'<span style="font-weight:700; color:#E0DCF5;">{wl_ticker}{_alert_html}</span>'
                         f'<span style="color:{change_color}; font-size:0.8rem;">${wl_price:,.2f}</span>'
                         f'</div>',
                         unsafe_allow_html=True,
@@ -4544,7 +4647,78 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
         
-        dcf_discount_rate = st.slider("WACC / Discount Rate (%)", 5, 20, 10, 1,
+        dcf_auto_wacc = st.checkbox("🤖 Auto-Calculate WACC", value=False,
+                                     help="Compute WACC from CAPM and company financials")
+        
+        if dcf_auto_wacc and dcf_ticker_input:
+            try:
+                _wacc_cd = fetch_company_data(dcf_ticker_input)
+                _w_beta = _wacc_cd.beta if _wacc_cd.beta else 1.0
+                _w_rf = 0.0425  # 10Y Treasury
+                _w_erp = 0.055  # Equity risk premium
+                _w_ke = _w_rf + _w_beta * _w_erp  # CAPM
+                
+                # Cost of Debt
+                _w_ie = float(_wacc_cd.interest_expense.iloc[0]) if _wacc_cd.interest_expense is not None and len(_wacc_cd.interest_expense) > 0 else 0
+                _w_td = float(_wacc_cd.total_debt.iloc[0]) if _wacc_cd.total_debt is not None and len(_wacc_cd.total_debt) > 0 else 0
+                _w_ie = abs(_w_ie)  # interest expense may be negative
+                _w_kd = (_w_ie / _w_td) if _w_td > 0 else 0.05
+                
+                # Tax Rate
+                _w_tp = float(_wacc_cd.tax_provision.iloc[0]) if _wacc_cd.tax_provision is not None and len(_wacc_cd.tax_provision) > 0 else 0
+                _w_oi = float(_wacc_cd.operating_income.iloc[0]) if _wacc_cd.operating_income is not None and len(_wacc_cd.operating_income) > 0 else 0
+                _w_pretax = _w_oi - _w_ie
+                _w_tax_rate = (abs(_w_tp) / abs(_w_pretax)) if abs(_w_pretax) > 0 else 0.21
+                _w_tax_rate = max(0, min(_w_tax_rate, 0.50))
+                
+                # Capital Structure
+                _w_mcap = _wacc_cd.market_cap or 0
+                _w_ev = _w_mcap + _w_td
+                _w_we = (_w_mcap / _w_ev) if _w_ev > 0 else 0.7
+                _w_wd = (_w_td / _w_ev) if _w_ev > 0 else 0.3
+                
+                _w_wacc = _w_we * _w_ke + _w_wd * _w_kd * (1 - _w_tax_rate)
+                _w_wacc_pct = round(_w_wacc * 100, 1)
+                
+                st.markdown(
+                    f'<div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); '
+                    f'border-radius:10px; padding:0.6rem; margin:0.3rem 0; font-size:0.7rem; color:#B8B3D7; line-height:1.7;">'
+                    f'<b style="color:#10B981;">Calculated WACC: {_w_wacc_pct:.1f}%</b><br>'
+                    f'Ke={_w_ke*100:.1f}% (β={_w_beta:.2f}) · Kd={_w_kd*100:.1f}% · Tax={_w_tax_rate*100:.0f}%<br>'
+                    f'E/V={_w_we*100:.0f}% · D/V={_w_wd*100:.0f}%'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+                # Store for WACC breakdown section
+                st.session_state["_auto_wacc_data"] = {
+                    "rf": _w_rf, "beta": _w_beta, "erp": _w_erp, "ke": _w_ke,
+                    "kd": _w_kd, "tax_rate": _w_tax_rate, "we": _w_we, "wd": _w_wd,
+                    "wacc": _w_wacc, "mcap": _w_mcap, "debt": _w_td,
+                }
+                
+                # Suggested FCF Growth (historical CAGR)
+                if _wacc_cd.free_cashflow_series is not None and len(_wacc_cd.free_cashflow_series) >= 2:
+                    _fcf_vals = _wacc_cd.free_cashflow_series.dropna()
+                    if len(_fcf_vals) >= 2:
+                        _fcf_latest = float(_fcf_vals.iloc[0])
+                        _fcf_oldest = float(_fcf_vals.iloc[-1])
+                        _n_yrs = len(_fcf_vals) - 1
+                        if _fcf_oldest > 0 and _fcf_latest > 0 and _n_yrs > 0:
+                            _fcf_cagr = (_fcf_latest / _fcf_oldest) ** (1 / _n_yrs) - 1
+                            st.markdown(
+                                f'<div style="font-size:0.65rem; color:#8A85AD; margin:0.2rem 0;">'
+                                f'📈 Suggested FCF Growth: <b style="color:#9B8AFF;">{_fcf_cagr*100:.1f}%</b> '
+                                f'({_n_yrs}Y CAGR)</div>',
+                                unsafe_allow_html=True,
+                            )
+                
+                _auto_wacc_int = max(5, min(20, int(round(_w_wacc_pct))))
+            except Exception:
+                _auto_wacc_int = 10
+        else:
+            _auto_wacc_int = 10
+        
+        dcf_discount_rate = st.slider("WACC / Discount Rate (%)", 5, 20, _auto_wacc_int, 1,
                                       help="Weighted average cost of capital — higher = more conservative") / 100
         
         st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
@@ -4696,13 +4870,58 @@ with st.sidebar:
         st.markdown('<div style="height:0.8rem;"></div>', unsafe_allow_html=True)
         merger_btn = st.button("🚀 Analyze Deal", type="primary", use_container_width=True)
 
+    # VMS Screener variables
+    vms_screen_btn = False
+    vms_rev_min = 1
+    vms_rev_max = 500
+    vms_ebitda_min = 0
+    vms_growth_min = 0
+    vms_industries = []
+    vms_geographies = []
+
+    if analysis_mode == "VMS Screener":
+        # ── VMS Screener Mode ──
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">🔍</span> SCREENING CRITERIA</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown('<div style="font-size:0.7rem; color:#8A85AD; margin-bottom:0.5rem;">Revenue Range ($M)</div>', unsafe_allow_html=True)
+        vms_rev_min = st.slider("Min Revenue ($M)", 1, 500, 1, 1, key="vms_rev_min_sl")
+        vms_rev_max = st.slider("Max Revenue ($M)", 1, 500, 500, 1, key="vms_rev_max_sl")
+        if vms_rev_min > vms_rev_max:
+            vms_rev_min, vms_rev_max = vms_rev_max, vms_rev_min
+
+        st.markdown('<div style="font-size:0.7rem; color:#8A85AD; margin-top:0.5rem;">Profitability & Growth</div>', unsafe_allow_html=True)
+        vms_ebitda_min = st.slider("Min EBITDA Margin (%)", 0, 50, 10, 1, key="vms_ebitda_sl")
+        vms_growth_min = st.slider("Min Revenue Growth (%)", -20, 50, 0, 1, key="vms_growth_sl")
+
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">🏭</span> INDUSTRY FILTER</div>',
+            unsafe_allow_html=True,
+        )
+        _vms_verticals = [
+            "Healthcare IT", "GovTech", "Legal Tech", "Education Tech",
+            "Real Estate Tech", "Construction Tech", "Utilities",
+            "Transportation", "Agriculture Tech", "Financial Services Tech",
+        ]
+        vms_industries = st.multiselect("VMS Verticals", _vms_verticals, default=[], key="vms_ind_ms")
+
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">🌍</span> GEOGRAPHY</div>',
+            unsafe_allow_html=True,
+        )
+        vms_geographies = st.multiselect("Geography", ["North America", "Europe", "Asia-Pacific", "Other"], default=[], key="vms_geo_ms")
+
+        st.markdown('<div style="height:0.8rem;"></div>', unsafe_allow_html=True)
+        vms_screen_btn = st.button("🚀 Run Screen", type="primary", use_container_width=True)
+
     # Sidebar Footer
     st.markdown('<div class="sb-divider" style="margin-top:1.5rem;"></div>', unsafe_allow_html=True)
     st.markdown(
         '<div style="text-align:center; padding: 0.5rem 0;">'
         '<div style="font-size:0.55rem; font-weight:800; background:linear-gradient(135deg, #6B5CE7, #E8638B); '
         '-webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:2px; margin-bottom:0.3rem;">'
-        'ORBITAL v4.4</div>'
+        'ORBITAL v5.0</div>'
         '<div style="font-size:0.55rem; color:#4B5563; letter-spacing:0.5px; line-height:1.8;">'
         'DATA: YAHOO FINANCE • CHARTS: PLOTLY<br>'
         'AI: OPENAI (OPT.) • LOGOS: CLEARBIT'
@@ -4814,9 +5033,11 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     # ══════════════════════════════════════════════════════
     # 1. COMPANY HEADER CARD (with logo)
     # ══════════════════════════════════════════════════════
-    chg_class = "price-up" if cd.price_change >= 0 else "price-down"
-    chg_badge = "change-up" if cd.price_change >= 0 else "change-down"
-    arrow = "&#9650;" if cd.price_change >= 0 else "&#9660;"
+    _cd_price_change = getattr(cd, 'price_change', None) or 0
+    _cd_price_change_pct = getattr(cd, 'price_change_pct', None) or 0
+    chg_class = "price-up" if _cd_price_change >= 0 else "price-down"
+    chg_badge = "change-up" if _cd_price_change >= 0 else "change-down"
+    arrow = "&#9650;" if _cd_price_change >= 0 else "&#9660;"
 
     logo_html = ""
     if cd.logo_url:
@@ -4839,8 +5060,8 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         f'</div>'
         f'</div>'
         f'<div style="display:flex; align-items:baseline; gap:1rem; margin-top:0.8rem; position:relative;">'
-        f'<p class="price-tag {chg_class}">{cs}{cd.current_price:,.2f}</p>'
-        f'<span class="price-change {chg_badge}">{arrow} {cd.price_change:+.2f} ({cd.price_change_pct:+.2f}%)</span>'
+        f'<p class="price-tag {chg_class}">{cs}{getattr(cd, "current_price", 0):,.2f}</p>'
+        f'<span class="price-change {chg_badge}">{arrow} {_cd_price_change:+.2f} ({_cd_price_change_pct:+.2f}%)</span>'
         f'<span style="font-size:0.75rem; color:#A8A3C7; margin-left:0.5rem;">{cd.currency_code}</span>'
         f'</div>'
         f'</div>',
@@ -4850,45 +5071,116 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     # ══════════════════════════════════════════════════════
     # 2. PROMINENT PRICE / VOLUME DISPLAY
     # ══════════════════════════════════════════════════════
-    price_color = "#10B981" if cd.price_change >= 0 else "#EF4444"
-    price_bg = "rgba(16,185,129,0.05)" if cd.price_change >= 0 else "rgba(239,68,68,0.05)"
+    price_color = "#10B981" if _cd_price_change >= 0 else "#EF4444"
+    price_bg = "rgba(16,185,129,0.05)" if _cd_price_change >= 0 else "rgba(239,68,68,0.05)"
 
     st.markdown(
-        f'<div class="price-bar" style="background:{price_bg}; border:1px solid {"rgba(16,185,129,0.15)" if cd.price_change >= 0 else "rgba(239,68,68,0.15)"};">'
+        f'<div class="price-bar" style="background:{price_bg}; border:1px solid {"rgba(16,185,129,0.15)" if _cd_price_change >= 0 else "rgba(239,68,68,0.15)"};">'
         f'<div style="flex:1;">'
         f'<div style="font-size:0.65rem; font-weight:600; color:#8A85AD; text-transform:uppercase; letter-spacing:1px;">Current Price</div>'
         f'<div style="font-size:2rem; font-weight:800; color:{price_color};">'
-        f'{cs}{cd.current_price:,.2f}'
-        f'<span style="font-size:0.9rem; margin-left:0.5rem;">{arrow} {cd.price_change:+.2f} ({cd.price_change_pct:+.2f}%)</span></div>'
+        f'{cs}{getattr(cd, "current_price", 0):,.2f}'
+        f'<span style="font-size:0.9rem; margin-left:0.5rem;">{arrow} {_cd_price_change:+.2f} ({_cd_price_change_pct:+.2f}%)</span></div>'
         f'</div>'
         f'<div style="flex:0 0 180px; text-align:center; border-left:1px solid rgba(255,255,255,0.1); padding-left:1rem;">'
         f'<div style="font-size:0.65rem; font-weight:600; color:#8A85AD; text-transform:uppercase; letter-spacing:1px;">Volume</div>'
-        f'<div style="font-size:1.3rem; font-weight:700; color:#E0DCF5;">{format_number(cd.volume, prefix="", decimals=0)}</div>'
-        f'<div style="font-size:0.6rem; color:#8A85AD;">Avg: {format_number(cd.avg_volume, prefix="", decimals=0)}</div>'
+        f'<div style="font-size:1.3rem; font-weight:700; color:#E0DCF5;">{format_number(getattr(cd, "volume", None), prefix="", decimals=0)}</div>'
+        f'<div style="font-size:0.6rem; color:#8A85AD;">Avg: {format_number(getattr(cd, "avg_volume", None), prefix="", decimals=0)}</div>'
         f'</div>'
         f'<div style="flex:0 0 220px; text-align:center; border-left:1px solid rgba(255,255,255,0.1); padding-left:1rem;">'
         f'<div style="font-size:0.65rem; font-weight:600; color:#8A85AD; text-transform:uppercase; letter-spacing:1px;">52W Range</div>'
         f'<div style="font-size:1.1rem; font-weight:600; color:#E0DCF5;">'
-        f'{cs}{cd.fifty_two_week_low:,.2f} &mdash; {cs}{cd.fifty_two_week_high:,.2f}</div>'
+        f'{cs}{getattr(cd, "fifty_two_week_low", 0):,.2f} &mdash; {cs}{getattr(cd, "fifty_two_week_high", 0):,.2f}</div>'
         f'</div>'
         f'</div>',
         unsafe_allow_html=True,
     )
 
-    # Quick KPI strip
+    # Quick KPI strip with sparklines
+    def _make_sparkline(data, color="#6B5CE7", height=40):
+        """Create a minimal sparkline figure."""
+        if data is None or (hasattr(data, '__len__') and len(data) < 2):
+            return None
+        try:
+            import plotly.graph_objects as _sp_go
+            vals = list(data) if not isinstance(data, list) else data
+            vals = [v for v in vals if v is not None and not (isinstance(v, float) and (v != v))]
+            if len(vals) < 2:
+                return None
+            fig = _sp_go.Figure(_sp_go.Scatter(
+                y=vals, mode='lines', line=dict(color=color, width=1.5),
+                fill='tozeroy', fillcolor=color.replace(')', ',0.1)').replace('rgb', 'rgba') if 'rgb' in color else f"rgba(107,92,231,0.1)",
+            ))
+            fig.update_layout(
+                height=height, margin=dict(t=0, b=0, l=0, r=0),
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                xaxis=dict(visible=False), yaxis=dict(visible=False),
+                showlegend=False,
+            )
+            return fig
+        except Exception:
+            return None
+
+    def _yoy_delta(series):
+        """Return YoY delta string from a Series (most recent vs prior)."""
+        if series is None or not hasattr(series, 'iloc') or len(series) < 2:
+            return None
+        try:
+            curr = float(series.iloc[0])
+            prev = float(series.iloc[1])
+            if prev == 0:
+                return None
+            pct = (curr / prev - 1) * 100
+            return f"{pct:+.1f}% YoY"
+        except Exception:
+            return None
+
     k1, k2, k3, k4, k5, k6 = st.columns(6)
-    k1.metric("Market Cap", format_number(cd.market_cap, currency_symbol=cs))
-    k2.metric("Enterprise Value", format_number(cd.enterprise_value, currency_symbol=cs))
-    k3.metric("Revenue (TTM)", format_number(cd.revenue.iloc[0], currency_symbol=cs) if cd.revenue is not None and len(cd.revenue) > 0 else "N/A")
-    k4.metric("Net Income", format_number(cd.net_income.iloc[0], currency_symbol=cs) if cd.net_income is not None and len(cd.net_income) > 0 else "N/A")
-    k5.metric("Free Cash Flow", format_number(cd.free_cashflow_series.iloc[0], currency_symbol=cs) if cd.free_cashflow_series is not None and len(cd.free_cashflow_series) > 0 else "N/A")
+    k1.metric("Market Cap", format_number(getattr(cd, 'market_cap', None), currency_symbol=cs))
+    k2.metric("Enterprise Value", format_number(getattr(cd, 'enterprise_value', None), currency_symbol=cs))
+
+    _rev_val = "N/A"
+    _rev_delta = None
+    if cd.revenue is not None and len(cd.revenue) > 0:
+        _rev_val = format_number(cd.revenue.iloc[0], currency_symbol=cs)
+        _rev_delta = _yoy_delta(cd.revenue)
+    k3.metric("Revenue (TTM)", _rev_val, delta=_rev_delta)
+
+    _ni_val = "N/A"
+    _ni_delta = None
+    if cd.net_income is not None and len(cd.net_income) > 0:
+        _ni_val = format_number(cd.net_income.iloc[0], currency_symbol=cs)
+        _ni_delta = _yoy_delta(cd.net_income)
+    k4.metric("Net Income", _ni_val, delta=_ni_delta)
+
+    _fcf_val = "N/A"
+    _fcf_delta = None
+    if cd.free_cashflow_series is not None and len(cd.free_cashflow_series) > 0:
+        _fcf_val = format_number(cd.free_cashflow_series.iloc[0], currency_symbol=cs)
+        _fcf_delta = _yoy_delta(cd.free_cashflow_series)
+    k5.metric("Free Cash Flow", _fcf_val, delta=_fcf_delta)
+
     # dividend_yield: yfinance may return as decimal (0.009) or already as pct-like (0.9)
-    _div_yield = cd.dividend_yield
+    _div_yield = getattr(cd, 'dividend_yield', None)
     if _div_yield and _div_yield > 0.5:
-        # Already looks like a percentage value, don't multiply by 100 again
         k6.metric("Dividend Yield", f"{_div_yield:.2f}%")
     else:
         k6.metric("Dividend Yield", format_pct(_div_yield) if _div_yield else "N/A")
+
+    # Sparkline row under KPIs
+    _price_hist = getattr(cd, 'price_history', None)
+    _spark_price = _make_sparkline(_price_hist, color="#6B5CE7") if _price_hist is not None else None
+    _spark_rev = _make_sparkline(cd.revenue[::-1] if cd.revenue is not None and len(cd.revenue) > 1 else None, color="#10B981")
+    if _spark_price or _spark_rev:
+        sp1, sp2 = st.columns(2)
+        if _spark_price:
+            with sp1:
+                st.markdown('<div style="font-size:0.6rem; color:#8A85AD; text-transform:uppercase; letter-spacing:1px;">Price Trend (30d)</div>', unsafe_allow_html=True)
+                st.plotly_chart(_spark_price, use_container_width=True, key="spark_price")
+        if _spark_rev:
+            with sp2:
+                st.markdown('<div style="font-size:0.6rem; color:#8A85AD; text-transform:uppercase; letter-spacing:1px;">Revenue Trend</div>', unsafe_allow_html=True)
+                st.plotly_chart(_spark_rev, use_container_width=True, key="spark_rev")
 
     # ══════════════════════════════════════════════════════
     # 2b. AT A GLANCE CARD
@@ -4938,14 +5230,14 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     # Momentum
     mom_str = "N/A"
     mom_color = "#8A85AD"
-    if cd.price_change_pct:
-        if cd.price_change_pct > 2:
+    if _cd_price_change_pct:
+        if _cd_price_change_pct > 2:
             mom_str = "Strong Bullish"
             mom_color = "#10B981"
-        elif cd.price_change_pct > 0:
+        elif _cd_price_change_pct > 0:
             mom_str = "Bullish"
             mom_color = "#34D399"
-        elif cd.price_change_pct > -2:
+        elif _cd_price_change_pct > -2:
             mom_str = "Bearish"
             mom_color = "#F97316"
         else:
@@ -4983,6 +5275,91 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         f'</div>',
         unsafe_allow_html=True,
     )
+
+    # ══════════════════════════════════════════════════════
+    # 2b-ii. EXECUTIVE SUMMARY (IB Pitch Book style)
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Executive Summary"):
+        _es_bullets = []
+
+        # Valuation bullet: EV/EBITDA
+        _es_ev = getattr(cd, 'enterprise_value', None) or 0
+        _es_ebitda_s = getattr(cd, 'ebitda', None)
+        _es_ebitda = None
+        if _es_ebitda_s is not None:
+            if hasattr(_es_ebitda_s, 'iloc'):
+                _es_ebitda = float(_es_ebitda_s.iloc[0]) if len(_es_ebitda_s) > 0 else None
+            else:
+                try:
+                    _es_ebitda = float(_es_ebitda_s)
+                except (TypeError, ValueError):
+                    _es_ebitda = None
+        _es_ev_ebitda = (_es_ev / _es_ebitda) if _es_ebitda and _es_ebitda > 0 else None
+        _es_peer_ev_ebitda = getattr(cd, 'peer_ev_ebitda_median', None)
+        if _es_ev_ebitda is not None:
+            _val_str = f"Trading at **{_es_ev_ebitda:.1f}x EV/EBITDA**"
+            if _es_peer_ev_ebitda and _es_peer_ev_ebitda > 0:
+                _pct_diff = (_es_ev_ebitda / _es_peer_ev_ebitda - 1) * 100
+                _val_tag = "cheap" if _pct_diff < -15 else "rich" if _pct_diff > 15 else "in-line"
+                _val_str += f" vs peer median of {_es_peer_ev_ebitda:.1f}x ({_val_tag})"
+            _es_bullets.append(("📊", _val_str))
+        elif cd.trailing_pe and cd.trailing_pe > 0:
+            _es_bullets.append(("📊", f"Trading at **{cd.trailing_pe:.1f}x P/E**"))
+
+        # Growth bullet
+        _es_rg = getattr(cd, 'revenue_growth', None)
+        if _es_rg is not None:
+            _rg_pct = _es_rg * 100 if abs(_es_rg) < 5 else _es_rg
+            _es_bullets.append(("📈", f"Revenue growing at **{_rg_pct:.1f}%** YoY"))
+
+        # Profitability bullet
+        _es_pm = getattr(cd, 'profit_margins', None)
+        _es_om = getattr(cd, 'operating_margins', None)
+        if _es_pm is not None:
+            _pm_pct = _es_pm * 100 if abs(_es_pm) < 5 else _es_pm
+            _pm_qual = "above peers" if _pm_pct > 15 else "below peers" if _pm_pct < 5 else "moderate"
+            _es_bullets.append(("💰", f"Net margins **{_pm_pct:.1f}%** ({_pm_qual})"))
+        elif _es_om is not None:
+            _om_pct = _es_om * 100 if abs(_es_om) < 5 else _es_om
+            _es_bullets.append(("💰", f"Operating margins **{_om_pct:.1f}%**"))
+
+        # Balance sheet bullet
+        _es_nd = None
+        _es_td_s = getattr(cd, 'total_debt', None)
+        _es_cash_s = getattr(cd, 'cash_and_equivalents', None)
+        _es_td_v = _safe_val(_es_td_s) if callable(_safe_val) else None
+        try:
+            _es_td_v = float(_es_td_s.iloc[0]) if hasattr(_es_td_s, 'iloc') and len(_es_td_s) > 0 else (float(_es_td_s) if _es_td_s is not None else None)
+        except Exception:
+            _es_td_v = None
+        try:
+            _es_cash_v = float(_es_cash_s.iloc[0]) if hasattr(_es_cash_s, 'iloc') and len(_es_cash_s) > 0 else (float(_es_cash_s) if _es_cash_s is not None else None)
+        except Exception:
+            _es_cash_v = None
+        if _es_td_v is not None and _es_cash_v is not None and _es_ebitda and _es_ebitda > 0:
+            _es_nd = (_es_td_v - _es_cash_v) / _es_ebitda
+            _cr_val = getattr(cd, 'current_ratio', None)
+            _bs_str = f"Net debt/EBITDA of **{_es_nd:.1f}x**"
+            if _cr_val:
+                _bs_str += f", current ratio **{_cr_val:.1f}x**"
+            _es_bullets.append(("🏦", _bs_str))
+
+        if _es_bullets:
+            _es_html = "".join(
+                f'<div style="padding:0.35rem 0; font-size:0.85rem; color:#E0DCF5; line-height:1.7;">'
+                f'{icon} {text}</div>'
+                for icon, text in _es_bullets
+            )
+            st.markdown(
+                f'<div style="background:linear-gradient(135deg, rgba(107,92,231,0.08), rgba(16,185,129,0.06)); '
+                f'border:2px solid transparent; border-image:linear-gradient(135deg, rgba(107,92,231,0.4), rgba(16,185,129,0.3)) 1; '
+                f'border-radius:0px; padding:1.2rem 1.5rem; margin:1rem 0;">'
+                f'<div style="font-size:0.7rem; font-weight:800; color:#9B8AFF; text-transform:uppercase; '
+                f'letter-spacing:2px; margin-bottom:0.6rem;">Executive Summary</div>'
+                f'{_es_html}'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
     # ══════════════════════════════════════════════════════
     # 2c. KEY TAKEAWAYS (auto-generated)
@@ -5046,6 +5423,102 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         pass
 
     # ══════════════════════════════════════════════════════
+    # 2d. BULL / BEAR INVESTMENT THESIS
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Investment Thesis"):
+        bull_points = []
+        bear_points = []
+
+        # Revenue Growth
+        if cd.revenue_growth:
+            if cd.revenue_growth > 0.10:
+                bull_points.append(f"Strong revenue growth ({cd.revenue_growth:.0%}) above market average")
+            elif cd.revenue_growth < 0:
+                bear_points.append(f"Revenue declining ({cd.revenue_growth:.0%}) — top-line contraction risk")
+
+        # Margins
+        if cd.profit_margins:
+            if cd.profit_margins > 0.20:
+                bull_points.append(f"High profit margins ({cd.profit_margins:.0%}) indicate pricing power and moat")
+            elif cd.profit_margins < 0.05:
+                bear_points.append(f"Thin profit margins ({cd.profit_margins:.0%}) leave little room for error")
+
+        # FCF
+        _fcf = cd.free_cashflow_series.iloc[0] if cd.free_cashflow_series is not None and len(cd.free_cashflow_series) > 0 else None
+        if _fcf and _fcf > 0:
+            _fcf_yield = (_fcf / cd.market_cap * 100) if cd.market_cap else 0
+            if _fcf_yield > 5:
+                bull_points.append(f"Strong FCF yield ({_fcf_yield:.1f}%) — cash generative business")
+            elif _fcf_yield > 3:
+                bull_points.append(f"Healthy FCF yield ({_fcf_yield:.1f}%)")
+        elif _fcf and _fcf < 0:
+            bear_points.append("Negative free cash flow — burning cash")
+
+        # Debt
+        if cd.debt_to_equity:
+            if cd.debt_to_equity > 200:
+                bear_points.append(f"High leverage (D/E: {cd.debt_to_equity:.0f}%) increases financial risk")
+            elif cd.debt_to_equity < 30:
+                bull_points.append(f"Conservative balance sheet (D/E: {cd.debt_to_equity:.0f}%)")
+
+        # Beta / Risk
+        if cd.beta:
+            if cd.beta > 1.5:
+                bear_points.append(f"High beta ({cd.beta:.2f}) — more volatile than market")
+            elif cd.beta < 0.8:
+                bull_points.append(f"Low beta ({cd.beta:.2f}) — defensive characteristics")
+
+        # Analyst
+        if rec and "buy" in rec.lower():
+            bull_points.append(f"Analyst consensus is {rec_str}")
+        elif rec and "sell" in rec.lower():
+            bear_points.append(f"Analyst consensus is {rec_str}")
+
+        # Valuation
+        if cd.trailing_pe and cd.trailing_pe < 15:
+            bull_points.append(f"Trading at value multiple ({cd.trailing_pe:.0f}x P/E)")
+        elif cd.trailing_pe and cd.trailing_pe > 40:
+            bear_points.append(f"Expensive valuation ({cd.trailing_pe:.0f}x P/E) — priced for perfection")
+
+        # Market position
+        if cd.market_cap and cd.market_cap > 100e9:
+            bull_points.append("Market leader with significant scale advantages")
+
+        # Dividend
+        if cd.dividend_yield and cd.dividend_yield > 0.02:
+            _dy = cd.dividend_yield * 100 if cd.dividend_yield < 0.2 else cd.dividend_yield
+            bull_points.append(f"Attractive dividend yield ({_dy:.1f}%)")
+
+        if bull_points or bear_points:
+            bull_html = "".join(
+                f'<div style="padding:0.25rem 0; font-size:0.82rem; color:#B8B3D7; line-height:1.6;">'
+                f'<span style="color:#10B981;">▲</span> {p}</div>'
+                for p in bull_points[:4]
+            ) or '<div style="font-size:0.8rem; color:#8A85AD;">No strong bull signals identified</div>'
+
+            bear_html = "".join(
+                f'<div style="padding:0.25rem 0; font-size:0.82rem; color:#B8B3D7; line-height:1.6;">'
+                f'<span style="color:#EF4444;">▼</span> {p}</div>'
+                for p in bear_points[:4]
+            ) or '<div style="font-size:0.8rem; color:#8A85AD;">No significant bear signals identified</div>'
+
+            st.markdown(
+                f'<div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin:0.5rem 0 1rem 0;">'
+                f'<div style="background:rgba(16,185,129,0.04); border:1px solid rgba(16,185,129,0.15); '
+                f'border-radius:12px; padding:1rem 1.2rem;">'
+                f'<div style="font-size:0.65rem; font-weight:700; color:#10B981; text-transform:uppercase; '
+                f'letter-spacing:1.5px; margin-bottom:0.5rem;">🐂 Bull Case</div>'
+                f'{bull_html}</div>'
+                f'<div style="background:rgba(239,68,68,0.04); border:1px solid rgba(239,68,68,0.15); '
+                f'border-radius:12px; padding:1rem 1.2rem;">'
+                f'<div style="font-size:0.65rem; font-weight:700; color:#EF4444; text-transform:uppercase; '
+                f'letter-spacing:1.5px; margin-bottom:0.5rem;">🐻 Bear Case</div>'
+                f'{bear_html}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+    # ══════════════════════════════════════════════════════
     # 3. BUSINESS OVERVIEW
     # ══════════════════════════════════════════════════════
     _section("Business Overview")
@@ -5066,6 +5539,37 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         with b3:
             web_display = cd.website.replace("https://", "").replace("http://", "").rstrip("/") if cd.website else "N/A"
             st.markdown(f'<div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:0.6rem 0.8rem; text-align:center;"><div style="font-size:0.65rem; font-weight:600; text-transform:uppercase; letter-spacing:0.7px; color:#8A85AD; margin-bottom:0.2rem;">Website</div><div style="font-size:1rem; font-weight:700; color:#E0DCF5;">{web_display}</div></div>', unsafe_allow_html=True)
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # 3b. REVENUE SEGMENTATION (if available)
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Revenue Segmentation"):
+        _seg_data_found = False
+        try:
+            _tk_seg = yf.Ticker(cd.ticker)
+            # yfinance may expose revenue by segment/geography via get_financials or similar
+            _seg_rev = getattr(_tk_seg, 'revenue_estimate', None)
+            # Try newer yfinance API for segment data
+            _seg_by_product = None
+            _seg_by_geo = None
+            try:
+                _seg_by_product = _tk_seg.get_revenue_estimate() if hasattr(_tk_seg, 'get_revenue_estimate') else None
+            except Exception:
+                pass
+            # Check for quarterly financials that might have segment info
+            # yfinance doesn't reliably provide segment data, so we check what's available
+            if _seg_by_product is not None and hasattr(_seg_by_product, 'empty') and not _seg_by_product.empty:
+                _seg_data_found = True
+                _section("Revenue Segmentation", "📊")
+                st.dataframe(_seg_by_product, use_container_width=True)
+        except Exception:
+            pass
+
+        if not _seg_data_found:
+            # Silently skip — don't show anything if no segment data
+            pass
 
     _divider()
 
@@ -5158,6 +5662,52 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                             unsafe_allow_html=True,
                         )
         
+        # Fibonacci Retracement Levels
+        show_fib = st.checkbox("Show Fibonacci Retracement", value=False, key="show_fib")
+        if show_fib and len(plot_hist) > 10:
+            fib_high = plot_hist["Close"].max()
+            fib_low = plot_hist["Close"].min()
+            fib_diff = fib_high - fib_low
+            fib_levels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0]
+            fib_colors = ["#EF4444", "#F59E0B", "#F5A623", "#8A85AD", "#10B981", "#3B82F6", "#6B5CE7"]
+            for lvl, clr in zip(fib_levels, fib_colors):
+                fib_price = fib_high - fib_diff * lvl
+                fig.add_hline(
+                    y=fib_price, line_dash="dot", line_color=clr, line_width=1,
+                    annotation_text=f"Fib {lvl:.1%} ({cs}{fib_price:.2f})",
+                    annotation_position="bottom right",
+                    annotation_font=dict(size=7, color=clr),
+                )
+
+        # Volume Profile (horizontal volume bars)
+        show_vol_profile = st.checkbox("Show Volume Profile", value=False, key="show_vol_profile")
+        if show_vol_profile and "Volume" in plot_hist.columns and len(plot_hist) > 10:
+            price_min = plot_hist["Close"].min()
+            price_max = plot_hist["Close"].max()
+            n_bins = 30
+            bin_edges = np.linspace(price_min, price_max, n_bins + 1)
+            vol_profile = np.zeros(n_bins)
+            for i in range(n_bins):
+                mask = (plot_hist["Close"] >= bin_edges[i]) & (plot_hist["Close"] < bin_edges[i + 1])
+                vol_profile[i] = plot_hist.loc[mask, "Volume"].sum()
+            # Normalize to fit on right side (max = 15% of date range)
+            if vol_profile.max() > 0:
+                vol_norm = vol_profile / vol_profile.max()
+                x_start = plot_hist.index[-1]
+                x_range_days = (plot_hist.index[-1] - plot_hist.index[0]).days
+                for i in range(n_bins):
+                    bin_mid = (bin_edges[i] + bin_edges[i + 1]) / 2
+                    bar_width = (bin_edges[1] - bin_edges[0]) * 0.8
+                    opacity = 0.15 + 0.35 * vol_norm[i]
+                    fig.add_shape(
+                        type="rect",
+                        x0=x_start, x1=x_start + pd.Timedelta(days=int(x_range_days * 0.12 * vol_norm[i])),
+                        y0=bin_mid - bar_width / 2, y1=bin_mid + bar_width / 2,
+                        fillcolor=f"rgba(107,92,231,{opacity:.2f})",
+                        line=dict(width=0),
+                        layer="below",
+                    )
+
         # 52-week high/low reference lines
         if cd.fifty_two_week_high:
             fig.add_hline(y=cd.fifty_two_week_high, line_dash="dash",
@@ -5357,65 +5907,185 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     # 4c. INSTITUTIONAL & INSIDER SUMMARY
     # ══════════════════════════════════════════════════════
     _section("Ownership Overview")
-    
-    own_col1, own_col2 = st.columns(2)
-    
-    with own_col1:
-        # Institutional holders
+
+    with _safe_section("Ownership Overview"):
         try:
             tk_own = yf.Ticker(cd.ticker)
-            inst_holders = tk_own.institutional_holders
-            if inst_holders is not None and not inst_holders.empty:
-                st.markdown(
-                    '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; margin-bottom:0.5rem;">'
-                    '🏛️ Top Institutional Holders</div>',
-                    unsafe_allow_html=True,
-                )
-                for _, row in inst_holders.head(8).iterrows():
-                    holder = row.get("Holder", "Unknown")
-                    shares = row.get("Shares", 0)
-                    value = row.get("Value", 0)
-                    pct = row.get("% Out", row.get("pctHeld", 0))
-                    pct_str = f"{pct:.2%}" if isinstance(pct, float) and pct < 1 else f"{pct}"
+        except Exception:
+            tk_own = None
+
+        own_col1, own_col2 = st.columns(2)
+
+        with own_col1:
+            # Institutional holders — enhanced
+            try:
+                inst_holders = tk_own.institutional_holders if tk_own else None
+                if inst_holders is not None and not inst_holders.empty:
                     st.markdown(
-                        f'<div style="display:flex; justify-content:space-between; padding:0.3rem 0; '
-                        f'border-bottom:1px solid rgba(255,255,255,0.04); font-size:0.75rem;">'
-                        f'<span style="color:#E0DCF5; flex:2;">{holder}</span>'
-                        f'<span style="color:#8A85AD; flex:1; text-align:right;">{shares:,.0f}</span>'
-                        f'<span style="color:#6B5CE7; flex:0.5; text-align:right; font-weight:600;">{pct_str}</span>'
-                        f'</div>',
+                        '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; margin-bottom:0.5rem;">'
+                        '🏛️ Top 10 Institutional Holders</div>',
                         unsafe_allow_html=True,
                     )
-            else:
-                st.info("No institutional holder data available.")
-        except Exception:
-            st.info("Could not fetch institutional holders.")
-    
-    with own_col2:
-        # Major holders summary
-        try:
-            major = tk_own.major_holders
-            if major is not None and not major.empty:
-                st.markdown(
-                    '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; margin-bottom:0.5rem;">'
-                    '📊 Ownership Breakdown</div>',
-                    unsafe_allow_html=True,
-                )
-                for _, row in major.iterrows():
-                    val = row.iloc[0] if len(row) > 0 else ""
-                    label = row.iloc[1] if len(row) > 1 else ""
+
+                    # Table display
+                    for _, row in inst_holders.head(10).iterrows():
+                        holder = row.get("Holder", "Unknown")
+                        shares = row.get("Shares", 0)
+                        value = row.get("Value", 0)
+                        pct = row.get("% Out", row.get("pctHeld", 0))
+                        pct_str = f"{pct:.2%}" if isinstance(pct, float) and pct < 1 else f"{pct}"
+                        date_rep = row.get("Date Reported", "")
+                        date_str = date_rep.strftime("%Y-%m-%d") if hasattr(date_rep, 'strftime') else str(date_rep)[:10] if date_rep else ""
+                        val_str = f"${value/1e6:,.0f}M" if value and value >= 1e6 else f"${value:,.0f}" if value else "—"
+                        st.markdown(
+                            f'<div style="display:flex; justify-content:space-between; padding:0.3rem 0; '
+                            f'border-bottom:1px solid rgba(255,255,255,0.04); font-size:0.72rem;">'
+                            f'<span style="color:#E0DCF5; flex:2.5;">{holder}</span>'
+                            f'<span style="color:#8A85AD; flex:1; text-align:right;">{shares:,.0f}</span>'
+                            f'<span style="color:#9B8AFF; flex:0.8; text-align:right;">{val_str}</span>'
+                            f'<span style="color:#6B5CE7; flex:0.5; text-align:right; font-weight:600;">{pct_str}</span>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
+
+                    # Horizontal bar chart of top 10 by % ownership
+                    _top10 = inst_holders.head(10).copy()
+                    _pct_col = "% Out" if "% Out" in _top10.columns else "pctHeld" if "pctHeld" in _top10.columns else None
+                    if _pct_col and _top10[_pct_col].notna().any():
+                        fig_inst = go.Figure()
+                        _holders = _top10["Holder"].tolist()[::-1]
+                        _pcts = _top10[_pct_col].fillna(0).tolist()[::-1]
+                        _pcts_display = [p * 100 if p < 1 else p for p in _pcts]
+                        fig_inst.add_trace(go.Bar(
+                            y=_holders, x=_pcts_display, orientation="h",
+                            marker_color="rgba(107,92,231,0.7)",
+                            text=[f"{p:.1f}%" for p in _pcts_display],
+                            textposition="outside",
+                            textfont=dict(size=9, color="#B8B3D7"),
+                        ))
+                        fig_inst.update_layout(
+                            **_CHART_LAYOUT_BASE, height=300,
+                            margin=dict(t=10, b=20, l=160, r=50),
+                            xaxis=dict(title=dict(text="% Outstanding", font=dict(size=9, color="#8A85AD")),
+                                      ticksuffix="%", tickfont=dict(size=8, color="#8A85AD"), showgrid=False),
+                            yaxis=dict(tickfont=dict(size=8, color="#8A85AD")),
+                            showlegend=False,
+                        )
+                        _apply_space_grid(fig_inst)
+                        st.plotly_chart(fig_inst, use_container_width=True, key="inst_holders_bar")
+
+                    # Total institutional ownership
+                    try:
+                        major = tk_own.major_holders if tk_own else None
+                        if major is not None and not major.empty:
+                            for _, row in major.iterrows():
+                                val = row.iloc[0] if len(row) > 0 else ""
+                                label = str(row.iloc[1]) if len(row) > 1 else ""
+                                if "institution" in label.lower() and "hold" in label.lower():
+                                    st.markdown(
+                                        f'<div style="text-align:center; padding:0.5rem; margin-top:0.5rem; '
+                                        f'background:rgba(107,92,231,0.08); border-radius:8px;">'
+                                        f'<span style="font-size:0.7rem; color:#8A85AD;">Total Institutional Ownership: </span>'
+                                        f'<span style="font-size:0.9rem; font-weight:700; color:#6B5CE7;">{val}</span>'
+                                        f'</div>',
+                                        unsafe_allow_html=True,
+                                    )
+                                    break
+                    except Exception:
+                        pass
+                else:
+                    st.info("No institutional holder data available.")
+            except Exception:
+                st.info("Could not fetch institutional holders.")
+
+        with own_col2:
+            # Major holders summary + Mutual Fund holders + Donut
+            try:
+                major = tk_own.major_holders if tk_own else None
+                if major is not None and not major.empty:
                     st.markdown(
-                        f'<div style="display:flex; justify-content:space-between; padding:0.4rem 0; '
-                        f'border-bottom:1px solid rgba(255,255,255,0.04);">'
-                        f'<span style="color:#8A85AD; font-size:0.75rem;">{label}</span>'
-                        f'<span style="color:#E0DCF5; font-weight:700; font-size:0.85rem;">{val}</span>'
-                        f'</div>',
+                        '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; margin-bottom:0.5rem;">'
+                        '📊 Ownership Breakdown</div>',
                         unsafe_allow_html=True,
                     )
-            else:
-                st.info("No major holder data available.")
-        except Exception:
-            st.info("Could not fetch major holders.")
+                    for _, row in major.iterrows():
+                        val = row.iloc[0] if len(row) > 0 else ""
+                        label = row.iloc[1] if len(row) > 1 else ""
+                        st.markdown(
+                            f'<div style="display:flex; justify-content:space-between; padding:0.4rem 0; '
+                            f'border-bottom:1px solid rgba(255,255,255,0.04);">'
+                            f'<span style="color:#8A85AD; font-size:0.75rem;">{label}</span>'
+                            f'<span style="color:#E0DCF5; font-weight:700; font-size:0.85rem;">{val}</span>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
+                else:
+                    st.info("No major holder data available.")
+            except Exception:
+                st.info("Could not fetch major holders.")
+
+            # Mutual Fund Holders
+            try:
+                mf_holders = tk_own.mutualfund_holders if tk_own else None
+                if mf_holders is not None and not mf_holders.empty:
+                    st.markdown(
+                        '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; margin-top:1rem; margin-bottom:0.5rem;">'
+                        '💼 Top 5 Mutual Fund Holders</div>',
+                        unsafe_allow_html=True,
+                    )
+                    for _, row in mf_holders.head(5).iterrows():
+                        holder = row.get("Holder", "Unknown")
+                        pct = row.get("% Out", row.get("pctHeld", 0))
+                        pct_str = f"{pct:.2%}" if isinstance(pct, float) and pct < 1 else f"{pct}"
+                        st.markdown(
+                            f'<div style="display:flex; justify-content:space-between; padding:0.25rem 0; '
+                            f'border-bottom:1px solid rgba(255,255,255,0.04); font-size:0.72rem;">'
+                            f'<span style="color:#E0DCF5; flex:3;">{holder}</span>'
+                            f'<span style="color:#6B5CE7; flex:0.5; text-align:right; font-weight:600;">{pct_str}</span>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
+            except Exception:
+                pass
+
+            # Ownership Concentration Donut
+            try:
+                inst_holders = tk_own.institutional_holders if tk_own else None
+                if inst_holders is not None and not inst_holders.empty:
+                    _pct_col = "% Out" if "% Out" in inst_holders.columns else "pctHeld" if "pctHeld" in inst_holders.columns else None
+                    if _pct_col:
+                        _top5_pct = inst_holders.head(5)[_pct_col].fillna(0).tolist()
+                        _top5_pct = [p * 100 if p < 1 else p for p in _top5_pct]
+                        _top5_names = inst_holders.head(5)["Holder"].tolist()
+                        _total_inst = inst_holders[_pct_col].fillna(0).sum()
+                        _total_inst = _total_inst * 100 if _total_inst < 1 else _total_inst
+                        _rest = max(0, _total_inst - sum(_top5_pct))
+
+                        _labels = [n[:25] for n in _top5_names] + ["Other Institutions"]
+                        _values = _top5_pct + [_rest]
+                        _colors_donut = ["#6B5CE7", "#E8638B", "#10B981", "#F5A623", "#3B82F6", "#8A85AD"]
+
+                        fig_donut = go.Figure(data=[go.Pie(
+                            labels=_labels, values=_values,
+                            hole=0.55, marker=dict(colors=_colors_donut),
+                            textinfo="percent", textfont=dict(size=9, color="#E0DCF5"),
+                            hovertemplate="%{label}<br>%{value:.1f}%<extra></extra>",
+                        )])
+                        fig_donut.update_layout(
+                            **_CHART_LAYOUT_BASE, height=250,
+                            margin=dict(t=10, b=10, l=10, r=10),
+                            showlegend=True,
+                            legend=dict(font=dict(size=8, color="#8A85AD"), orientation="h",
+                                       yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+                        )
+                        st.markdown(
+                            '<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF; margin-top:1rem; margin-bottom:0.3rem;">'
+                            '🍩 Ownership Concentration (Top 5)</div>',
+                            unsafe_allow_html=True,
+                        )
+                        st.plotly_chart(fig_donut, use_container_width=True, key="ownership_donut")
+            except Exception:
+                pass
 
     _divider()
 
@@ -5610,6 +6280,83 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     # ══════════════════════════════════════════════════════
     _section("Financial Statements")
 
+    # Financial Summary Trend Table (4 years)
+    with _safe_section("Financial Summary Trend"):
+        _years_avail = min(4, len(cd.revenue)) if cd.revenue is not None and len(cd.revenue) > 0 else 0
+        if _years_avail >= 2:
+            _trend_rows = []
+            _trend_cols = []
+
+            for i in range(_years_avail):
+                yr_label = str(cd.revenue.index[i])[:4] if hasattr(cd.revenue.index[i], 'year') else str(cd.revenue.index[i])[:4]
+                _trend_cols.append(yr_label)
+
+            def _extract_trend(series, fmt_fn=None, prefix=""):
+                vals = []
+                if series is None or len(series) == 0:
+                    return ["—"] * _years_avail
+                for i in range(_years_avail):
+                    if i < len(series):
+                        v = float(series.iloc[i])
+                        if fmt_fn:
+                            vals.append(fmt_fn(v))
+                        elif prefix:
+                            vals.append(f"{prefix}{v/1e9:.1f}B" if abs(v) >= 1e9 else f"{prefix}{v/1e6:.0f}M")
+                        else:
+                            vals.append(f"{v:.1f}")
+                    else:
+                        vals.append("—")
+                return vals
+
+            _trend_data = {
+                "Revenue": _extract_trend(cd.revenue, prefix=cs),
+                "Gross Profit": _extract_trend(cd.gross_profit, prefix=cs),
+                "Operating Income": _extract_trend(cd.operating_income, prefix=cs),
+                "Net Income": _extract_trend(cd.net_income, prefix=cs),
+                "Free Cash Flow": _extract_trend(cd.free_cashflow_series, prefix=cs),
+                "Gross Margin": _extract_trend(cd.gross_margin_series, fmt_fn=lambda v: f"{v*100:.1f}%" if abs(v) < 1 else f"{v:.1f}%"),
+                "Operating Margin": _extract_trend(cd.operating_margin_series, fmt_fn=lambda v: f"{v*100:.1f}%" if abs(v) < 1 else f"{v:.1f}%"),
+                "Net Margin": _extract_trend(cd.net_margin_series, fmt_fn=lambda v: f"{v*100:.1f}%" if abs(v) < 1 else f"{v:.1f}%"),
+            }
+
+            _trend_cols.reverse()
+            for k in _trend_data:
+                _trend_data[k].reverse()
+
+            # Build styled HTML table
+            _th_html = "".join(f'<th style="padding:0.4rem 0.6rem; font-weight:700; color:#6B5CE7; font-size:0.75rem; '
+                               f'text-align:right; border-bottom:2px solid rgba(107,92,231,0.3);">{yr}</th>'
+                               for yr in _trend_cols)
+
+            _tbody_html = ""
+            for metric, vals in _trend_data.items():
+                _cells = ""
+                for j, v in enumerate(vals):
+                    # Color negative values red
+                    _neg = v.startswith("-") or v.startswith(f"{cs}-")
+                    _c = "#EF4444" if _neg else "#E0DCF5"
+                    _fw = "600"
+                    _cells += f'<td style="padding:0.35rem 0.6rem; text-align:right; font-size:0.78rem; color:{_c}; font-weight:{_fw};">{v}</td>'
+                _tbody_html += (
+                    f'<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">'
+                    f'<td style="padding:0.35rem 0.6rem; font-size:0.78rem; color:#B8B3D7; font-weight:600;">{metric}</td>'
+                    f'{_cells}</tr>'
+                )
+
+            st.markdown(
+                f'<div style="background:rgba(255,255,255,0.02); border:1px solid rgba(107,92,231,0.1); '
+                f'border-radius:10px; overflow:hidden; margin-bottom:1rem;">'
+                f'<div style="padding:0.6rem 0.8rem; background:rgba(107,92,231,0.06); '
+                f'border-bottom:1px solid rgba(107,92,231,0.1);">'
+                f'<span style="font-size:0.7rem; font-weight:700; color:#6B5CE7; text-transform:uppercase; '
+                f'letter-spacing:1px;">📊 Financial Summary (Annual)</span></div>'
+                f'<table style="width:100%; border-collapse:collapse;">'
+                f'<thead><tr><th style="padding:0.4rem 0.6rem; text-align:left; font-size:0.7rem; '
+                f'color:#8A85AD; border-bottom:2px solid rgba(107,92,231,0.3);">Metric</th>{_th_html}</tr></thead>'
+                f'<tbody>{_tbody_html}</tbody></table></div>',
+                unsafe_allow_html=True,
+            )
+
     def _display_financial_df(df, label, quarterly=False):
         if df is not None and not df.empty:
             display_df = df.copy()
@@ -5727,6 +6474,149 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 st.plotly_chart(fig_growth, use_container_width=True, key="revenue_growth_trend")
         except Exception:
             pass
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # 8b. CHART STUDIO
+    # ══════════════════════════════════════════════════════
+    with st.expander("📊 Chart Studio — Advanced Visualizations", expanded=False):
+        with _safe_section("Chart Studio"):
+            cs_tab1, cs_tab2, cs_tab3 = st.tabs(["Correlation Matrix", "Margins Waterfall", "Cash Flow Bridge"])
+
+            with cs_tab1:
+                # Correlation matrix heatmap of key financial metrics over time
+                try:
+                    corr_series = {}
+                    if cd.revenue is not None and len(cd.revenue) >= 2:
+                        corr_series["Revenue"] = cd.revenue.values[::-1].astype(float)
+                    if cd.gross_profit is not None and len(cd.gross_profit) >= 2:
+                        corr_series["Gross Profit"] = cd.gross_profit.values[::-1].astype(float)
+                    if cd.operating_income is not None and len(cd.operating_income) >= 2:
+                        corr_series["Op Income"] = cd.operating_income.values[::-1].astype(float)
+                    if cd.net_income is not None and len(cd.net_income) >= 2:
+                        corr_series["Net Income"] = cd.net_income.values[::-1].astype(float)
+                    if cd.free_cashflow_series is not None and len(cd.free_cashflow_series) >= 2:
+                        corr_series["FCF"] = cd.free_cashflow_series.values[::-1].astype(float)
+
+                    if len(corr_series) >= 3:
+                        min_len = min(len(v) for v in corr_series.values())
+                        corr_dict = {k: v[:min_len] for k, v in corr_series.items()}
+                        corr_df = pd.DataFrame(corr_dict)
+                        corr_mat = corr_df.corr()
+
+                        fig_cm = go.Figure(data=go.Heatmap(
+                            z=corr_mat.values,
+                            x=corr_mat.columns.tolist(),
+                            y=corr_mat.index.tolist(),
+                            colorscale=[[0, "#EF4444"], [0.5, "#1a1625"], [1, "#10B981"]],
+                            zmin=-1, zmax=1,
+                            text=np.round(corr_mat.values, 2),
+                            texttemplate="%{text}",
+                            textfont=dict(size=11, color="#E0DCF5"),
+                        ))
+                        fig_cm.update_layout(
+                            **_CHART_LAYOUT_BASE, height=400,
+                            margin=dict(t=30, b=30, l=80, r=30),
+                            xaxis=dict(tickfont=dict(size=10, color="#8A85AD")),
+                            yaxis=dict(tickfont=dict(size=10, color="#8A85AD")),
+                        )
+                        st.plotly_chart(fig_cm, use_container_width=True, key="cs_corr_matrix")
+                    else:
+                        st.info("Not enough financial series for correlation analysis.")
+                except Exception as e:
+                    st.info(f"Correlation matrix not available: {str(e)[:80]}")
+
+            with cs_tab2:
+                # Margins waterfall: Revenue → Gross Profit → EBITDA → Net Income
+                try:
+                    rev_latest = float(cd.revenue.iloc[0]) if cd.revenue is not None and len(cd.revenue) > 0 else 0
+                    gp_latest = float(cd.gross_profit.iloc[0]) if cd.gross_profit is not None and len(cd.gross_profit) > 0 else 0
+                    oi_latest = float(cd.operating_income.iloc[0]) if cd.operating_income is not None and len(cd.operating_income) > 0 else 0
+                    ni_latest = float(cd.net_income.iloc[0]) if cd.net_income is not None and len(cd.net_income) > 0 else 0
+
+                    if rev_latest > 0:
+                        cogs = rev_latest - gp_latest
+                        opex = gp_latest - oi_latest
+                        below_line = oi_latest - ni_latest
+
+                        fig_mw = go.Figure(go.Waterfall(
+                            x=["Revenue", "COGS", "Gross Profit", "OpEx", "Operating Income", "Tax/Int/Other", "Net Income"],
+                            y=[rev_latest, -cogs, 0, -opex, 0, -below_line, 0],
+                            measure=["absolute", "relative", "total", "relative", "total", "relative", "total"],
+                            text=[format_number(v, currency_symbol=cs) for v in [rev_latest, -cogs, gp_latest, -opex, oi_latest, -below_line, ni_latest]],
+                            textposition="outside",
+                            textfont=dict(size=9, color="#B8B3D7"),
+                            connector=dict(line=dict(color="rgba(107,92,231,0.2)", width=1, dash="dot")),
+                            increasing=dict(marker=dict(color="#10B981")),
+                            decreasing=dict(marker=dict(color="#EF4444")),
+                            totals=dict(marker=dict(color="#6B5CE7")),
+                        ))
+                        fig_mw.update_layout(
+                            **_CHART_LAYOUT_BASE, height=400,
+                            margin=dict(t=30, b=40, l=60, r=30),
+                            xaxis=dict(tickfont=dict(size=9, color="#8A85AD"), showgrid=False),
+                            yaxis=dict(tickfont=dict(size=9, color="#8A85AD")),
+                        )
+                        _apply_space_grid(fig_mw)
+                        st.plotly_chart(fig_mw, use_container_width=True, key="cs_margins_waterfall")
+                    else:
+                        st.info("Revenue data not available for margins waterfall.")
+                except Exception as e:
+                    st.info(f"Margins waterfall not available: {str(e)[:80]}")
+
+            with cs_tab3:
+                # Cash flow bridge: Operating CF → CapEx → FCF → Dividends → Net Cash Change
+                try:
+                    if cd.cashflow is not None and not cd.cashflow.empty:
+                        cf = cd.cashflow
+                        def _cf_val(names):
+                            for n in names:
+                                for idx in cf.index:
+                                    if n.lower() in str(idx).lower():
+                                        v = cf.loc[idx].iloc[0]
+                                        return float(v) if pd.notna(v) else 0
+                            return 0
+
+                        op_cf = _cf_val(["operating cash flow", "total cash from operating", "cash flow from operations"])
+                        capex = _cf_val(["capital expenditure", "capital expenditures"])
+                        fcf_val = op_cf + capex  # capex is typically negative
+                        dividends = _cf_val(["dividends paid", "cash dividends paid"])
+                        buybacks = _cf_val(["repurchase", "buyback", "stock repurchase"])
+                        net_change = fcf_val + dividends + buybacks
+
+                        if op_cf != 0:
+                            bridge_labels = ["Operating CF", "CapEx", "Free Cash Flow", "Dividends", "Buybacks", "Net Cash"]
+                            bridge_values = [op_cf, capex, 0, dividends, buybacks, 0]
+                            bridge_measures = ["absolute", "relative", "total", "relative", "relative", "total"]
+                            bridge_display = [op_cf, capex, fcf_val, dividends, buybacks, net_change]
+
+                            fig_cfb = go.Figure(go.Waterfall(
+                                x=bridge_labels,
+                                y=bridge_values,
+                                measure=bridge_measures,
+                                text=[format_number(v, currency_symbol=cs) for v in bridge_display],
+                                textposition="outside",
+                                textfont=dict(size=9, color="#B8B3D7"),
+                                connector=dict(line=dict(color="rgba(107,92,231,0.2)", width=1, dash="dot")),
+                                increasing=dict(marker=dict(color="#10B981")),
+                                decreasing=dict(marker=dict(color="#EF4444")),
+                                totals=dict(marker=dict(color="#6B5CE7")),
+                            ))
+                            fig_cfb.update_layout(
+                                **_CHART_LAYOUT_BASE, height=400,
+                                margin=dict(t=30, b=40, l=60, r=30),
+                                xaxis=dict(tickfont=dict(size=9, color="#8A85AD"), showgrid=False),
+                                yaxis=dict(tickfont=dict(size=9, color="#8A85AD")),
+                            )
+                            _apply_space_grid(fig_cfb)
+                            st.plotly_chart(fig_cfb, use_container_width=True, key="cs_cashflow_bridge")
+                        else:
+                            st.info("Operating cash flow data not available.")
+                    else:
+                        st.info("Cash flow statement not available.")
+                except Exception as e:
+                    st.info(f"Cash flow bridge not available: {str(e)[:80]}")
 
     _divider()
 
@@ -6212,6 +7102,322 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 f'</div>',
                 unsafe_allow_html=True,
             )
+    
+    # ── Piotroski F-Score (from data_engine) ──
+    try:
+        pio_result = calculate_piotroski_score(cd)
+        if pio_result and pio_result.get("score") is not None:
+            pio_score = pio_result["score"]
+            pio_max = pio_result.get("max_score", 9)
+            if pio_score >= 7:
+                pio_color, pio_label = "#10B981", "Strong"
+            elif pio_score >= 4:
+                pio_color, pio_label = "#F59E0B", "Moderate"
+            else:
+                pio_color, pio_label = "#EF4444", "Weak"
+            st.markdown(
+                f'<div style="text-align:center; padding:0.8rem; margin-top:0.5rem; '
+                f'background:rgba(107,92,231,0.05); border-radius:12px; '
+                f'border:1px solid rgba(107,92,231,0.15);">'
+                f'<span style="font-size:0.75rem; color:#8A85AD;">Piotroski F-Score</span><br>'
+                f'<span style="font-size:1.8rem; font-weight:900; color:{pio_color};">{pio_score}</span>'
+                f'<span style="font-size:0.8rem; color:#8A85AD;">/{pio_max}</span>'
+                f'<span style="font-size:0.75rem; color:{pio_color}; margin-left:0.5rem;">{pio_label}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+    except Exception:
+        pass
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # 10d-ii. ALTMAN Z-SCORE
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Altman Z-Score"):
+        _section("Altman Z-Score", "🔬")
+        
+        _z_ta = _safe_val(getattr(cd, 'total_assets', None))
+        _z_tl = _safe_val(getattr(cd, 'total_liabilities', None))
+        _z_te = _safe_val(getattr(cd, 'total_equity', None))
+        _z_rev = _safe_val(getattr(cd, 'revenue', None))
+        _z_oi = _safe_val(getattr(cd, 'operating_income', None))
+        _z_mcap = cd.market_cap or 0
+        _z_td = _safe_val(getattr(cd, 'total_debt', None))
+        _z_cash = _safe_val(getattr(cd, 'cash_and_equivalents', None))
+        
+        # Working Capital = Current Assets - Current Liabilities
+        # Approximate: WC = (Total Assets - non-current) but simpler: TA - TL is net worth, not WC
+        # Better: WC ≈ (Cash + current_ratio proxy). Use balance sheet if available.
+        _z_ca = None
+        _z_cl = None
+        if cd.balance_sheet is not None and not cd.balance_sheet.empty:
+            bs = cd.balance_sheet
+            _z_ca = float(bs.loc["Current Assets"].iloc[0]) if "Current Assets" in bs.index else None
+            _z_cl = float(bs.loc["Current Liabilities"].iloc[0]) if "Current Liabilities" in bs.index else None
+            _z_re = float(bs.loc["Retained Earnings"].iloc[0]) if "Retained Earnings" in bs.index else None
+        else:
+            _z_re = None
+        
+        # Fallback for WC if no current assets/liabilities
+        if _z_ca is not None and _z_cl is not None:
+            _z_wc = _z_ca - _z_cl
+        elif cd.current_ratio and _z_tl:
+            # rough approximation
+            _z_wc = None
+        else:
+            _z_wc = None
+        
+        if _z_re is None:
+            _z_re = (_z_te or 0) * 0.6 if _z_te else None  # rough fallback
+        
+        if _z_ta and _z_ta > 0 and _z_tl and _z_tl > 0 and _z_wc is not None:
+            _z_a = (_z_wc / _z_ta) if _z_ta else 0
+            _z_b = ((_z_re or 0) / _z_ta)
+            _z_c = ((_z_oi or 0) / _z_ta)
+            _z_d = (_z_mcap / _z_tl) if _z_tl > 0 else 0
+            _z_e = ((_z_rev or 0) / _z_ta)
+            
+            z_score = 1.2 * _z_a + 1.4 * _z_b + 3.3 * _z_c + 0.6 * _z_d + 1.0 * _z_e
+            
+            if z_score > 2.99:
+                z_zone = "Safe Zone"
+                z_color = "#10B981"
+                z_bg = "rgba(16,185,129,0.1)"
+            elif z_score >= 1.81:
+                z_zone = "Grey Zone"
+                z_color = "#F59E0B"
+                z_bg = "rgba(245,158,11,0.1)"
+            else:
+                z_zone = "Distress Zone"
+                z_color = "#EF4444"
+                z_bg = "rgba(239,68,68,0.1)"
+            
+            # Gauge visualization
+            z_gauge = go.Figure(go.Indicator(
+                mode="gauge+number",
+                value=z_score,
+                number=dict(font=dict(size=36, color="#E0DCF5"), suffix=""),
+                title=dict(text=z_zone, font=dict(size=16, color=z_color)),
+                gauge=dict(
+                    axis=dict(range=[0, 5], tickfont=dict(size=10, color="#8A85AD"),
+                              tickcolor="rgba(255,255,255,0.1)"),
+                    bar=dict(color=z_color, thickness=0.3),
+                    bgcolor="rgba(0,0,0,0)",
+                    bordercolor="rgba(107,92,231,0.2)",
+                    steps=[
+                        dict(range=[0, 1.81], color="rgba(239,68,68,0.15)"),
+                        dict(range=[1.81, 2.99], color="rgba(245,158,11,0.15)"),
+                        dict(range=[2.99, 5], color="rgba(16,185,129,0.15)"),
+                    ],
+                    threshold=dict(line=dict(color="#E0DCF5", width=2), thickness=0.8, value=z_score),
+                ),
+            ))
+            z_gauge.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(family="Inter", color="#B8B3D7"),
+                height=280, margin=dict(t=60, b=20, l=40, r=40),
+            )
+            
+            z_col1, z_col2 = st.columns([1, 1])
+            with z_col1:
+                st.plotly_chart(z_gauge, use_container_width=True, key="altman_z_gauge")
+            
+            with z_col2:
+                # Component breakdown
+                z_components = [
+                    ("1.2 × WC/TA", 1.2 * _z_a, "Working Capital / Total Assets"),
+                    ("1.4 × RE/TA", 1.4 * _z_b, "Retained Earnings / Total Assets"),
+                    ("3.3 × EBIT/TA", 3.3 * _z_c, "Operating Income / Total Assets"),
+                    ("0.6 × MVE/TL", 0.6 * _z_d, "Market Cap / Total Liabilities"),
+                    ("1.0 × Sales/TA", 1.0 * _z_e, "Revenue / Total Assets"),
+                ]
+                
+                st.markdown(
+                    '<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF; margin-bottom:0.5rem;">Component Breakdown</div>',
+                    unsafe_allow_html=True,
+                )
+                for comp_label, comp_val, comp_desc in z_components:
+                    comp_pct = (comp_val / z_score * 100) if z_score != 0 else 0
+                    st.markdown(
+                        f'<div style="display:flex; justify-content:space-between; align-items:center; '
+                        f'padding:0.3rem 0; border-bottom:1px solid rgba(255,255,255,0.03); font-size:0.75rem;">'
+                        f'<span style="color:#B8B3D7;">{comp_label}</span>'
+                        f'<span style="color:#E0DCF5; font-weight:600;">{comp_val:.3f}</span>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                
+                st.markdown(
+                    f'<div style="margin-top:0.5rem; padding:0.5rem; background:{z_bg}; border-radius:8px; text-align:center;">'
+                    f'<span style="font-size:0.75rem; color:{z_color}; font-weight:700;">'
+                    f'Z = {z_score:.2f} → {z_zone}</span><br>'
+                    f'<span style="font-size:0.6rem; color:#8A85AD;">'
+                    f'>2.99 Safe | 1.81-2.99 Grey | <1.81 Distress</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+        else:
+            st.info("Insufficient balance sheet data for Altman Z-Score calculation.")
+    
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # 10d-iii. DUPONT ANALYSIS
+    # ══════════════════════════════════════════════════════
+    with _safe_section("DuPont Analysis"):
+        _section("DuPont Analysis", "🔍")
+        
+        # Calculate DuPont components for available years
+        _dp_years = []
+        _dp_npm = []  # Net Profit Margin
+        _dp_at = []   # Asset Turnover
+        _dp_em = []   # Equity Multiplier
+        _dp_tb = []   # Tax Burden (5-factor)
+        _dp_ib = []   # Interest Burden (5-factor)
+        _dp_roe3 = [] # 3-factor ROE
+        _dp_roe5 = [] # 5-factor ROE
+        
+        _dp_rev_s = getattr(cd, 'revenue', None)
+        _dp_ni_s = getattr(cd, 'net_income', None)
+        _dp_ta_s = getattr(cd, 'total_assets', None)
+        _dp_te_s = getattr(cd, 'total_equity', None)
+        _dp_oi_s = getattr(cd, 'operating_income', None)
+        _dp_ie_s = getattr(cd, 'interest_expense', None)
+        _dp_tp_s = getattr(cd, 'tax_provision', None)
+        
+        _dp_n = min(4, *[len(s) for s in [_dp_rev_s, _dp_ni_s, _dp_ta_s, _dp_te_s] if s is not None and len(s) > 0]) if all(
+            s is not None and len(s) > 0 for s in [_dp_rev_s, _dp_ni_s, _dp_ta_s, _dp_te_s]
+        ) else 0
+        
+        for i in range(_dp_n):
+            try:
+                _rev = float(_dp_rev_s.iloc[i])
+                _ni = float(_dp_ni_s.iloc[i])
+                _ta = float(_dp_ta_s.iloc[i])
+                _te = float(_dp_te_s.iloc[i])
+                
+                if _rev == 0 or _ta == 0 or _te == 0:
+                    continue
+                
+                npm = _ni / _rev
+                at = _rev / _ta
+                em = _ta / _te
+                roe3 = npm * at * em
+                
+                # Year label from index
+                yr_label = str(_dp_rev_s.index[i])[:4] if hasattr(_dp_rev_s.index[i], 'year') else str(_dp_rev_s.index[i])[:4]
+                
+                _dp_years.append(yr_label)
+                _dp_npm.append(npm)
+                _dp_at.append(at)
+                _dp_em.append(em)
+                _dp_roe3.append(roe3)
+                
+                # 5-factor
+                _oi = float(_dp_oi_s.iloc[i]) if _dp_oi_s is not None and len(_dp_oi_s) > i else None
+                _ie = abs(float(_dp_ie_s.iloc[i])) if _dp_ie_s is not None and len(_dp_ie_s) > i else None
+                _tp = abs(float(_dp_tp_s.iloc[i])) if _dp_tp_s is not None and len(_dp_tp_s) > i else None
+                
+                if _oi and _oi != 0:
+                    _pretax = _oi - (_ie or 0)
+                    _ib_val = _pretax / _oi if _oi != 0 else 1.0
+                    _tb_val = _ni / _pretax if _pretax != 0 else 1.0
+                else:
+                    _ib_val = 1.0
+                    _tb_val = 1.0
+                
+                _dp_tb.append(_tb_val)
+                _dp_ib.append(_ib_val)
+                _dp_roe5.append(_tb_val * _ib_val * ((_oi or 0) / _rev if _rev else 0) * at * em)
+            except Exception:
+                continue
+        
+        if _dp_years:
+            _dp_years.reverse()
+            _dp_npm.reverse()
+            _dp_at.reverse()
+            _dp_em.reverse()
+            _dp_roe3.reverse()
+            _dp_tb.reverse()
+            _dp_ib.reverse()
+            _dp_roe5.reverse()
+            
+            dp_tab1, dp_tab2 = st.tabs(["3-Factor DuPont", "5-Factor DuPont"])
+            
+            with dp_tab1:
+                # 3-Factor: ROE = NPM × AT × EM
+                st.markdown(
+                    '<div style="font-size:0.8rem; color:#B8B3D7; margin-bottom:0.8rem;">'
+                    '<b>ROE = Net Profit Margin × Asset Turnover × Equity Multiplier</b></div>',
+                    unsafe_allow_html=True,
+                )
+                
+                fig_dp3 = go.Figure()
+                fig_dp3.add_trace(go.Bar(
+                    x=_dp_years, y=[v * 100 for v in _dp_npm], name="Net Profit Margin %",
+                    marker_color="rgba(107,92,231,0.7)",
+                ))
+                fig_dp3.add_trace(go.Bar(
+                    x=_dp_years, y=[v * 100 for v in _dp_at], name="Asset Turnover × 100",
+                    marker_color="rgba(16,185,129,0.7)",
+                ))
+                fig_dp3.add_trace(go.Bar(
+                    x=_dp_years, y=[v * 100 for v in _dp_em], name="Equity Multiplier × 100",
+                    marker_color="rgba(232,99,139,0.7)",
+                ))
+                fig_dp3.add_trace(go.Scatter(
+                    x=_dp_years, y=[v * 100 for v in _dp_roe3], name="ROE %",
+                    mode="lines+markers", line=dict(color="#F5A623", width=3),
+                    marker=dict(size=8),
+                ))
+                fig_dp3.update_layout(
+                    **_CHART_LAYOUT_BASE, height=350, barmode="group",
+                    margin=dict(t=30, b=40, l=50, r=30),
+                    legend=dict(font=dict(size=9, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
+                )
+                _apply_space_grid(fig_dp3)
+                st.plotly_chart(fig_dp3, use_container_width=True, key="dupont_3factor")
+                
+                # Current year metrics
+                dp_mc1, dp_mc2, dp_mc3, dp_mc4 = st.columns(4)
+                dp_mc1.metric("Net Profit Margin", f"{_dp_npm[-1]*100:.1f}%")
+                dp_mc2.metric("Asset Turnover", f"{_dp_at[-1]:.2f}x")
+                dp_mc3.metric("Equity Multiplier", f"{_dp_em[-1]:.2f}x")
+                dp_mc4.metric("ROE (3-Factor)", f"{_dp_roe3[-1]*100:.1f}%")
+            
+            with dp_tab2:
+                st.markdown(
+                    '<div style="font-size:0.8rem; color:#B8B3D7; margin-bottom:0.8rem;">'
+                    '<b>ROE = Tax Burden × Interest Burden × Operating Margin × AT × EM</b></div>',
+                    unsafe_allow_html=True,
+                )
+                
+                if _dp_tb and _dp_ib:
+                    fig_dp5 = go.Figure()
+                    fig_dp5.add_trace(go.Bar(x=_dp_years, y=[v * 100 for v in _dp_tb], name="Tax Burden %",
+                                             marker_color="rgba(107,92,231,0.7)"))
+                    fig_dp5.add_trace(go.Bar(x=_dp_years, y=[v * 100 for v in _dp_ib], name="Interest Burden %",
+                                             marker_color="rgba(16,185,129,0.7)"))
+                    fig_dp5.add_trace(go.Scatter(x=_dp_years, y=[v * 100 for v in _dp_roe5], name="ROE %",
+                                                  mode="lines+markers", line=dict(color="#F5A623", width=3),
+                                                  marker=dict(size=8)))
+                    fig_dp5.update_layout(
+                        **_CHART_LAYOUT_BASE, height=350, barmode="group",
+                        margin=dict(t=30, b=40, l=50, r=30),
+                        legend=dict(font=dict(size=9, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02),
+                    )
+                    _apply_space_grid(fig_dp5)
+                    st.plotly_chart(fig_dp5, use_container_width=True, key="dupont_5factor")
+                    
+                    dp5_c1, dp5_c2, dp5_c3 = st.columns(3)
+                    dp5_c1.metric("Tax Burden", f"{_dp_tb[-1]*100:.1f}%")
+                    dp5_c2.metric("Interest Burden", f"{_dp_ib[-1]*100:.1f}%")
+                    dp5_c3.metric("ROE (5-Factor)", f"{_dp_roe5[-1]*100:.1f}%")
+                else:
+                    st.info("Insufficient data for 5-factor DuPont analysis.")
+        else:
+            st.info("Insufficient financial data for DuPont Analysis.")
     
     _divider()
 
@@ -6855,6 +8061,218 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         except Exception:
             pass
     
+    # ══════════════════════════════════════════════════════
+    # 🔔 INTELLIGENCE FEED
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Intelligence Feed"):
+        _divider()
+        st.markdown(
+            '<div style="font-size:1.1rem; font-weight:800; color:#E0DCF5; margin-bottom:0.8rem;">'
+            '🔔 Intelligence</div>',
+            unsafe_allow_html=True,
+        )
+        try:
+            _intel_ticker = yf.Ticker(cd.ticker)
+            _intel_info = _intel_ticker.info or {}
+
+            _intel_cols = st.columns(2)
+
+            # Unusual Volume
+            with _intel_cols[0]:
+                try:
+                    _vol_today = _intel_info.get("volume", 0) or 0
+                    _vol_avg = _intel_info.get("averageVolume", 1) or 1
+                    _vol_ratio = _vol_today / _vol_avg if _vol_avg > 0 else 0
+                    _vol_flag = "🔴 UNUSUAL" if _vol_ratio > 2.0 else "🟡 ELEVATED" if _vol_ratio > 1.5 else "🟢 NORMAL"
+                    st.markdown(
+                        f'<div style="background:rgba(107,92,231,0.06); border-radius:10px; padding:0.8rem; margin-bottom:0.5rem;">'
+                        f'<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF; margin-bottom:0.4rem;">📊 Volume Analysis</div>'
+                        f'<div style="font-size:0.78rem; color:#B8B3D7;">Today: <b>{_vol_today:,.0f}</b></div>'
+                        f'<div style="font-size:0.78rem; color:#B8B3D7;">30d Avg: <b>{_vol_avg:,.0f}</b></div>'
+                        f'<div style="font-size:0.78rem; color:#B8B3D7;">Ratio: <b>{_vol_ratio:.2f}x</b> {_vol_flag}</div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                except Exception:
+                    pass
+
+            # Short Interest
+            with _intel_cols[1]:
+                try:
+                    _short_pct = _intel_info.get("shortPercentOfFloat", None)
+                    _short_ratio = _intel_info.get("shortRatio", None)
+                    _si_html = ""
+                    if _short_pct is not None:
+                        _sp = _short_pct * 100 if _short_pct < 1 else _short_pct
+                        _si_level = "🔴 HIGH" if _sp > 20 else "🟡 MODERATE" if _sp > 10 else "🟢 LOW"
+                        _si_html += f'<div style="font-size:0.78rem; color:#B8B3D7;">Short % Float: <b>{_sp:.1f}%</b> {_si_level}</div>'
+                    if _short_ratio is not None:
+                        _si_html += f'<div style="font-size:0.78rem; color:#B8B3D7;">Days to Cover: <b>{_short_ratio:.1f}</b></div>'
+                    if _si_html:
+                        st.markdown(
+                            f'<div style="background:rgba(107,92,231,0.06); border-radius:10px; padding:0.8rem; margin-bottom:0.5rem;">'
+                            f'<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF; margin-bottom:0.4rem;">📉 Short Interest</div>'
+                            f'{_si_html}</div>',
+                            unsafe_allow_html=True,
+                        )
+                    else:
+                        st.markdown(
+                            '<div style="background:rgba(107,92,231,0.06); border-radius:10px; padding:0.8rem;">'
+                            '<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF;">📉 Short Interest</div>'
+                            '<div style="font-size:0.78rem; color:#8A85AD;">Data not available</div></div>',
+                            unsafe_allow_html=True,
+                        )
+                except Exception:
+                    pass
+
+            # Insider Transactions
+            try:
+                _insider_txns = _intel_ticker.insider_transactions
+                if _insider_txns is not None and not _insider_txns.empty:
+                    _buys = len(_insider_txns[_insider_txns.get("Text", _insider_txns.columns[0] if len(_insider_txns.columns) > 0 else "").str.contains("Buy|Purchase", case=False, na=False)] if "Text" in _insider_txns.columns else [])
+                    _sells = len(_insider_txns) - _buys
+                    _sentiment = "🟢 BULLISH" if _buys > _sells else "🔴 BEARISH" if _sells > _buys else "🟡 NEUTRAL"
+                    st.markdown(
+                        f'<div style="background:rgba(107,92,231,0.06); border-radius:10px; padding:0.8rem; margin-bottom:0.5rem;">'
+                        f'<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF; margin-bottom:0.4rem;">👤 Insider Activity</div>'
+                        f'<div style="font-size:0.78rem; color:#B8B3D7;">Buys: <b style="color:#10B981;">{_buys}</b> | Sells: <b style="color:#EF4444;">{_sells}</b></div>'
+                        f'<div style="font-size:0.78rem; color:#B8B3D7;">Net Sentiment: <b>{_sentiment}</b></div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.markdown(
+                        '<div style="background:rgba(107,92,231,0.06); border-radius:10px; padding:0.8rem; margin-bottom:0.5rem;">'
+                        '<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF;">👤 Insider Activity</div>'
+                        '<div style="font-size:0.78rem; color:#8A85AD;">No recent insider transactions</div></div>',
+                        unsafe_allow_html=True,
+                    )
+            except Exception:
+                st.markdown(
+                    '<div style="background:rgba(107,92,231,0.06); border-radius:10px; padding:0.8rem; margin-bottom:0.5rem;">'
+                    '<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF;">👤 Insider Activity</div>'
+                    '<div style="font-size:0.78rem; color:#8A85AD;">Data not available</div></div>',
+                    unsafe_allow_html=True,
+                )
+
+            # Earnings Surprise
+            try:
+                _earnings = _intel_ticker.earnings_dates
+                if _earnings is not None and not _earnings.empty:
+                    _recent = _earnings.head(4)
+                    _earn_html = ""
+                    for _idx, _row in _recent.iterrows():
+                        _est = _row.get("EPS Estimate", None)
+                        _act = _row.get("Reported EPS", None)
+                        if _est is not None and _act is not None:
+                            try:
+                                _est_f = float(_est)
+                                _act_f = float(_act)
+                                _surprise = ((_act_f - _est_f) / abs(_est_f) * 100) if _est_f != 0 else 0
+                                _s_color = "#10B981" if _surprise >= 0 else "#EF4444"
+                                _s_icon = "✅" if _surprise >= 0 else "❌"
+                                _date_str = str(_idx.date()) if hasattr(_idx, 'date') else str(_idx)[:10]
+                                _earn_html += (
+                                    f'<div style="display:flex; justify-content:space-between; font-size:0.72rem; padding:0.15rem 0;">'
+                                    f'<span style="color:#8A85AD;">{_date_str}</span>'
+                                    f'<span style="color:#B8B3D7;">Est: ${_est_f:.2f}</span>'
+                                    f'<span style="color:#B8B3D7;">Act: ${_act_f:.2f}</span>'
+                                    f'<span style="color:{_s_color};">{_s_icon} {_surprise:+.1f}%</span>'
+                                    f'</div>'
+                                )
+                            except (ValueError, TypeError):
+                                pass
+                    if _earn_html:
+                        st.markdown(
+                            f'<div style="background:rgba(107,92,231,0.06); border-radius:10px; padding:0.8rem;">'
+                            f'<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF; margin-bottom:0.4rem;">📅 Earnings Surprises (Last 4)</div>'
+                            f'{_earn_html}</div>',
+                            unsafe_allow_html=True,
+                        )
+            except Exception:
+                pass
+
+        except Exception:
+            st.markdown(
+                '<div style="font-size:0.8rem; color:#8A85AD; padding:0.5rem;">Intelligence data temporarily unavailable.</div>',
+                unsafe_allow_html=True,
+            )
+
+    # ══════════════════════════════════════════════════════
+    # EXPORT SUMMARY (copy-paste friendly)
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Export Summary"):
+        _divider()
+        with st.expander("📋 Export Summary (copy-paste friendly)", expanded=False):
+            _ex_lines = []
+            _ex_lines.append(f"{getattr(cd, 'name', 'N/A')} ({getattr(cd, 'ticker', 'N/A')})")
+            _ex_lines.append(f"{'='*50}")
+            _ex_price = getattr(cd, 'current_price', None)
+            _ex_cs = getattr(cd, 'currency_symbol', '$')
+            _ex_lines.append(f"Price: {_ex_cs}{_ex_price:,.2f}" if _ex_price else "Price: N/A")
+            _ex_mcap = getattr(cd, 'market_cap', None)
+            _ex_lines.append(f"Market Cap: {format_number(_ex_mcap, currency_symbol=_ex_cs)}" if _ex_mcap else "Market Cap: N/A")
+            _ex_lines.append(f"Sector: {getattr(cd, 'sector', 'N/A')} | Industry: {getattr(cd, 'industry', 'N/A')}")
+            _ex_lines.append("")
+            _ex_lines.append("KEY MULTIPLES")
+            _ex_lines.append(f"-" * 30)
+            _ex_pe = getattr(cd, 'trailing_pe', None)
+            _ex_lines.append(f"P/E Ratio: {_ex_pe:.1f}x" if _ex_pe else "P/E Ratio: N/A")
+            _ex_fpe = getattr(cd, 'forward_pe', None)
+            _ex_lines.append(f"Forward P/E: {_ex_fpe:.1f}x" if _ex_fpe else "Forward P/E: N/A")
+            _ex_ps = getattr(cd, 'price_to_sales', None)
+            _ex_lines.append(f"P/S: {_ex_ps:.1f}x" if _ex_ps else "P/S: N/A")
+            # EV/EBITDA
+            _ex_ev = getattr(cd, 'enterprise_value', None) or 0
+            _ex_ebitda_s = getattr(cd, 'ebitda', None)
+            _ex_ebitda_v = None
+            try:
+                _ex_ebitda_v = float(_ex_ebitda_s.iloc[0]) if hasattr(_ex_ebitda_s, 'iloc') and len(_ex_ebitda_s) > 0 else (float(_ex_ebitda_s) if _ex_ebitda_s is not None else None)
+            except Exception:
+                pass
+            if _ex_ebitda_v and _ex_ebitda_v > 0:
+                _ex_lines.append(f"EV/EBITDA: {_ex_ev/_ex_ebitda_v:.1f}x")
+            else:
+                _ex_lines.append("EV/EBITDA: N/A")
+            _ex_lines.append("")
+            # Valuation assessment
+            _ex_lines.append("VALUATION ASSESSMENT")
+            _ex_lines.append(f"-" * 30)
+            if _ex_pe and _ex_pe > 0:
+                if _ex_pe < 15:
+                    _ex_lines.append("Appears undervalued relative to historical P/E norms.")
+                elif _ex_pe < 25:
+                    _ex_lines.append("Valuation appears fair relative to market averages.")
+                else:
+                    _ex_lines.append("Trading at a premium valuation; priced for strong growth.")
+            else:
+                _ex_lines.append("Insufficient data for valuation assessment.")
+            _ex_lines.append("")
+            # Key risks
+            _ex_lines.append("KEY RISKS")
+            _ex_lines.append(f"-" * 30)
+            _ex_risks = []
+            _ex_dte = getattr(cd, 'debt_to_equity', None)
+            if _ex_dte and _ex_dte > 150:
+                _ex_risks.append(f"High leverage (D/E: {_ex_dte:.0f}%)")
+            _ex_pm = getattr(cd, 'profit_margins', None)
+            if _ex_pm is not None and _ex_pm < 0.05:
+                _pm_d = _ex_pm * 100 if abs(_ex_pm) < 5 else _ex_pm
+                _ex_risks.append(f"Thin/declining margins ({_pm_d:.1f}%)")
+            _ex_rg = getattr(cd, 'revenue_growth', None)
+            if _ex_rg is not None and _ex_rg < 0:
+                _rg_d = _ex_rg * 100 if abs(_ex_rg) < 5 else _ex_rg
+                _ex_risks.append(f"Revenue declining ({_rg_d:.1f}% YoY)")
+            _ex_beta = getattr(cd, 'beta', None)
+            if _ex_beta and _ex_beta > 1.5:
+                _ex_risks.append(f"High volatility (beta: {_ex_beta:.2f})")
+            if not _ex_risks:
+                _ex_risks.append("No major red flags identified.")
+            for r in _ex_risks:
+                _ex_lines.append(f"- {r}")
+            _ex_text = "\n".join(_ex_lines)
+            st.code(_ex_text, language=None)
+
     # Add to Watchlist
     _divider()
     if not _is_in_watchlist(cd.ticker):
@@ -7181,6 +8599,182 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
             'Multiples based on LTM financials from Yahoo Finance.</div>',
             unsafe_allow_html=True,
         )
+
+        # ── Enhanced: Implied Valuation Range (Football Field by Share Price) ──
+        with _safe_section("Implied Valuation Range"):
+            st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
+            st.markdown(
+                '<div style="font-size:1.2rem; font-weight:700; color:#E0DCF5; margin-bottom:1rem;">'
+                '🏈 Implied Share Price — Football Field</div>',
+                unsafe_allow_html=True,
+            )
+
+            shares_out = tc.market_cap / tc.pe_ratio / (tc.net_income_ltm / tc.market_cap * tc.pe_ratio) if tc.pe_ratio and tc.pe_ratio > 0 and tc.net_income_ltm else None
+            # Simpler: shares = market_cap / price_per_share. Use price_to_sales as proxy if available
+            if tc.market_cap and tc.pe_ratio and tc.net_income_ltm and tc.net_income_ltm > 0:
+                _eps = tc.net_income_ltm / (tc.market_cap / (tc.pe_ratio * (tc.net_income_ltm / tc.market_cap * tc.pe_ratio))) if tc.pe_ratio else 0
+            # Actually: shares_outstanding = market_cap / (EV/Revenue * Revenue / EV * market_cap)... let's just derive from PE
+            # Current price = market_cap / shares => shares = market_cap / current_price
+            # We don't have current_price in CompanyComps directly, but we can infer:
+            # P/E = price / EPS => price = P/E * EPS; EPS = net_income / shares => price = P/E * net_income / shares
+            # market_cap = price * shares = P/E * net_income => shares = market_cap / (P/E * EPS) = market_cap^2 / (P/E * net_income * market_cap)
+            # Simpler: if we have P/S = price/sales_per_share, then price = P/S * revenue / shares
+            # Let's try to get current price from yfinance for the target
+            _target_price = None
+            _target_shares = None
+            try:
+                _tk_comps = yf.Ticker(tc.ticker)
+                _tk_info = _tk_comps.info or {}
+                _target_price = _tk_info.get("currentPrice") or _tk_info.get("regularMarketPrice")
+                _target_shares = _tk_info.get("sharesOutstanding")
+                if not _target_shares and _target_price and _target_price > 0:
+                    _target_shares = tc.market_cap / _target_price
+            except Exception:
+                pass
+
+            if _target_price and _target_shares and _target_shares > 0:
+                ff_price_data = {}
+                _net_debt = (tc.enterprise_value - tc.market_cap) if tc.enterprise_value and tc.market_cap else 0
+
+                # P/E implied
+                if comps_analysis.median_pe and tc.net_income_ltm and tc.net_income_ltm > 0:
+                    _pe_vals = [p.pe_ratio for p in comps_analysis.peers if p.pe_ratio and p.pe_ratio > 0]
+                    if _pe_vals:
+                        _eps = tc.net_income_ltm / _target_shares
+                        _low = np.percentile(_pe_vals, 25) * _eps
+                        _high = np.percentile(_pe_vals, 75) * _eps
+                        _med = comps_analysis.median_pe * _eps
+                        if _low > 0 and _high > 0:
+                            ff_price_data["P/E"] = {"low": _low, "high": _high, "mid": _med}
+
+                # EV/EBITDA implied
+                if comps_analysis.median_ev_ebitda and tc.ebitda_ltm and tc.ebitda_ltm > 0:
+                    _ev_ebitda_vals = [p.ev_ebitda for p in comps_analysis.peers if p.ev_ebitda and p.ev_ebitda > 0]
+                    if _ev_ebitda_vals:
+                        _low_ev = np.percentile(_ev_ebitda_vals, 25) * tc.ebitda_ltm
+                        _high_ev = np.percentile(_ev_ebitda_vals, 75) * tc.ebitda_ltm
+                        _med_ev = comps_analysis.median_ev_ebitda * tc.ebitda_ltm
+                        _low_p = (_low_ev - _net_debt) / _target_shares
+                        _high_p = (_high_ev - _net_debt) / _target_shares
+                        _med_p = (_med_ev - _net_debt) / _target_shares
+                        if _low_p > 0 and _high_p > 0:
+                            ff_price_data["EV/EBITDA"] = {"low": _low_p, "high": _high_p, "mid": _med_p}
+
+                # EV/Revenue implied
+                if comps_analysis.median_ev_revenue and tc.revenue_ltm and tc.revenue_ltm > 0:
+                    _ev_rev_vals = [p.ev_revenue for p in comps_analysis.peers if p.ev_revenue and p.ev_revenue > 0]
+                    if _ev_rev_vals:
+                        _low_ev = np.percentile(_ev_rev_vals, 25) * tc.revenue_ltm
+                        _high_ev = np.percentile(_ev_rev_vals, 75) * tc.revenue_ltm
+                        _med_ev = comps_analysis.median_ev_revenue * tc.revenue_ltm
+                        _low_p = (_low_ev - _net_debt) / _target_shares
+                        _high_p = (_high_ev - _net_debt) / _target_shares
+                        _med_p = (_med_ev - _net_debt) / _target_shares
+                        if _low_p > 0 and _high_p > 0:
+                            ff_price_data["EV/Revenue"] = {"low": _low_p, "high": _high_p, "mid": _med_p}
+
+                # P/S implied
+                _ps_vals = [p.price_to_sales for p in comps_analysis.peers if p.price_to_sales and p.price_to_sales > 0]
+                if _ps_vals and tc.revenue_ltm and tc.revenue_ltm > 0:
+                    _rev_per_share = tc.revenue_ltm / _target_shares
+                    _low = np.percentile(_ps_vals, 25) * _rev_per_share
+                    _high = np.percentile(_ps_vals, 75) * _rev_per_share
+                    _med = np.median(_ps_vals) * _rev_per_share
+                    if _low > 0 and _high > 0:
+                        ff_price_data["P/S"] = {"low": _low, "high": _high, "mid": _med}
+
+                if ff_price_data:
+                    fig_ff2 = go.Figure()
+                    labels = list(ff_price_data.keys())
+                    colors_ff = ["#6B5CE7", "#E8638B", "#10B981", "#F5A623"]
+
+                    for i, label in enumerate(labels):
+                        d = ff_price_data[label]
+                        fig_ff2.add_trace(go.Bar(
+                            y=[label], x=[d["high"] - d["low"]],
+                            base=[d["low"]], orientation="h",
+                            marker=dict(color=colors_ff[i % len(colors_ff)], opacity=0.85,
+                                        line=dict(color="rgba(255,255,255,0.15)", width=1)),
+                            name=label,
+                            text=[f"${d['low']:,.0f} — ${d['high']:,.0f}"],
+                            textposition="inside",
+                            textfont=dict(size=9, color="#fff"),
+                            showlegend=False,
+                        ))
+                        # Median marker
+                        fig_ff2.add_trace(go.Scatter(
+                            x=[d["mid"]], y=[label], mode="markers",
+                            marker=dict(color="#fff", size=8, symbol="diamond",
+                                        line=dict(color=colors_ff[i % len(colors_ff)], width=2)),
+                            showlegend=False, hovertext=f"Median: ${d['mid']:,.0f}",
+                        ))
+
+                    # Current price line
+                    fig_ff2.add_vline(x=_target_price, line_dash="dash", line_color="#F59E0B", line_width=2)
+                    fig_ff2.add_annotation(
+                        x=_target_price, y=labels[0], text=f"Current: ${_target_price:,.2f}",
+                        showarrow=False, font=dict(size=9, color="#F59E0B"), yshift=25,
+                    )
+
+                    fig_ff2.update_layout(
+                        **_CHART_LAYOUT_BASE, height=250,
+                        margin=dict(t=30, b=30, l=80, r=60),
+                        xaxis=dict(tickprefix="$", tickfont=dict(size=9, color="#8A85AD"), showgrid=False),
+                        yaxis=dict(tickfont=dict(size=10, color="#8A85AD")),
+                        showlegend=False, barmode="stack",
+                    )
+                    _apply_space_grid(fig_ff2, show_x_grid=True)
+                    st.plotly_chart(fig_ff2, use_container_width=True, key="comps_implied_price_ff")
+
+                    st.markdown(
+                        '<div style="font-size:0.7rem; color:#6B6B80; margin-top:0.3rem;">'
+                        'Range = 25th–75th percentile of peer multiples applied to target financials. '
+                        'Diamond = peer median implied price.</div>',
+                        unsafe_allow_html=True,
+                    )
+
+        # ── Enhanced: Percentile Ranking Within Peer Group ──
+        with _safe_section("Percentile Ranking"):
+            st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
+            st.markdown(
+                '<div style="font-size:1.2rem; font-weight:700; color:#E0DCF5; margin-bottom:1rem;">'
+                '📊 Percentile Ranking vs Peers</div>',
+                unsafe_allow_html=True,
+            )
+
+            _pctile_metrics = {}
+            def _calc_pctile(metric_name, target_val, peer_vals):
+                if target_val is not None and peer_vals:
+                    valid = [v for v in peer_vals if v is not None]
+                    if valid:
+                        pctile = sum(1 for v in valid if v < target_val) / len(valid) * 100
+                        _pctile_metrics[metric_name] = pctile
+
+            _calc_pctile("EV/Revenue", tc.ev_revenue, [p.ev_revenue for p in comps_analysis.peers if p.ev_revenue])
+            _calc_pctile("EV/EBITDA", tc.ev_ebitda, [p.ev_ebitda for p in comps_analysis.peers if p.ev_ebitda])
+            _calc_pctile("P/E Ratio", tc.pe_ratio, [p.pe_ratio for p in comps_analysis.peers if p.pe_ratio])
+            _calc_pctile("Revenue Growth", tc.revenue_growth, [p.revenue_growth for p in comps_analysis.peers if p.revenue_growth is not None])
+            _calc_pctile("Gross Margin", tc.gross_margin, [p.gross_margin for p in comps_analysis.peers if p.gross_margin is not None])
+            _calc_pctile("EBITDA Margin", tc.ebitda_margin, [p.ebitda_margin for p in comps_analysis.peers if p.ebitda_margin is not None])
+            _calc_pctile("Net Margin", tc.net_margin, [p.net_margin for p in comps_analysis.peers if p.net_margin is not None])
+
+            if _pctile_metrics:
+                for metric_name, pctile in _pctile_metrics.items():
+                    bar_color = "#10B981" if pctile >= 50 else "#F59E0B" if pctile >= 25 else "#EF4444"
+                    # For valuation multiples, lower percentile is better (cheaper)
+                    if metric_name in ("EV/Revenue", "EV/EBITDA", "P/E Ratio"):
+                        bar_color = "#10B981" if pctile <= 50 else "#F59E0B" if pctile <= 75 else "#EF4444"
+                    st.markdown(
+                        f'<div style="margin-bottom:0.6rem;">'
+                        f'<div style="display:flex; justify-content:space-between; margin-bottom:0.2rem;">'
+                        f'<span style="font-size:0.75rem; color:#B8B3D7;">{metric_name}</span>'
+                        f'<span style="font-size:0.75rem; font-weight:700; color:{bar_color};">{pctile:.0f}th percentile</span>'
+                        f'</div>'
+                        f'<div style="background:rgba(255,255,255,0.05); border-radius:4px; height:8px; overflow:hidden;">'
+                        f'<div style="width:{pctile:.0f}%; height:100%; background:{bar_color}; border-radius:4px;"></div>'
+                        f'</div></div>',
+                        unsafe_allow_html=True,
+                    )
 
 elif analysis_mode == "Comps Analysis" and comps_btn and not comps_ticker_input:
     st.warning("Please enter a ticker symbol in the sidebar.")
@@ -7808,6 +9402,127 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     _divider()
 
     # ══════════════════════════════════════════════════════
+    # M5b. DEAL FINANCING MIX SENSITIVITY
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Deal Financing Mix"):
+        _section("Deal Financing Mix Sensitivity", "💸")
+        st.markdown(
+            '<div style="font-size:0.8rem; color:#B8B3D7; margin-bottom:0.8rem;">'
+            'Explore how different cash/debt/stock mixes and synergy levels affect EPS accretion/dilution.</div>',
+            unsafe_allow_html=True,
+        )
+
+        fmix_c1, fmix_c2, fmix_c3 = st.columns(3)
+        with fmix_c1:
+            fm_cash = st.slider("% Cash", 0, 100, int(merger_assumptions.pct_cash), 5, key="fm_cash_slider")
+        with fmix_c2:
+            fm_debt = st.slider("% Debt", 0, 100 - fm_cash, min(100 - fm_cash, 0), 5, key="fm_debt_slider")
+        with fmix_c3:
+            fm_stock = 100 - fm_cash - fm_debt
+            st.markdown(
+                f'<div style="text-align:center; padding:1.5rem; background:rgba(255,255,255,0.04); border-radius:10px;">'
+                f'<div style="font-size:0.65rem; font-weight:600; color:#8A85AD; text-transform:uppercase;">Stock (remainder)</div>'
+                f'<div style="font-size:2rem; font-weight:800; color:#6B5CE7;">{fm_stock}%</div></div>',
+                unsafe_allow_html=True,
+            )
+
+        # Financing mix vs Synergies sensitivity matrix
+        synergy_levels = [0, 5, 10, 15, 20, 25]
+        cash_levels = [0, 25, 50, 75, 100]
+
+        matrix_data = []
+        for cash_pct_test in cash_levels:
+            row = {"Cash %": f"{cash_pct_test}%"}
+            for syn_pct in synergy_levels:
+                try:
+                    test_a = MergerAssumptions(
+                        offer_premium_pct=merger_assumptions.offer_premium_pct,
+                        pct_cash=cash_pct_test,
+                        pct_stock=100 - cash_pct_test,
+                        cost_synergies_pct=syn_pct,
+                        revenue_synergies_pct=merger_assumptions.revenue_synergies_pct,
+                        transaction_fees_pct=merger_assumptions.transaction_fees_pct,
+                        tax_rate=merger_assumptions.tax_rate,
+                        cost_of_debt=merger_assumptions.cost_of_debt,
+                    )
+                    test_pf = calculate_pro_forma(acq_cd, tgt_cd, test_a)
+                    row[f"Syn {syn_pct}%"] = f"{test_pf.accretion_dilution_pct:+.1f}%"
+                except Exception:
+                    row[f"Syn {syn_pct}%"] = "—"
+            matrix_data.append(row)
+
+        if matrix_data:
+            fm_df = pd.DataFrame(matrix_data)
+            # Build styled HTML table
+            fm_th = "".join(
+                f'<th style="padding:0.4rem 0.5rem; font-weight:700; color:#6B5CE7; font-size:0.7rem; '
+                f'text-align:center; border-bottom:2px solid rgba(107,92,231,0.3);">{c}</th>'
+                for c in fm_df.columns
+            )
+            fm_tbody = ""
+            for _, r in fm_df.iterrows():
+                cells = ""
+                for j, c in enumerate(fm_df.columns):
+                    val = r[c]
+                    if j == 0:
+                        cells += f'<td style="padding:0.35rem 0.5rem; font-size:0.75rem; color:#B8B3D7; font-weight:600; text-align:center;">{val}</td>'
+                    else:
+                        _c = "#10B981" if val.startswith("+") else "#EF4444" if val.startswith("-") else "#8A85AD"
+                        cells += f'<td style="padding:0.35rem 0.5rem; font-size:0.75rem; color:{_c}; font-weight:600; text-align:center;">{val}</td>'
+                fm_tbody += f'<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">{cells}</tr>'
+
+            _mhtml(
+                f'<div style="background:rgba(255,255,255,0.02); border:1px solid rgba(107,92,231,0.1); '
+                f'border-radius:10px; overflow:hidden; margin-bottom:1rem;">'
+                f'<div style="padding:0.6rem 0.8rem; background:rgba(107,92,231,0.06); '
+                f'border-bottom:1px solid rgba(107,92,231,0.1);">'
+                f'<span style="font-size:0.7rem; font-weight:700; color:#6B5CE7; text-transform:uppercase; '
+                f'letter-spacing:1px;">Cash % vs Cost Synergy % → EPS Accretion/Dilution</span></div>'
+                f'<table style="width:100%; border-collapse:collapse;">'
+                f'<thead><tr>{fm_th}</tr></thead>'
+                f'<tbody>{fm_tbody}</tbody></table></div>'
+            )
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # M5c. COMPARABLE TRANSACTIONS (from M&A history)
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Comparable Transactions"):
+        # Show acquirer/target M&A history as comparable transactions if available
+        acq_ma = getattr(acq_cd, 'ma_history', None) or []
+        tgt_ma = getattr(tgt_cd, 'ma_history', None) or []
+        all_ma = acq_ma + tgt_ma
+        if all_ma:
+            _section("Comparable Transactions (M&A History)", "🔄")
+            ct_rows = ""
+            for deal in all_ma[:20]:
+                d_date = deal.get("date", deal.get("year", ""))
+                d_acquirer = deal.get("acquirer", deal.get("buyer", ""))
+                d_target = deal.get("target", deal.get("name", ""))
+                d_value = deal.get("deal_value", deal.get("value", None))
+                d_ev_ebitda = deal.get("ev_ebitda", None)
+                d_ev_rev = deal.get("ev_revenue", None)
+                d_premium = deal.get("premium", None)
+                val_str = format_number(d_value, currency_symbol=tgt_cs) if d_value else "—"
+                ev_eb_str = f"{d_ev_ebitda:.1f}x" if d_ev_ebitda else "—"
+                ev_rev_str = f"{d_ev_rev:.1f}x" if d_ev_rev else "—"
+                prem_str = f"{d_premium:.0f}%" if d_premium else "—"
+                ct_rows += (
+                    f"<tr><td>{d_date}</td><td>{d_acquirer}</td><td>{d_target}</td>"
+                    f"<td>{val_str}</td><td>{ev_eb_str}</td><td>{ev_rev_str}</td><td>{prem_str}</td></tr>"
+                )
+            if ct_rows:
+                _mhtml(
+                    f'<table class="precedent-table">'
+                    f'<thead><tr><th>Date</th><th>Acquirer</th><th>Target</th>'
+                    f'<th>Deal Value</th><th>EV/EBITDA</th><th>EV/Revenue</th><th>Premium</th></tr></thead>'
+                    f'<tbody>{ct_rows}</tbody></table>'
+                )
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
     # M6. FOOTBALL FIELD VALUATION
     # ══════════════════════════════════════════════════════
     if pro_forma.football_field and len([k for k in pro_forma.football_field if not k.startswith("_")]) > 0:
@@ -7972,6 +9687,138 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
                 )
     except Exception:
         pass
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # M8b. SYNERGY REALIZATION SCHEDULE
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Synergy Realization"):
+        _section("Synergy Realization Schedule", "📅")
+
+        if hasattr(pro_forma, 'synergy_schedule') and pro_forma.synergy_schedule:
+            syn_cols = st.columns(3)
+            for i, s in enumerate(pro_forma.synergy_schedule):
+                with syn_cols[i]:
+                    pct_color = "#EF4444" if s["pct"] < 50 else "#F5A623" if s["pct"] < 100 else "#10B981"
+                    st.markdown(
+                        f'<div style="text-align:center; padding:0.8rem; background:rgba(255,255,255,0.04); border-radius:10px;">'
+                        f'<div style="font-size:0.65rem; font-weight:600; color:#8A85AD; text-transform:uppercase;">Year {s["year"]}</div>'
+                        f'<div style="font-size:1.5rem; font-weight:800; color:{pct_color};">{s["pct"]}%</div>'
+                        f'<div style="font-size:0.8rem; color:#B8B3D7;">{format_number(s["amount"], currency_symbol=acq_cs)}</div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+
+            # Synergy ramp chart
+            fig_syn = go.Figure()
+            years = [f"Year {s['year']}" for s in pro_forma.synergy_schedule]
+            amounts = [s["amount"] for s in pro_forma.synergy_schedule]
+            fig_syn.add_trace(go.Bar(
+                x=years, y=amounts,
+                marker_color=["#EF4444", "#F5A623", "#10B981"],
+                text=[format_number(a, currency_symbol=acq_cs) for a in amounts],
+                textposition="outside", textfont=dict(size=10, color="#B8B3D7"),
+            ))
+            fig_syn.add_hline(y=pro_forma.total_synergies, line_dash="dash",
+                             line_color="rgba(107,92,231,0.5)", annotation_text="Full Run-Rate",
+                             annotation_font=dict(size=10, color="#8A85AD"))
+            fig_syn.update_layout(**_CHART_LAYOUT_BASE, height=250,
+                                  margin=dict(t=30, b=30, l=50, r=30), showlegend=False,
+                                  xaxis=dict(tickfont=dict(size=10, color="#8A85AD")),
+                                  yaxis=dict(tickfont=dict(size=9, color="#8A85AD")))
+            _apply_space_grid(fig_syn)
+            st.plotly_chart(fig_syn, use_container_width=True, key="synergy_ramp")
+
+    # ══════════════════════════════════════════════════════
+    # M8c. DEBT PAYDOWN SCHEDULE
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Debt Paydown Schedule"):
+        if hasattr(pro_forma, 'debt_paydown_schedule') and pro_forma.debt_paydown_schedule:
+            _section("Debt Paydown Schedule", "📉")
+
+            fig_dp = go.Figure()
+            dp_years = [f"Year {d['year']}" for d in pro_forma.debt_paydown_schedule]
+            dp_remaining = [d["remaining"] for d in pro_forma.debt_paydown_schedule]
+            dp_leverage = [d["leverage"] for d in pro_forma.debt_paydown_schedule]
+
+            fig_dp.add_trace(go.Bar(
+                x=dp_years, y=dp_remaining, name="Remaining Debt",
+                marker_color="#6B5CE7",
+                text=[format_number(r, currency_symbol=acq_cs) for r in dp_remaining],
+                textposition="outside", textfont=dict(size=9, color="#B8B3D7"),
+            ))
+            fig_dp.add_trace(go.Scatter(
+                x=dp_years, y=dp_leverage, name="Leverage (Debt/EBITDA)",
+                yaxis="y2", mode="lines+markers",
+                line=dict(color="#F5A623", width=2),
+                marker=dict(size=8, color="#F5A623"),
+            ))
+            fig_dp.update_layout(
+                **_CHART_LAYOUT_BASE, height=300,
+                margin=dict(t=30, b=30, l=60, r=60), showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, font=dict(size=9, color="#8A85AD")),
+                xaxis=dict(tickfont=dict(size=10, color="#8A85AD")),
+                yaxis=dict(title=dict(text="Debt Remaining", font=dict(size=10, color="#8A85AD")),
+                          tickfont=dict(size=9, color="#8A85AD")),
+                yaxis2=dict(title=dict(text="Leverage (x)", font=dict(size=10, color="#8A85AD")),
+                           tickfont=dict(size=9, color="#8A85AD"), overlaying="y", side="right",
+                           tickformat=".1f", ticksuffix="x"),
+            )
+            _apply_space_grid(fig_dp)
+            st.plotly_chart(fig_dp, use_container_width=True, key="debt_paydown")
+
+    # ══════════════════════════════════════════════════════
+    # M8d. BREAK-EVEN SYNERGIES & DEAL IRR
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Break-Even & IRR"):
+        _section("Break-Even Analysis & Deal IRR", "🎯")
+
+        be_cols = st.columns(3)
+        with be_cols[0]:
+            be_syn = getattr(pro_forma, 'breakeven_synergies', 0)
+            be_pct = getattr(pro_forma, 'breakeven_synergies_pct_of_target_rev', 0)
+            achievable = be_syn <= pro_forma.total_synergies if be_syn else True
+            be_color = "#10B981" if achievable else "#EF4444"
+            st.markdown(
+                f'<div style="text-align:center; padding:0.8rem; background:rgba(255,255,255,0.04); border-radius:10px;">'
+                f'<div style="font-size:0.65rem; font-weight:600; color:#8A85AD; text-transform:uppercase;">Break-Even Synergies</div>'
+                f'<div style="font-size:1.3rem; font-weight:800; color:{be_color};">{format_number(be_syn, currency_symbol=acq_cs)}</div>'
+                f'<div style="font-size:0.75rem; color:#8A85AD;">{be_pct:.1f}% of target revenue</div>'
+                f'<div style="font-size:0.7rem; color:{be_color}; margin-top:0.3rem;">{"✓ Below assumed synergies" if achievable else "⚠ Above assumed synergies"}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        with be_cols[1]:
+            st.markdown(
+                f'<div style="text-align:center; padding:0.8rem; background:rgba(255,255,255,0.04); border-radius:10px;">'
+                f'<div style="font-size:0.65rem; font-weight:600; color:#8A85AD; text-transform:uppercase;">Synergy Cushion</div>'
+                f'<div style="font-size:1.3rem; font-weight:800; color:{"#10B981" if achievable else "#EF4444"};">'
+                f'{format_number(pro_forma.total_synergies - be_syn, currency_symbol=acq_cs)}</div>'
+                f'<div style="font-size:0.75rem; color:#8A85AD;">{"Margin of safety" if achievable else "Shortfall"}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        with be_cols[2]:
+            deal_irr = getattr(pro_forma, 'deal_irr', None)
+            if deal_irr is not None:
+                irr_color = "#10B981" if deal_irr > 0.15 else "#F5A623" if deal_irr > 0.08 else "#EF4444"
+                irr_label = "Attractive" if deal_irr > 0.15 else "Acceptable" if deal_irr > 0.08 else "Below Hurdle"
+                st.markdown(
+                    f'<div style="text-align:center; padding:0.8rem; background:rgba(255,255,255,0.04); border-radius:10px;">'
+                    f'<div style="font-size:0.65rem; font-weight:600; color:#8A85AD; text-transform:uppercase;">Est. Deal IRR (5yr)</div>'
+                    f'<div style="font-size:1.3rem; font-weight:800; color:{irr_color};">{deal_irr:.1%}</div>'
+                    f'<div style="font-size:0.75rem; color:{irr_color};">{irr_label}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    f'<div style="text-align:center; padding:0.8rem; background:rgba(255,255,255,0.04); border-radius:10px;">'
+                    f'<div style="font-size:0.65rem; font-weight:600; color:#8A85AD;">Est. Deal IRR</div>'
+                    f'<div style="font-size:1.1rem; color:#8A85AD;">N/A</div></div>',
+                    unsafe_allow_html=True,
+                )
 
     _divider()
 
@@ -8590,6 +10437,342 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
             st.info("Could not run Monte Carlo simulation.")
         
         _divider()
+
+        # ══════════════════════════════════════════════════════
+        # SCENARIO ANALYSIS (Bull / Base / Bear)
+        # ══════════════════════════════════════════════════════
+        with _safe_section("Scenario Analysis"):
+            _section("Scenario Analysis", "📊")
+
+            st.markdown(
+                '<div style="font-size:0.8rem; color:#B8B3D7; margin-bottom:0.8rem;">'
+                'Three scenarios with different growth and discount rate assumptions.</div>',
+                unsafe_allow_html=True,
+            )
+
+            scenarios = {
+                "🐻 Bear": {"growth": max(dcf_growth_rate - 0.03, 0.0), "wacc": dcf_discount_rate + 0.015, "weight": 0.25},
+                "📊 Base": {"growth": dcf_growth_rate, "wacc": dcf_discount_rate, "weight": 0.50},
+                "🐂 Bull": {"growth": dcf_growth_rate + 0.03, "wacc": max(dcf_discount_rate - 0.01, dcf_terminal_growth + 0.01), "weight": 0.25},
+            }
+
+            scen_results = {}
+            for name, params in scenarios.items():
+                try:
+                    scen_dcf = _calculate_dcf(dcf_cd, growth_rate=params["growth"],
+                                               terminal_growth=dcf_terminal_growth,
+                                               discount_rate=params["wacc"],
+                                               projection_years=dcf_years)
+                    scen_results[name] = {**scen_dcf, "weight": params["weight"],
+                                          "growth": params["growth"], "wacc": params["wacc"]}
+                except Exception:
+                    pass
+
+            if scen_results:
+                scen_cols = st.columns(len(scen_results))
+                for col, (name, res) in zip(scen_cols, scen_results.items()):
+                    with col:
+                        if "error" not in res:
+                            price = res["implied_share_price"]
+                            upside = res["upside_pct"]
+                            color = "#10B981" if upside > 0 else "#EF4444"
+                            st.markdown(
+                                f'<div style="text-align:center; padding:0.8rem; background:rgba(255,255,255,0.04); '
+                                f'border-radius:10px; border-top:3px solid {color};">'
+                                f'<div style="font-size:0.7rem; font-weight:700; color:#8A85AD;">{name}</div>'
+                                f'<div style="font-size:1.5rem; font-weight:800; color:{color};">{cs}{price:,.2f}</div>'
+                                f'<div style="font-size:0.8rem; color:{color};">{upside:+.1f}%</div>'
+                                f'<div style="font-size:0.65rem; color:#8A85AD; margin-top:0.4rem;">'
+                                f'Growth: {res["growth"]:.0%} | WACC: {res["wacc"]:.0%}</div>'
+                                f'<div style="font-size:0.6rem; color:#8A85AD;">Weight: {res["weight"]:.0%}</div>'
+                                f'</div>',
+                                unsafe_allow_html=True,
+                            )
+
+                # Probability-weighted fair value
+                weighted_price = sum(
+                    r.get("implied_share_price", 0) * r.get("weight", 0)
+                    for r in scen_results.values() if "error" not in r
+                )
+                weighted_upside = ((weighted_price / dcf_cd.current_price) - 1) * 100 if dcf_cd.current_price else 0
+                w_color = "#10B981" if weighted_upside > 0 else "#EF4444"
+
+                st.markdown(
+                    f'<div style="text-align:center; padding:1rem; margin-top:0.8rem; '
+                    f'background:rgba(107,92,231,0.06); border:1px solid rgba(107,92,231,0.15); border-radius:12px;">'
+                    f'<div style="font-size:0.65rem; font-weight:700; color:#6B5CE7; text-transform:uppercase; '
+                    f'letter-spacing:1.5px;">Probability-Weighted Fair Value</div>'
+                    f'<div style="font-size:2rem; font-weight:800; color:{w_color};">{cs}{weighted_price:,.2f}</div>'
+                    f'<div style="font-size:0.9rem; color:{w_color};">{weighted_upside:+.1f}% vs Current ({cs}{dcf_cd.current_price:,.2f})</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+                # Scenario comparison bar chart
+                fig_scen = go.Figure()
+                scen_names = list(scen_results.keys())
+                scen_prices = [scen_results[n].get("implied_share_price", 0) for n in scen_names if "error" not in scen_results[n]]
+                scen_colors = ["#EF4444", "#6B5CE7", "#10B981"][:len(scen_prices)]
+                fig_scen.add_trace(go.Bar(
+                    x=scen_names[:len(scen_prices)], y=scen_prices,
+                    marker_color=scen_colors,
+                    text=[f"{cs}{p:,.2f}" for p in scen_prices],
+                    textposition="outside", textfont=dict(size=10, color="#B8B3D7"),
+                ))
+                fig_scen.add_hline(y=dcf_cd.current_price, line_dash="dash",
+                                   line_color="rgba(255,255,255,0.3)",
+                                   annotation_text=f"Current: {cs}{dcf_cd.current_price:,.2f}",
+                                   annotation_font=dict(size=10, color="#8A85AD"))
+                fig_scen.update_layout(**_CHART_LAYOUT_BASE, height=300,
+                                       margin=dict(t=30, b=30, l=50, r=30), showlegend=False,
+                                       xaxis=dict(tickfont=dict(size=10, color="#8A85AD")),
+                                       yaxis=dict(tickprefix=cs, tickfont=dict(size=9, color="#8A85AD")))
+                _apply_space_grid(fig_scen)
+                st.plotly_chart(fig_scen, use_container_width=True, key="scenario_chart")
+
+        _divider()
+        
+        # ══════════════════════════════════════════════════════
+        # WACC CALCULATOR BREAKDOWN
+        # ══════════════════════════════════════════════════════
+        with _safe_section("WACC Calculator"):
+            _section("WACC Calculator", "🧮")
+            
+            _wacc_data = st.session_state.get("_auto_wacc_data", None)
+            
+            # Calculate WACC components from dcf_cd
+            if _wacc_data is None:
+                # Compute from scratch
+                _wc_beta = dcf_cd.beta if dcf_cd.beta else 1.0
+                _wc_rf = 0.0425
+                _wc_erp = 0.055
+                _wc_ke = _wc_rf + _wc_beta * _wc_erp
+                
+                _wc_ie = abs(float(dcf_cd.interest_expense.iloc[0])) if dcf_cd.interest_expense is not None and len(dcf_cd.interest_expense) > 0 else 0
+                _wc_td = float(dcf_cd.total_debt.iloc[0]) if dcf_cd.total_debt is not None and len(dcf_cd.total_debt) > 0 else 0
+                _wc_kd = (_wc_ie / _wc_td) if _wc_td > 0 else 0.05
+                
+                _wc_tp = abs(float(dcf_cd.tax_provision.iloc[0])) if dcf_cd.tax_provision is not None and len(dcf_cd.tax_provision) > 0 else 0
+                _wc_oi = float(dcf_cd.operating_income.iloc[0]) if dcf_cd.operating_income is not None and len(dcf_cd.operating_income) > 0 else 0
+                _wc_pretax = _wc_oi - _wc_ie
+                _wc_tax = (abs(_wc_tp) / abs(_wc_pretax)) if abs(_wc_pretax) > 0 else 0.21
+                _wc_tax = max(0, min(_wc_tax, 0.50))
+                
+                _wc_mcap = dcf_cd.market_cap or 0
+                _wc_ev = _wc_mcap + _wc_td
+                _wc_we = (_wc_mcap / _wc_ev) if _wc_ev > 0 else 0.7
+                _wc_wd = (_wc_td / _wc_ev) if _wc_ev > 0 else 0.3
+                _wc_wacc = _wc_we * _wc_ke + _wc_wd * _wc_kd * (1 - _wc_tax)
+                
+                _wacc_data = {
+                    "rf": _wc_rf, "beta": _wc_beta, "erp": _wc_erp, "ke": _wc_ke,
+                    "kd": _wc_kd, "tax_rate": _wc_tax, "we": _wc_we, "wd": _wc_wd,
+                    "wacc": _wc_wacc, "mcap": _wc_mcap, "debt": _wc_td,
+                }
+            
+            # Breakdown table
+            wacc_items = [
+                ("Risk-Free Rate (Rf)", f"{_wacc_data['rf']*100:.2f}%"),
+                ("Beta (β)", f"{_wacc_data['beta']:.2f}"),
+                ("Equity Risk Premium", f"{_wacc_data['erp']*100:.2f}%"),
+                ("Cost of Equity (Ke)", f"{_wacc_data['ke']*100:.2f}%"),
+                ("Cost of Debt (Kd)", f"{_wacc_data['kd']*100:.2f}%"),
+                ("Tax Rate", f"{_wacc_data['tax_rate']*100:.1f}%"),
+                ("Equity Weight (E/V)", f"{_wacc_data['we']*100:.1f}%"),
+                ("Debt Weight (D/V)", f"{_wacc_data['wd']*100:.1f}%"),
+                ("WACC", f"{_wacc_data['wacc']*100:.2f}%"),
+            ]
+            
+            wc_c1, wc_c2 = st.columns([1, 1])
+            
+            with wc_c1:
+                for label, val in wacc_items:
+                    is_wacc = label == "WACC"
+                    bg = "rgba(107,92,231,0.15)" if is_wacc else "transparent"
+                    fw = "800" if is_wacc else "600"
+                    fc = "#9B8AFF" if is_wacc else "#E0DCF5"
+                    st.markdown(
+                        f'<div style="display:flex; justify-content:space-between; padding:0.35rem 0.5rem; '
+                        f'background:{bg}; border-radius:6px; border-bottom:1px solid rgba(255,255,255,0.03);">'
+                        f'<span style="font-size:0.78rem; color:#B8B3D7;">{label}</span>'
+                        f'<span style="font-size:0.78rem; font-weight:{fw}; color:{fc};">{val}</span>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+            
+            with wc_c2:
+                # Waterfall chart
+                _wf_labels = ["Ke × E/V", "Kd × D/V × (1-T)", "WACC"]
+                _wf_ke_contrib = _wacc_data["we"] * _wacc_data["ke"] * 100
+                _wf_kd_contrib = _wacc_data["wd"] * _wacc_data["kd"] * (1 - _wacc_data["tax_rate"]) * 100
+                _wf_wacc = _wacc_data["wacc"] * 100
+                
+                fig_wf = go.Figure(go.Waterfall(
+                    x=_wf_labels,
+                    y=[_wf_ke_contrib, _wf_kd_contrib, 0],
+                    measure=["relative", "relative", "total"],
+                    text=[f"{_wf_ke_contrib:.2f}%", f"{_wf_kd_contrib:.2f}%", f"{_wf_wacc:.2f}%"],
+                    textposition="outside",
+                    textfont=dict(size=11, color="#E0DCF5"),
+                    connector=dict(line=dict(color="rgba(107,92,231,0.3)", width=1)),
+                    increasing=dict(marker=dict(color="rgba(107,92,231,0.7)")),
+                    totals=dict(marker=dict(color="rgba(16,185,129,0.7)")),
+                ))
+                fig_wf.update_layout(
+                    **_CHART_LAYOUT_BASE, height=300,
+                    margin=dict(t=30, b=40, l=40, r=30),
+                    showlegend=False,
+                )
+                _apply_space_grid(fig_wf)
+                st.plotly_chart(fig_wf, use_container_width=True, key="wacc_waterfall")
+            
+            _divider()
+            
+            # Sensitivity: WACC vs Beta vs ERP
+            st.markdown(
+                '<div style="font-size:0.85rem; color:#B8B3D7; margin-bottom:0.8rem;">'
+                '<b>WACC Sensitivity — Beta vs. Equity Risk Premium</b></div>',
+                unsafe_allow_html=True,
+            )
+            
+            _s_betas = [0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8]
+            _s_erps = [0.04, 0.045, 0.05, 0.055, 0.06, 0.065, 0.07]
+            
+            _sens_rows = []
+            for b in _s_betas:
+                row = {"Beta": f"{b:.1f}"}
+                for erp in _s_erps:
+                    ke = _wacc_data["rf"] + b * erp
+                    wacc = _wacc_data["we"] * ke + _wacc_data["wd"] * _wacc_data["kd"] * (1 - _wacc_data["tax_rate"])
+                    row[f"ERP {erp*100:.1f}%"] = f"{wacc*100:.1f}%"
+                _sens_rows.append(row)
+            
+            import pandas as _pd_wacc
+            _sens_df = _pd_wacc.DataFrame(_sens_rows).set_index("Beta")
+            
+            # Highlight the cell closest to actual values
+            st.dataframe(_sens_df, use_container_width=True)
+        
+        _divider()
+
+        # ── Scenario Analysis (Bull / Base / Bear) ──
+        _section("Scenario Analysis", "🎯")
+        with _safe_section("Scenario Analysis"):
+            st.markdown(
+                '<div style="font-size:0.85rem; color:#B8B3D7; margin-bottom:1rem;">'
+                'Three scenarios varying growth rate and discount rate assumptions.</div>',
+                unsafe_allow_html=True,
+            )
+
+            _base_gr = dcf_result["growth_rate"]
+            _base_dr = dcf_result["discount_rate"]
+
+            _scenarios = {
+                "🐂 Bull Case": {"growth_rate": _base_gr + 0.03, "discount_rate": max(_base_dr - 0.01, 0.03)},
+                "📊 Base Case": {"growth_rate": _base_gr, "discount_rate": _base_dr},
+                "🐻 Bear Case": {"growth_rate": max(_base_gr - 0.03, -0.05), "discount_rate": _base_dr + 0.015},
+            }
+
+            _scenario_results = {}
+            for _sname, _sparams in _scenarios.items():
+                _sr = _calculate_dcf(
+                    dcf_cd,
+                    growth_rate=_sparams["growth_rate"],
+                    terminal_growth=dcf_result["terminal_growth"],
+                    discount_rate=_sparams["discount_rate"],
+                    projection_years=dcf_result["projection_years"],
+                )
+                _scenario_results[_sname] = _sr
+
+            # Three column display
+            _sc1, _sc2, _sc3 = st.columns(3)
+            _sc_cols = [_sc1, _sc2, _sc3]
+            _sc_colors = ["#10B981", "#6B5CE7", "#EF4444"]
+            _sc_bg = ["rgba(16,185,129,0.1)", "rgba(107,92,231,0.1)", "rgba(239,68,68,0.1)"]
+            _sc_border = ["rgba(16,185,129,0.3)", "rgba(107,92,231,0.3)", "rgba(239,68,68,0.3)"]
+
+            for _idx_sc, (_sname, _sr) in enumerate(_scenario_results.items()):
+                with _sc_cols[_idx_sc]:
+                    if "error" in _sr:
+                        st.markdown(f'<div style="padding:1rem; text-align:center; color:#8A85AD;">{_sname}<br>N/A</div>', unsafe_allow_html=True)
+                    else:
+                        _sp = _sr["implied_share_price"]
+                        _su = _sr["upside_pct"]
+                        _su_text = f"+{_su:.1f}%" if _su >= 0 else f"{_su:.1f}%"
+                        _sc_params = _scenarios[_sname]
+                        st.markdown(
+                            f'<div style="background:{_sc_bg[_idx_sc]}; border:1px solid {_sc_border[_idx_sc]}; '
+                            f'border-radius:12px; padding:1.2rem; text-align:center;">'
+                            f'<div style="font-size:0.85rem; font-weight:700; color:{_sc_colors[_idx_sc]}; margin-bottom:0.5rem;">{_sname}</div>'
+                            f'<div style="font-size:1.6rem; font-weight:800; color:#E0DCF5;">{cs}{_sp:,.2f}</div>'
+                            f'<div style="font-size:1rem; font-weight:700; color:{_sc_colors[_idx_sc]}; margin:0.3rem 0;">{_su_text}</div>'
+                            f'<div style="font-size:0.65rem; color:#8A85AD; line-height:1.4;">'
+                            f'Growth: {_sc_params["growth_rate"]*100:.1f}% · WACC: {_sc_params["discount_rate"]*100:.1f}%</div>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
+
+            # Probability-weighted price
+            st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
+            _weight_cols = st.columns([1, 1, 1, 2])
+            with _weight_cols[0]:
+                _w_bull = st.number_input("Bull Weight %", min_value=0, max_value=100, value=25, step=5, key="scenario_w_bull")
+            with _weight_cols[1]:
+                _w_base = st.number_input("Base Weight %", min_value=0, max_value=100, value=50, step=5, key="scenario_w_base")
+            with _weight_cols[2]:
+                _w_bear = st.number_input("Bear Weight %", min_value=0, max_value=100, value=25, step=5, key="scenario_w_bear")
+
+            _w_total = _w_bull + _w_base + _w_bear
+            _sr_list = list(_scenario_results.values())
+            if _w_total > 0 and all("error" not in _sr_item for _sr_item in _sr_list):
+                _weighted_price = (
+                    _sr_list[0]["implied_share_price"] * _w_bull +
+                    _sr_list[1]["implied_share_price"] * _w_base +
+                    _sr_list[2]["implied_share_price"] * _w_bear
+                ) / _w_total
+                _weighted_upside = ((_weighted_price / dcf_result["current_price"]) - 1) * 100 if dcf_result["current_price"] > 0 else 0
+                _wu_color = "#10B981" if _weighted_upside >= 0 else "#EF4444"
+                _wu_text = f"+{_weighted_upside:.1f}%" if _weighted_upside >= 0 else f"{_weighted_upside:.1f}%"
+
+                with _weight_cols[3]:
+                    st.markdown(
+                        f'<div style="background:rgba(107,92,231,0.08); border:1px solid rgba(107,92,231,0.2); '
+                        f'border-radius:12px; padding:1rem; text-align:center; margin-top:0.5rem;">'
+                        f'<div style="font-size:0.7rem; color:#8A85AD; text-transform:uppercase;">Probability-Weighted Price</div>'
+                        f'<div style="font-size:1.5rem; font-weight:800; color:#E0DCF5;">{cs}{_weighted_price:,.2f}</div>'
+                        f'<div style="font-size:0.9rem; font-weight:700; color:{_wu_color};">{_wu_text} vs current</div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+
+            # Grouped bar chart
+            if all("error" not in _sr_item for _sr_item in _sr_list):
+                fig_scenario = go.Figure()
+                _snames = list(_scenario_results.keys())
+                fig_scenario.add_trace(go.Bar(
+                    x=_snames,
+                    y=[_sr_item["implied_share_price"] for _sr_item in _sr_list],
+                    marker_color=_sc_colors,
+                    text=[f"{cs}{_sr_item['implied_share_price']:,.2f}" for _sr_item in _sr_list],
+                    textposition="outside",
+                    textfont=dict(size=11, color="#B8B3D7"),
+                ))
+                fig_scenario.add_hline(
+                    y=dcf_result["current_price"], line_dash="dash", line_color="#F59E0B", line_width=2,
+                    annotation_text=f"Current: {cs}{dcf_result['current_price']:,.2f}",
+                    annotation_font=dict(size=10, color="#F59E0B"),
+                )
+                fig_scenario.update_layout(
+                    **_CHART_LAYOUT_BASE, height=300,
+                    margin=dict(t=30, b=30, l=50, r=30),
+                    xaxis=dict(tickfont=dict(size=11, color="#B8B3D7")),
+                    yaxis=dict(tickprefix=cs, tickfont=dict(size=9, color="#8A85AD"), showgrid=False),
+                    showlegend=False,
+                )
+                _apply_space_grid(fig_scenario)
+                st.plotly_chart(fig_scenario, use_container_width=True, key="scenario_bar_chart")
+
+        _divider()
         
         st.markdown(
             '<div style="background:rgba(245,166,35,0.1); border:1px solid rgba(245,166,35,0.3); '
@@ -8851,6 +11034,292 @@ elif analysis_mode == "Quick Compare" and compare_btn and compare_tickers:
             except Exception:
                 st.info("Could not generate correlation matrix.")
 
+        # ══════════════════════════════════════════════════
+        # MULTI-DIMENSIONAL RADAR + WINNER SUMMARY
+        # ══════════════════════════════════════════════════
+        if len(companies) >= 2:
+            _divider()
+            with _safe_section("Multi-Dimensional Radar"):
+                _section("Multi-Dimensional Comparison", "🕸️")
+                st.markdown(
+                    '<div style="font-size:0.8rem; color:#B8B3D7; margin-bottom:0.8rem;">'
+                    'Companies scored 0–100 across five dimensions: Valuation, Growth, Profitability, Leverage, Size.</div>',
+                    unsafe_allow_html=True,
+                )
+
+                dimensions = ["Valuation", "Growth", "Profitability", "Leverage", "Size"]
+                company_scores = {}
+
+                for c in companies[:5]:
+                    scores = {}
+                    # Valuation (lower P/E = better, invert & normalize)
+                    pe = c.trailing_pe if c.trailing_pe and 0 < c.trailing_pe < 200 else 50
+                    scores["Valuation"] = max(0, min(100, 100 - (pe / 50 * 50)))
+
+                    # Growth (revenue growth)
+                    rg = (c.revenue_growth or 0) * 100
+                    scores["Growth"] = max(0, min(100, rg * 2 + 50))
+
+                    # Profitability (net margin)
+                    nm = (c.profit_margins or 0) * 100
+                    scores["Profitability"] = max(0, min(100, nm * 2.5 + 25))
+
+                    # Leverage (lower D/E = better)
+                    de = c.debt_to_equity if c.debt_to_equity and c.debt_to_equity > 0 else 50
+                    scores["Leverage"] = max(0, min(100, 100 - min(de / 2, 100)))
+
+                    # Size (log market cap normalized)
+                    mc = c.market_cap or 1e9
+                    import math
+                    scores["Size"] = max(0, min(100, (math.log10(max(mc, 1)) - 8) / 5 * 100))
+
+                    company_scores[c.ticker] = scores
+
+                # Build radar chart
+                fig_radar = go.Figure()
+                radar_colors = ["#6B5CE7", "#E8638B", "#10B981", "#F5A623", "#3B82F6"]
+
+                for i, (ticker, scores) in enumerate(company_scores.items()):
+                    vals = [scores[d] for d in dimensions]
+                    color = radar_colors[i % len(radar_colors)]
+                    fig_radar.add_trace(go.Scatterpolar(
+                        r=vals + [vals[0]],
+                        theta=dimensions + [dimensions[0]],
+                        fill='toself',
+                        name=ticker,
+                        fillcolor=f"rgba({int(color[1:3], 16)},{int(color[3:5], 16)},{int(color[5:7], 16)},0.1)",
+                        line=dict(color=color, width=2),
+                        marker=dict(size=6),
+                    ))
+
+                fig_radar.update_layout(
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    font=dict(family="Inter", size=12, color="#B8B3D7"),
+                    polar=dict(
+                        radialaxis=dict(visible=True, range=[0, 100], tickfont=dict(size=8, color="#8A85AD"),
+                                       gridcolor="rgba(107,92,231,0.1)"),
+                        angularaxis=dict(tickfont=dict(size=11, color="#8A85AD"),
+                                        gridcolor="rgba(107,92,231,0.08)"),
+                        bgcolor="rgba(0,0,0,0)",
+                    ),
+                    showlegend=True,
+                    height=500,
+                    margin=dict(t=50, b=50, l=80, r=80),
+                    legend=dict(font=dict(size=11, color="#B8B3D7")),
+                )
+                st.plotly_chart(fig_radar, use_container_width=True, key="multi_dim_radar")
+
+                # Winner summary
+                _section("🏆 Winner Summary")
+                total_scores = {t: sum(s.values()) for t, s in company_scores.items()}
+                sorted_companies = sorted(total_scores.items(), key=lambda x: x[1], reverse=True)
+                winner = sorted_companies[0]
+
+                winner_cols = st.columns(min(len(sorted_companies), 5))
+                for i, (ticker, total) in enumerate(sorted_companies[:5]):
+                    with winner_cols[i]:
+                        medal = "🥇" if i == 0 else "🥈" if i == 1 else "🥉" if i == 2 else f"#{i+1}"
+                        border_c = radar_colors[i % len(radar_colors)]
+                        # Find which dimension this company leads in
+                        best_dim = max(company_scores[ticker].items(), key=lambda x: x[1])
+                        st.markdown(
+                            f'<div style="text-align:center; padding:0.8rem; background:rgba(255,255,255,0.04); '
+                            f'border-radius:10px; border-top:3px solid {border_c};">'
+                            f'<div style="font-size:1.2rem;">{medal}</div>'
+                            f'<div style="font-size:1rem; font-weight:800; color:#E0DCF5;">{ticker}</div>'
+                            f'<div style="font-size:1.5rem; font-weight:800; color:{border_c};">{total:.0f}</div>'
+                            f'<div style="font-size:0.65rem; color:#8A85AD; text-transform:uppercase;">Total Score</div>'
+                            f'<div style="font-size:0.7rem; color:#B8B3D7; margin-top:0.3rem;">Best: {best_dim[0]} ({best_dim[1]:.0f})</div>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
+
+                # Per-dimension winners
+                dim_winners_html = ""
+                for dim in dimensions:
+                    dim_best = max(company_scores.items(), key=lambda x: x[1][dim])
+                    dim_winners_html += (
+                        f'<span style="display:inline-block; padding:0.3rem 0.6rem; margin:0.2rem; '
+                        f'background:rgba(107,92,231,0.08); border-radius:6px; font-size:0.75rem;">'
+                        f'<span style="color:#8A85AD;">{dim}:</span> '
+                        f'<span style="color:#E0DCF5; font-weight:700;">{dim_best[0]}</span> '
+                        f'<span style="color:#6B5CE7;">({dim_best[1][dim]:.0f})</span></span>'
+                    )
+                st.markdown(
+                    f'<div style="text-align:center; margin-top:0.8rem;">{dim_winners_html}</div>',
+                    unsafe_allow_html=True,
+                )
+
+elif analysis_mode == "VMS Screener" and vms_screen_btn:
+    # ══════════════════════════════════════════════════════
+    # VMS SCREENER RESULTS
+    # ══════════════════════════════════════════════════════
+    import pandas as pd
+
+    st.markdown(
+        '<div class="hero-header">'
+        '<div class="orbital-brand">'
+        f'{_orbital_logo()}'
+        '<p class="orbital-subtitle" style="font-size:1.1rem;">VMS Acquisition Screener</p>'
+        '</div></div>',
+        unsafe_allow_html=True,
+    )
+
+    with _safe_section("VMS Screening Philosophy"):
+        st.markdown(
+            '<div style="background:rgba(107,92,231,0.06); border-radius:12px; padding:1.2rem; '
+            'border-left:4px solid #6B5CE7; margin-bottom:1rem;">'
+            '<div style="font-size:0.85rem; font-weight:700; color:#9B8AFF; margin-bottom:0.5rem;">🏛️ Constellation Software Philosophy</div>'
+            '<div style="font-size:0.78rem; color:#B8B3D7; line-height:1.6;">'
+            'Vertical Market Software (VMS) companies serve niche industries with mission-critical software. '
+            'These businesses exhibit high switching costs, recurring revenue, and durable competitive moats. '
+            'Ideal acquisition targets have: <b>stable revenue ($5M-$200M)</b>, <b>healthy EBITDA margins (15%+)</b>, '
+            '<b>low churn</b>, and <b>dominant positions</b> in their vertical. '
+            'This screener identifies public VMS companies matching your criteria.</div></div>',
+            unsafe_allow_html=True,
+        )
+
+    with _safe_section("Screening Results"):
+        with st.spinner("Fetching data for VMS universe..."):
+            # Convert to tuple of tuples for caching
+            _vms_tuple = tuple(tuple(sorted(d.items())) for d in VMS_UNIVERSE)
+            raw_results = _fetch_vms_screening_data(tuple(dict(t) for t in _vms_tuple))
+
+        if raw_results:
+            df = pd.DataFrame(raw_results)
+
+            # Apply filters
+            mask = (
+                (df["Revenue ($M)"] >= vms_rev_min) &
+                (df["Revenue ($M)"] <= vms_rev_max) &
+                (df["EBITDA Margin (%)"] >= vms_ebitda_min) &
+                (df["Revenue Growth (%)"] >= vms_growth_min)
+            )
+            if vms_industries:
+                mask &= df["Vertical"].isin(vms_industries)
+            if vms_geographies:
+                mask &= df["Geography"].isin(vms_geographies)
+
+            df["Pass"] = mask
+            df_display = df[["Company", "Ticker", "Vertical", "Revenue ($M)", "EBITDA Margin (%)",
+                             "Revenue Growth (%)", "EV/Revenue", "EV/EBITDA", "Pass"]].copy()
+
+            # Summary
+            n_pass = mask.sum()
+            st.markdown(
+                f'<div style="text-align:center; margin-bottom:1rem;">'
+                f'<span style="font-size:1.5rem; font-weight:800; color:#6B5CE7;">{n_pass}</span>'
+                f'<span style="font-size:0.85rem; color:#8A85AD;"> / {len(df)} companies pass your criteria</span></div>',
+                unsafe_allow_html=True,
+            )
+
+            def _color_pass(row):
+                if row["Pass"]:
+                    return ["background-color: rgba(16,185,129,0.12)"] * len(row)
+                return [""] * len(row)
+
+            styled = df_display.style.apply(_color_pass, axis=1).format({
+                "Revenue ($M)": "${:,.1f}M",
+                "EBITDA Margin (%)": "{:.1f}%",
+                "Revenue Growth (%)": "{:.1f}%",
+                "EV/Revenue": "{:.2f}x",
+                "EV/EBITDA": "{:.1f}x",
+            })
+            st.dataframe(styled, use_container_width=True, height=500)
+
+            # Download CSV
+            csv_data = df_display[df_display["Pass"]].drop(columns=["Pass"]).to_csv(index=False)
+            st.download_button(
+                "📄 Generate Target List (CSV)",
+                data=csv_data,
+                file_name="vms_target_list.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+
+            # Add to watchlist button
+            if n_pass > 0:
+                if st.button("⭐ Add Passing Companies to Watchlist", use_container_width=True):
+                    for _, row in df_display[df_display["Pass"]].iterrows():
+                        _add_to_watchlist(row["Ticker"])
+                    st.success(f"Added {n_pass} companies to watchlist!")
+                    st.rerun()
+        else:
+            st.warning("Could not fetch data for VMS universe. Please try again.")
+
+elif analysis_mode == "VMS Screener" and not vms_screen_btn:
+    # VMS Screener splash/landing
+    st.markdown(
+        '<div class="splash-hero">'
+        '<div class="star-layer-1">&#8203;</div>'
+        '<div class="star-layer-2">&#8203;</div>'
+        '<div class="star-layer-3">&#8203;</div>'
+        '<div class="nebula-overlay">&#8203;</div>'
+        '<div class="orb orb-1">&#8203;</div>'
+        '<div class="orb orb-2">&#8203;</div>'
+        '<div class="orb orb-3">&#8203;</div>'
+        '<div class="orb orb-4">&#8203;</div>'
+        '<div class="orb orb-5">&#8203;</div>'
+        '<div class="shooting-star shooting-star-1">&#8203;</div>'
+        '<div class="shooting-star shooting-star-2">&#8203;</div>'
+        '<div class="noise-overlay">&#8203;</div>'
+        '<div class="title-glow">&#8203;</div>'
+        '<div class="splash-content">'
+        '<div class="orbital-logo orbital-logo-lg">'
+        '<span class="orbital-text">ORBITAL</span>'
+        '<div class="orbital-ring orbital-ring-1"></div>'
+        '<div class="orbital-ring orbital-ring-2"></div>'
+        '<div class="orbital-ring orbital-ring-3"></div>'
+        '<div class="orbital-particle orbital-particle-1"></div>'
+        '<div class="orbital-particle orbital-particle-2"></div>'
+        '<div class="orbital-particle orbital-particle-3"></div>'
+        '</div>'
+        '<p class="splash-subtitle" style="font-size:1.4rem; margin-top:1rem;">VMS Acquisition Screener</p>'
+        '<div class="pill-row">'
+        '<span class="feature-pill">Constellation Style</span>'
+        '<span class="feature-pill">Vertical Market Software</span>'
+        '<span class="feature-pill">Niche Dominators</span>'
+        '<span class="feature-pill">Recurring Revenue</span>'
+        '</div>'
+        '<div class="splash-stats">'
+        '<div class="splash-stat"><div class="splash-stat-value">20</div><div class="splash-stat-label">VMS Companies</div></div>'
+        '<div class="splash-stat"><div class="splash-stat-value">10</div><div class="splash-stat-label">Industry Verticals</div></div>'
+        '<div class="splash-stat"><div class="splash-stat-value">7</div><div class="splash-stat-label">Screening Metrics</div></div>'
+        '</div>'
+        '</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        '<div class="space-section">'
+        '<div class="space-section-title">How It Works</div>'
+        '<div class="step-grid">'
+        '<div class="step-card"><div class="step-num">1</div><div class="step-label">Set Criteria</div><div class="step-detail">Revenue, margins, growth thresholds</div></div>'
+        '<div class="step-card"><div class="step-num">2</div><div class="step-label">Filter Verticals</div><div class="step-detail">Healthcare IT, GovTech, and more</div></div>'
+        '<div class="step-card"><div class="step-num">3</div><div class="step-label">Run Screen</div><div class="step-detail">Scan 20 public VMS companies</div></div>'
+        '<div class="step-card"><div class="step-num">4</div><div class="step-label">Export Targets</div><div class="step-detail">Download CSV target list</div></div>'
+        '</div>'
+        '<div class="space-section-title">VMS Verticals Covered</div>'
+        '<div class="feature-grid">'
+        '<div class="feature-card"><div class="feature-icon">&#127973;</div><div class="feature-title">Healthcare IT</div><div class="feature-desc">EHR, clinical, billing systems</div></div>'
+        '<div class="feature-card"><div class="feature-icon">&#127963;</div><div class="feature-title">GovTech</div><div class="feature-desc">Municipal, courts, public safety</div></div>'
+        '<div class="feature-card"><div class="feature-icon">&#9878;</div><div class="feature-title">Legal Tech</div><div class="feature-desc">Case management, e-discovery</div></div>'
+        '<div class="feature-card"><div class="feature-icon">&#127979;</div><div class="feature-title">Education Tech</div><div class="feature-desc">LMS, SIS, campus management</div></div>'
+        '<div class="feature-card"><div class="feature-icon">&#127968;</div><div class="feature-title">Real Estate Tech</div><div class="feature-desc">Property, lease, facilities mgmt</div></div>'
+        '<div class="feature-card"><div class="feature-icon">&#128679;</div><div class="feature-title">Construction Tech</div><div class="feature-desc">Project, BIM, field management</div></div>'
+        '<div class="feature-card"><div class="feature-icon">&#9889;</div><div class="feature-title">Utilities</div><div class="feature-desc">Grid, metering, asset management</div></div>'
+        '<div class="feature-card"><div class="feature-icon">&#128666;</div><div class="feature-title">Transportation</div><div class="feature-desc">Fleet, logistics, routing</div></div>'
+        '</div>'
+        '<p style="font-size:0.72rem; color:#8A85AD; margin-top:2rem; text-align:center;">'
+        'Set your screening criteria in the sidebar and click Run Screen<br>'
+        'Inspired by Constellation Software&#39;s acquisition philosophy'
+        '</p>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
 else:
     # ══════════════════════════════════════════════════════
     # SPLASH / LANDING PAGE — Immersive space experience
@@ -9111,7 +11580,7 @@ else:
             '<span class="feature-pill">Global Exchanges</span>'
             '</div>'
             '<div class="splash-stats">'
-            '<div class="splash-stat"><div class="splash-stat-value">60+</div><div class="splash-stat-label">Data Points</div></div>'
+            '<div class="splash-stat"><div class="splash-stat-value">100+</div><div class="splash-stat-label">Data Points</div></div>'
             '<div class="splash-stat"><div class="splash-stat-value">8</div><div class="splash-stat-label">PPTX Slides</div></div>'
             '<div class="splash-stat"><div class="splash-stat-value">20+</div><div class="splash-stat-label">Exchanges</div></div>'
             '</div>'
@@ -9126,7 +11595,7 @@ else:
             '<div class="space-section-title">How It Works</div>'
             '<div class="step-grid">'
             '<div class="step-card"><div class="step-num">1</div><div class="step-label">Enter Ticker</div><div class="step-detail">Any global exchange &mdash; AAPL, RY.TO, NVDA.L</div></div>'
-            '<div class="step-card"><div class="step-num">2</div><div class="step-label">Generate Profile</div><div class="step-detail">60+ data points pulled in real-time</div></div>'
+            '<div class="step-card"><div class="step-num">2</div><div class="step-label">Generate Profile</div><div class="step-detail">100+ data points pulled in real-time</div></div>'
             '<div class="step-card"><div class="step-num">3</div><div class="step-label">Explore Dashboard</div><div class="step-detail">Charts, peer comparison &amp; insights</div></div>'
             '<div class="step-card"><div class="step-num">4</div><div class="step-label">Download PPTX</div><div class="step-detail">8-slide IB-grade PowerPoint</div></div>'
             '</div>'
@@ -9250,7 +11719,7 @@ st.markdown(
     '<a href="#">Documentation</a>'
     '<a href="#">API</a>'
     '</div>'
-    '<div class="orbital-footer-version">v4.4 · Built with Streamlit · Data from Yahoo Finance & Alpha Vantage</div>'
+    '<div class="orbital-footer-version">v5.0 · Built with Streamlit · Data from Yahoo Finance & Alpha Vantage</div>'
     '</div>',
     unsafe_allow_html=True,
 )

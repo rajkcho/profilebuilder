@@ -96,6 +96,27 @@ class ProFormaData:
     # ── Football Field ────────────────────────────────────
     football_field: Dict[str, Dict] = field(default_factory=dict)
 
+    # ── Contribution Analysis ─────────────────────────────
+    acq_revenue_contrib: float = 0.0
+    tgt_revenue_contrib: float = 0.0
+    acq_ebitda_contrib: float = 0.0
+    tgt_ebitda_contrib: float = 0.0
+    acq_ni_contrib: float = 0.0
+    tgt_ni_contrib: float = 0.0
+
+    # ── Synergy Realization Schedule ──────────────────────
+    synergy_schedule: List[Dict] = field(default_factory=list)
+
+    # ── Debt Paydown ──────────────────────────────────────
+    debt_paydown_schedule: List[Dict] = field(default_factory=list)
+
+    # ── Break-Even Analysis ───────────────────────────────
+    breakeven_synergies: float = 0.0
+    breakeven_synergies_pct_of_target_rev: float = 0.0
+
+    # ── Deal IRR ──────────────────────────────────────────
+    deal_irr: Optional[float] = None
+
     # ── Warnings ──────────────────────────────────────────
     currency_mismatch: bool = False
     warnings: List[str] = field(default_factory=list)
@@ -267,6 +288,65 @@ def calculate_pro_forma(
     # ── Waterfall Steps ───────────────────────────────────
     pf.waterfall_steps = _build_waterfall_steps(pf, assumptions)
 
+    # ── Contribution Analysis ─────────────────────────────
+    pf.acq_revenue_contrib = pf.acq_revenue / pf.pf_revenue * 100 if pf.pf_revenue else 0
+    pf.tgt_revenue_contrib = pf.tgt_revenue / pf.pf_revenue * 100 if pf.pf_revenue else 0
+    pf.acq_ebitda_contrib = pf.acq_ebitda / pf.pf_ebitda * 100 if pf.pf_ebitda else 0
+    pf.tgt_ebitda_contrib = pf.tgt_ebitda / pf.pf_ebitda * 100 if pf.pf_ebitda else 0
+    pf.acq_ni_contrib = pf.acq_net_income / (pf.acq_net_income + pf.tgt_net_income) * 100 if (pf.acq_net_income + pf.tgt_net_income) else 0
+    pf.tgt_ni_contrib = pf.tgt_net_income / (pf.acq_net_income + pf.tgt_net_income) * 100 if (pf.acq_net_income + pf.tgt_net_income) else 0
+
+    # ── Synergy Realization Schedule (3 years) ────────────
+    pf.synergy_schedule = [
+        {"year": 1, "pct": 33, "amount": pf.total_synergies * 0.33},
+        {"year": 2, "pct": 66, "amount": pf.total_synergies * 0.66},
+        {"year": 3, "pct": 100, "amount": pf.total_synergies * 1.00},
+    ]
+
+    # ── Debt Paydown Schedule (5 years, simplified) ───────
+    if new_debt > 0 and pf.pf_ebitda > 0:
+        annual_paydown = min(pf.pf_ebitda * 0.30, new_debt / 3)  # 30% of EBITDA or 3yr paydown
+        remaining = new_debt
+        pf.debt_paydown_schedule = []
+        for yr in range(1, 6):
+            paydown = min(annual_paydown, remaining)
+            remaining -= paydown
+            pf.debt_paydown_schedule.append({
+                "year": yr, "paydown": paydown, "remaining": remaining,
+                "leverage": (pf.pf_total_debt - (new_debt - remaining)) / pf.pf_ebitda if pf.pf_ebitda else 0
+            })
+    else:
+        pf.debt_paydown_schedule = []
+
+    # ── Break-Even Synergies ──────────────────────────────
+    # Minimum synergies needed for the deal to be accretive (EPS neutral)
+    if pf.pf_shares_outstanding and pf.acq_eps:
+        # Target EPS: pf_eps == acq_eps (breakeven)
+        # NI_required = acq_eps × pf_shares
+        ni_required = pf.acq_eps * pf.pf_shares_outstanding
+        base_ni = pf.acq_net_income + pf.tgt_net_income - after_tax_incr_interest
+        shortfall = ni_required - base_ni
+        pf.breakeven_synergies = max(shortfall / (1 - tax_rate), 0) if tax_rate < 1 else 0
+        pf.breakeven_synergies_pct_of_target_rev = (pf.breakeven_synergies / pf.tgt_revenue * 100) if pf.tgt_revenue else 0
+    else:
+        pf.breakeven_synergies = 0
+        pf.breakeven_synergies_pct_of_target_rev = 0
+
+    # ── IRR Estimate (simplified) ─────────────────────────
+    # Assume exit at same EBITDA multiple after 5 years
+    if pf.implied_ev_ebitda and pf.pf_ebitda and pf.purchase_price > 0:
+        exit_ev = pf.pf_ebitda * pf.implied_ev_ebitda  # same multiple
+        # Add synergy-enhanced EBITDA at year 5
+        yr5_ebitda = pf.pf_ebitda + pf.total_synergies
+        exit_ev_with_syn = yr5_ebitda * pf.implied_ev_ebitda
+        exit_equity = exit_ev_with_syn - pf.pf_net_debt
+        if exit_equity > 0 and pf.purchase_price > 0:
+            pf.deal_irr = (exit_equity / pf.purchase_price) ** (1/5) - 1
+        else:
+            pf.deal_irr = None
+    else:
+        pf.deal_irr = None
+
     # ── Validation warnings ───────────────────────────────
     if pf.acq_shares == 0:
         pf.warnings.append(f"Shares outstanding unavailable for {acq.ticker}.")
@@ -275,6 +355,11 @@ def calculate_pro_forma(
     if pf.pf_leverage_ratio and pf.pf_leverage_ratio > 5:
         pf.warnings.append(
             f"Pro forma leverage is {pf.pf_leverage_ratio:.1f}x — this is very high."
+        )
+    if pf.breakeven_synergies > pf.total_synergies:
+        pf.warnings.append(
+            f"Assumed synergies ({format_number(pf.total_synergies)}) are below break-even "
+            f"({format_number(pf.breakeven_synergies)}). Deal is dilutive without higher synergies."
         )
 
     return pf

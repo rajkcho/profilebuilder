@@ -24,7 +24,8 @@ from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
 
-from data_engine import CompanyData, format_number, format_pct, format_multiple
+from data_engine import (CompanyData, format_number, format_pct, format_multiple,
+                         calculate_piotroski_score, calculate_intrinsic_value, get_key_ratios_summary)
 
 # ══════════════════════════════════════════════════════════════
 # GOLDMAN SACHS STYLE PALETTE
@@ -344,6 +345,19 @@ def _company_slide_2(prs, cd: CompanyData):
               Inches(0.5), Inches(5.35), Inches(4), Inches(1.1),
               col_widths=[Inches(2), Inches(2)])
 
+    # Piotroski F-Score (bottom right)
+    try:
+        piotroski = calculate_piotroski_score(cd)
+        if piotroski:
+            _gs_section_title(slide, "Piotroski F-Score", Inches(5.0))
+            score = piotroski['score']
+            score_color = GREEN if score >= 7 else (RED if score <= 3 else DARK_GRAY)
+            label = "Strong" if score >= 7 else ("Weak" if score <= 3 else "Neutral")
+            _add_textbox(slide, Inches(6.8), Inches(5.35), Inches(2), Inches(0.5),
+                         f"{score} / 9  ({label})", font_size=16, bold=True, color=score_color)
+    except Exception:
+        pass
+
 
 def _company_slide_3(prs, cd: CompanyData):
     """Slide 3: Peer Comparison & Analyst Views."""
@@ -426,6 +440,151 @@ def _company_slide_3(prs, cd: CompanyData):
               col_widths=[Inches(2.8), Inches(2.733)])
 
 
+def _company_slide_valuation(prs, cd: CompanyData):
+    """Slide 4: Valuation Summary - Multiples, DCF, Investment Thesis."""
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    cs = cd.currency_symbol
+
+    _gs_header(slide, "Valuation Summary", f"{cd.name} ({cd.ticker})")
+    _gs_footer(slide, cd.ticker)
+
+    # Key Multiples Table (top left)
+    _gs_section_title(slide, "Key Valuation Multiples", Inches(1.0))
+
+    multiples_rows = [
+        ["P/E (TTM)", f"{cd.trailing_pe:.1f}x" if cd.trailing_pe else "—"],
+        ["P/E (Forward)", f"{cd.forward_pe:.1f}x" if cd.forward_pe else "—"],
+        ["EV/EBITDA", f"{cd.ev_to_ebitda:.1f}x" if cd.ev_to_ebitda else "—"],
+        ["P/S", f"{cd.price_to_sales:.1f}x" if cd.price_to_sales else "—"],
+        ["P/B", f"{cd.price_to_book:.1f}x" if cd.price_to_book else "—"],
+        ["EV/Revenue", f"{cd.ev_to_revenue:.1f}x" if cd.ev_to_revenue else "—"],
+        ["PEG Ratio", f"{cd.peg_ratio:.2f}" if cd.peg_ratio else "—"],
+    ]
+
+    # Add peer median column if peers available
+    if cd.peer_data:
+        headers = ["Multiple", cd.ticker, "Peer Median"]
+        pe_vals = [p.get('trailing_pe') for p in cd.peer_data if p.get('trailing_pe')]
+        fpe_vals = [p.get('forward_pe') for p in cd.peer_data if p.get('forward_pe')]
+        ev_ebitda_vals = [p.get('ev_to_ebitda') for p in cd.peer_data if p.get('ev_to_ebitda')]
+        ps_vals = [p.get('price_to_sales') for p in cd.peer_data if p.get('price_to_sales')]
+        pb_vals = [p.get('price_to_book') for p in cd.peer_data if p.get('price_to_book')]
+        peg_vals = [p.get('peg_ratio') for p in cd.peer_data if p.get('peg_ratio')]
+
+        def _med(vals, fmt=":.1f"):
+            if not vals:
+                return "—"
+            m = float(np.median(vals))
+            return f"{m:.1f}x"
+
+        multiples_rows = [
+            ["P/E (TTM)", f"{cd.trailing_pe:.1f}x" if cd.trailing_pe else "—", _med(pe_vals)],
+            ["P/E (Forward)", f"{cd.forward_pe:.1f}x" if cd.forward_pe else "—", _med(fpe_vals)],
+            ["EV/EBITDA", f"{cd.ev_to_ebitda:.1f}x" if cd.ev_to_ebitda else "—", _med(ev_ebitda_vals)],
+            ["P/S", f"{cd.price_to_sales:.1f}x" if cd.price_to_sales else "—", _med(ps_vals)],
+            ["P/B", f"{cd.price_to_book:.1f}x" if cd.price_to_book else "—", _med(pb_vals)],
+            ["EV/Revenue", f"{cd.ev_to_revenue:.1f}x" if cd.ev_to_revenue else "—", "—"],
+            ["PEG Ratio", f"{cd.peg_ratio:.2f}" if cd.peg_ratio else "—", _med(peg_vals)],
+        ]
+        _gs_table(slide, headers, multiples_rows,
+                  Inches(0.5), Inches(1.35), Inches(6), Inches(2.5),
+                  col_widths=[Inches(2), Inches(2), Inches(2)])
+    else:
+        _gs_table(slide, ["Multiple", "Value"], multiples_rows,
+                  Inches(0.5), Inches(1.35), Inches(5), Inches(2.5),
+                  col_widths=[Inches(2.5), Inches(2.5)])
+
+    # DCF / Intrinsic Value (top right)
+    _gs_section_title(slide, "Intrinsic Value Estimate (DCF)", Inches(1.0))
+    try:
+        iv = calculate_intrinsic_value(cd)
+        if iv:
+            iv_rows = [
+                ["Current Price", f"{cs}{cd.current_price:.2f}" if cd.current_price else "—"],
+                ["Intrinsic Value / Share", f"{cs}{iv['intrinsic_value_per_share']:.2f}"],
+                ["Upside / (Downside)", f"{iv['upside_pct']:+.1f}%"],
+                ["Margin of Safety", f"{iv['margin_of_safety']:.1f}%"],
+            ]
+            _gs_table(slide, ["Metric", "Value"], iv_rows,
+                      Inches(7), Inches(1.35), Inches(5.833), Inches(1.5),
+                      col_widths=[Inches(3), Inches(2.833)])
+
+            # Assumptions footnote
+            a = iv['assumptions']
+            _add_textbox(slide, Inches(7), Inches(2.9), Inches(5.8), Inches(0.4),
+                         f"Assumptions: Growth {a['growth_rate']*100:.0f}%, Discount {a['discount_rate']*100:.0f}%, "
+                         f"Terminal Multiple {a['terminal_multiple']}x, Base FCF {format_number(a['base_fcf'], currency_symbol=cs)}",
+                         font_size=7, color=DARK_GRAY)
+        else:
+            _add_textbox(slide, Inches(7), Inches(1.35), Inches(5.8), Inches(0.5),
+                         "Insufficient data for DCF analysis (negative or missing FCF)",
+                         font_size=9, color=DARK_GRAY)
+    except Exception:
+        _add_textbox(slide, Inches(7), Inches(1.35), Inches(5.8), Inches(0.5),
+                     "DCF analysis unavailable", font_size=9, color=DARK_GRAY)
+
+    # Implied Price Range (middle)
+    _gs_section_title(slide, "Implied Price Range", Inches(4.0))
+
+    price_points = []
+    if cd.analyst_price_targets:
+        low_t = cd.analyst_price_targets.get('low')
+        high_t = cd.analyst_price_targets.get('high')
+        mean_t = cd.analyst_price_targets.get('mean')
+        if low_t and high_t:
+            price_points.append(["Analyst Range", f"{cs}{low_t:.2f} — {cs}{high_t:.2f}"])
+        if mean_t:
+            price_points.append(["Analyst Mean", f"{cs}{mean_t:.2f}"])
+    try:
+        iv = calculate_intrinsic_value(cd)
+        if iv:
+            price_points.append(["DCF Implied", f"{cs}{iv['intrinsic_value_per_share']:.2f}"])
+    except Exception:
+        pass
+    if cd.current_price and cd.trailing_pe:
+        price_points.append(["Current (Market)", f"{cs}{cd.current_price:.2f}"])
+
+    if price_points:
+        _gs_table(slide, ["Method", "Price"], price_points,
+                  Inches(0.5), Inches(4.35), Inches(5), Inches(1.5),
+                  col_widths=[Inches(2.5), Inches(2.5)])
+    else:
+        _add_textbox(slide, Inches(0.5), Inches(4.35), Inches(5), Inches(0.5),
+                     "Insufficient data for price range analysis", font_size=9, color=DARK_GRAY)
+
+    # Investment Thesis (bottom right)
+    _gs_section_title(slide, "Investment Thesis", Inches(4.0))
+
+    bullets = []
+    # Auto-generate thesis bullets from data
+    if cd.revenue_growth is not None:
+        direction = "growing" if cd.revenue_growth > 0 else "declining"
+        bullets.append(f"Revenue {direction} at {abs(cd.revenue_growth):.1f}% YoY")
+    if cd.profit_margins is not None:
+        bullets.append(f"Net margin of {cd.profit_margins*100:.1f}% {'above' if cd.profit_margins > 0.10 else 'below'} average")
+    if cd.return_on_equity is not None and cd.return_on_equity > 0.15:
+        bullets.append(f"Strong ROE of {cd.return_on_equity*100:.1f}% indicates competitive advantage")
+    if cd.debt_to_equity is not None:
+        lev = "low" if cd.debt_to_equity < 50 else ("moderate" if cd.debt_to_equity < 150 else "high")
+        bullets.append(f"Leverage is {lev} with D/E of {cd.debt_to_equity:.0f}%")
+    try:
+        piotroski = calculate_piotroski_score(cd)
+        if piotroski:
+            s = piotroski['score']
+            qual = "strong" if s >= 7 else ("weak" if s <= 3 else "moderate")
+            bullets.append(f"Piotroski F-Score of {s}/9 signals {qual} financial health")
+    except Exception:
+        pass
+
+    if not bullets:
+        bullets = ["Insufficient data to generate investment thesis"]
+
+    # Add bullets as textbox
+    thesis_text = "\n".join(f"• {b}" for b in bullets[:4])
+    _add_textbox(slide, Inches(7), Inches(4.35), Inches(5.833), Inches(2.5),
+                 thesis_text, font_size=9, color=DARK_GRAY)
+
+
 def generate_presentation(cd: CompanyData, template_path: str = "assets/template.pptx") -> io.BytesIO:
     """Build the 3-slide Goldman Sachs-style company profile."""
     prs = Presentation(template_path)
@@ -435,6 +594,7 @@ def generate_presentation(cd: CompanyData, template_path: str = "assets/template
     _company_slide_1(prs, cd)  # Executive Summary
     _company_slide_2(prs, cd)  # Financial Overview
     _company_slide_3(prs, cd)  # Peer Comparison
+    _company_slide_valuation(prs, cd)  # Valuation Summary
 
     buf = io.BytesIO()
     prs.save(buf)
