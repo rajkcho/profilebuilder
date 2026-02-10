@@ -6655,6 +6655,96 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             f'display:flex; align-items:center; justify-content:center; margin-right:1.2rem; flex-shrink:0;">{_logo_initial}</div>'
         )
 
+    # ══════════════════════════════════════════════════════
+    # VALUATION AT A GLANCE DASHBOARD
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Valuation Dashboard"):
+        try:
+            _vd_price = cd.current_price or 0
+            _vd_dcf = None
+            try:
+                _vd_iv = calculate_intrinsic_value(cd)
+                if _vd_iv and _vd_iv.get("intrinsic_value_per_share"):
+                    _vd_dcf = _vd_iv["intrinsic_value_per_share"]
+            except Exception:
+                pass
+            _vd_comps_median = None
+            try:
+                _vd_ca = run_comps_analysis(cd.ticker)
+                if _vd_ca and hasattr(_vd_ca, 'implied_price_median'):
+                    _vd_comps_median = _vd_ca.implied_price_median
+                elif _vd_ca and hasattr(_vd_ca, 'median_ev_ebitda') and cd.ev_to_ebitda and cd.ev_to_ebitda > 0:
+                    _vd_comps_median = _vd_price * (_vd_ca.median_ev_ebitda / cd.ev_to_ebitda)
+            except Exception:
+                pass
+            _vd_52h = cd.fifty_two_week_high or _vd_price
+            _vd_52l = cd.fifty_two_week_low or _vd_price
+            _vd_range = _vd_52h - _vd_52l if _vd_52h != _vd_52l else 1
+            _vd_pos = max(0, min(100, ((_vd_price - _vd_52l) / _vd_range) * 100))
+
+            # Determine verdict
+            _vd_signals = []
+            if _vd_dcf and _vd_price > 0:
+                _vd_dcf_upside = ((_vd_dcf - _vd_price) / _vd_price) * 100
+                _vd_signals.append(_vd_dcf_upside)
+            else:
+                _vd_dcf_upside = None
+            if _vd_comps_median and _vd_price > 0:
+                _vd_comps_prem = ((_vd_price - _vd_comps_median) / _vd_comps_median) * 100
+                _vd_signals.append(-_vd_comps_prem)
+            else:
+                _vd_comps_prem = None
+            _vd_avg = np.mean(_vd_signals) if _vd_signals else 0
+            if _vd_avg > 15:
+                _vd_verdict, _vd_vcolor = "Undervalued", "#10B981"
+            elif _vd_avg < -15:
+                _vd_verdict, _vd_vcolor = "Overvalued", "#EF4444"
+            else:
+                _vd_verdict, _vd_vcolor = "Fair Value", "#F5A623"
+
+            # Build the dashboard row
+            _vd_cols = st.columns(4)
+            with _vd_cols[0]:
+                if _vd_dcf and _vd_dcf_upside is not None:
+                    _vd_arr = "▲" if _vd_dcf_upside > 0 else "▼"
+                    _vd_dc = "#10B981" if _vd_dcf_upside > 0 else "#EF4444"
+                    st.markdown(f'<div style="background:rgba(107,92,231,0.06); border:1px solid rgba(107,92,231,0.15); border-radius:12px; padding:0.7rem; text-align:center;">'
+                                f'<div style="font-size:0.55rem; color:#8A85AD; text-transform:uppercase; letter-spacing:0.5px;">Price vs DCF</div>'
+                                f'<div style="font-size:1.1rem; font-weight:700; color:#E0DCF5;">{cs}{_vd_dcf:,.2f}</div>'
+                                f'<div style="font-size:0.75rem; font-weight:700; color:{_vd_dc};">{_vd_arr} {_vd_dcf_upside:+.1f}%</div></div>', unsafe_allow_html=True)
+                else:
+                    st.markdown(f'<div style="background:rgba(107,92,231,0.06); border:1px solid rgba(107,92,231,0.15); border-radius:12px; padding:0.7rem; text-align:center;">'
+                                f'<div style="font-size:0.55rem; color:#8A85AD; text-transform:uppercase;">Price vs DCF</div>'
+                                f'<div style="font-size:0.9rem; color:#5A567A;">N/A</div></div>', unsafe_allow_html=True)
+            with _vd_cols[1]:
+                if _vd_comps_median and _vd_comps_prem is not None:
+                    _vd_cp_label = "Premium" if _vd_comps_prem > 0 else "Discount"
+                    _vd_cp_c = "#EF4444" if _vd_comps_prem > 10 else "#10B981" if _vd_comps_prem < -10 else "#F5A623"
+                    st.markdown(f'<div style="background:rgba(232,99,139,0.06); border:1px solid rgba(232,99,139,0.15); border-radius:12px; padding:0.7rem; text-align:center;">'
+                                f'<div style="font-size:0.55rem; color:#8A85AD; text-transform:uppercase; letter-spacing:0.5px;">vs Comps Median</div>'
+                                f'<div style="font-size:1.1rem; font-weight:700; color:#E0DCF5;">{cs}{_vd_comps_median:,.2f}</div>'
+                                f'<div style="font-size:0.75rem; font-weight:700; color:{_vd_cp_c};">{_vd_comps_prem:+.1f}% {_vd_cp_label}</div></div>', unsafe_allow_html=True)
+                else:
+                    st.markdown(f'<div style="background:rgba(232,99,139,0.06); border:1px solid rgba(232,99,139,0.15); border-radius:12px; padding:0.7rem; text-align:center;">'
+                                f'<div style="font-size:0.55rem; color:#8A85AD; text-transform:uppercase;">vs Comps Median</div>'
+                                f'<div style="font-size:0.9rem; color:#5A567A;">N/A</div></div>', unsafe_allow_html=True)
+            with _vd_cols[2]:
+                st.markdown(f'<div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.15); border-radius:12px; padding:0.7rem; text-align:center;">'
+                            f'<div style="font-size:0.55rem; color:#8A85AD; text-transform:uppercase; letter-spacing:0.5px;">52-Week Range</div>'
+                            f'<div style="font-size:0.7rem; color:#8A85AD; margin:0.3rem 0;">{cs}{_vd_52l:,.2f} — {cs}{_vd_52h:,.2f}</div>'
+                            f'<div style="background:rgba(255,255,255,0.08); border-radius:6px; height:8px; position:relative; overflow:hidden;">'
+                            f'<div style="position:absolute; left:0; top:0; height:100%; width:{_vd_pos:.0f}%; '
+                            f'background:linear-gradient(90deg, #EF4444, #F5A623, #10B981); border-radius:6px;"></div>'
+                            f'<div style="position:absolute; left:{_vd_pos:.0f}%; top:-3px; width:3px; height:14px; '
+                            f'background:#fff; border-radius:2px; transform:translateX(-50%);"></div></div></div>', unsafe_allow_html=True)
+            with _vd_cols[3]:
+                st.markdown(f'<div style="background:rgba(255,255,255,0.04); border:2px solid {_vd_vcolor}40; border-radius:12px; padding:0.7rem; text-align:center;">'
+                            f'<div style="font-size:0.55rem; color:#8A85AD; text-transform:uppercase; letter-spacing:0.5px;">Verdict</div>'
+                            f'<div style="font-size:1.1rem; font-weight:800; color:{_vd_vcolor}; margin-top:0.2rem;">{_vd_verdict}</div>'
+                            f'<div style="font-size:0.6rem; color:#8A85AD;">DCF + Comps + Range</div></div>', unsafe_allow_html=True)
+        except Exception:
+            pass
+
     st.markdown(
         f'<div class="company-card">'
         f'<div style="display:flex; align-items:center; position:relative;">'
@@ -8706,7 +8796,11 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     # ══════════════════════════════════════════════════════
     _section("Price History")
 
-    period_choice = st.radio("Period", ["1Y", "3Y", "5Y"], horizontal=True, index=2, label_visibility="collapsed")
+    _price_ctrl_col1, _price_ctrl_col2 = st.columns([1, 1])
+    with _price_ctrl_col1:
+        period_choice = st.radio("Period", ["1Y", "3Y", "5Y"], horizontal=True, index=2, label_visibility="collapsed")
+    with _price_ctrl_col2:
+        _chart_type = st.radio("Chart Type", ["📈 Line", "🕯️ Candlestick"], horizontal=True, index=0, label_visibility="collapsed", key="price_chart_type")
 
     hist = cd.hist_5y if cd.hist_5y is not None and not cd.hist_5y.empty else cd.hist_1y
     if hist is not None and not hist.empty:
@@ -8717,18 +8811,40 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         else:
             plot_hist = hist
 
-        fig = go.Figure()
-        # Glow underlay + main price line
-        _glow_line_traces(fig, plot_hist.index, plot_hist["Close"], "#6B5CE7", "Close")
-        # Area fill
-        fig.add_trace(go.Scatter(
-            x=plot_hist.index, y=plot_hist["Close"],
-            mode="lines", line=dict(width=0), fill="tozeroy",
-            fillcolor="rgba(107,92,231,0.06)",
-            showlegend=False, hoverinfo="skip",
-        ))
-        # Color-coded volume bars
-        if "Volume" in plot_hist.columns:
+        _is_candlestick = "Candlestick" in _chart_type
+
+        if _is_candlestick:
+            from plotly.subplots import make_subplots as _mk_subplots
+            fig = _mk_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03,
+                               row_heights=[0.75, 0.25])
+            fig.add_trace(go.Candlestick(
+                x=plot_hist.index,
+                open=plot_hist["Open"], high=plot_hist["High"],
+                low=plot_hist["Low"], close=plot_hist["Close"],
+                increasing_line_color="#10B981", decreasing_line_color="#EF4444",
+                increasing_fillcolor="rgba(16,185,129,0.7)", decreasing_fillcolor="rgba(239,68,68,0.7)",
+                name="OHLC",
+            ), row=1, col=1)
+            if "Volume" in plot_hist.columns:
+                _cnd_colors = ["#10B981" if plot_hist["Close"].iloc[i] >= plot_hist["Open"].iloc[i] else "#EF4444" for i in range(len(plot_hist))]
+                fig.add_trace(go.Bar(
+                    x=plot_hist.index, y=plot_hist["Volume"],
+                    marker_color=_cnd_colors, marker_opacity=0.4, name="Volume", showlegend=False,
+                ), row=2, col=1)
+            fig.update_layout(xaxis_rangeslider_visible=False)
+        else:
+            fig = go.Figure()
+            # Glow underlay + main price line
+            _glow_line_traces(fig, plot_hist.index, plot_hist["Close"], "#6B5CE7", "Close")
+            # Area fill
+            fig.add_trace(go.Scatter(
+                x=plot_hist.index, y=plot_hist["Close"],
+                mode="lines", line=dict(width=0), fill="tozeroy",
+                fillcolor="rgba(107,92,231,0.06)",
+                showlegend=False, hoverinfo="skip",
+            ))
+        # Color-coded volume bars (line mode only)
+        if not _is_candlestick and "Volume" in plot_hist.columns:
             close_vals = plot_hist["Close"].values
             vol_colors = []
             for i in range(len(close_vals)):
@@ -9564,6 +9680,126 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
 
         except Exception as _sha_e:
             st.info(f"Shareholder analysis unavailable: {_sha_e}")
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # 4c. INSTITUTIONAL FLOW TRACKER
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Institutional Flow Tracker"):
+        try:
+            _ift_tk = yf.Ticker(cd.ticker)
+            _ift_inst = _ift_tk.institutional_holders
+            if _ift_inst is not None and not _ift_inst.empty and "Date Reported" in _ift_inst.columns:
+                _ift_inst["Date Reported"] = pd.to_datetime(_ift_inst["Date Reported"], errors="coerce")
+                _ift_inst = _ift_inst.dropna(subset=["Date Reported"])
+                if not _ift_inst.empty:
+                    _ift_inst["Quarter"] = _ift_inst["Date Reported"].dt.to_period("Q").astype(str)
+                    _ift_quarterly = _ift_inst.groupby("Quarter")["Shares"].sum().reset_index()
+                    if len(_ift_quarterly) >= 2:
+                        _section("Institutional Flow Tracker", "📊")
+                        _ift_quarterly["Change"] = _ift_quarterly["Shares"].diff()
+                        _ift_quarterly = _ift_quarterly.dropna(subset=["Change"])
+                        _ift_colors = ["#10B981" if x >= 0 else "#EF4444" for x in _ift_quarterly["Change"]]
+                        fig_ift = go.Figure(go.Bar(
+                            x=_ift_quarterly["Quarter"], y=_ift_quarterly["Change"],
+                            marker_color=_ift_colors, marker_opacity=0.85,
+                            text=[f"{v/1e6:+.1f}M" if abs(v) >= 1e6 else f"{v/1e3:+.0f}K" for v in _ift_quarterly["Change"]],
+                            textposition="outside", textfont=dict(size=10, color="#B8B3D7"),
+                        ))
+                        fig_ift.update_layout(
+                            **_CHART_LAYOUT_BASE, height=320,
+                            margin=dict(t=30, b=40, l=60, r=30),
+                            xaxis=dict(tickfont=dict(size=10, color="#8A85AD"), showgrid=False),
+                            yaxis=dict(title="Net Share Change", tickfont=dict(size=9, color="#8A85AD"),
+                                      gridcolor="rgba(107,92,231,0.1)", griddash="dot", tickformat=".2s"),
+                        )
+                        _apply_space_grid(fig_ift)
+                        st.plotly_chart(fig_ift, use_container_width=True, key="inst_flow_tracker")
+                        _ift_net = _ift_quarterly["Change"].sum()
+                        _ift_lbl = "Net Buying" if _ift_net > 0 else "Net Selling"
+                        _ift_c = "#10B981" if _ift_net > 0 else "#EF4444"
+                        st.markdown(f'<div style="text-align:center; font-size:0.75rem; color:{_ift_c}; font-weight:700;">'
+                                    f'{_ift_lbl}: {_ift_net/1e6:+.1f}M shares over period</div>', unsafe_allow_html=True)
+        except Exception:
+            pass
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # 4d. REVENUE DECOMPOSITION
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Revenue Decomposition"):
+        try:
+            _rd_tk = yf.Ticker(cd.ticker)
+            _rd_info = _rd_tk.info or {}
+            _rd_summary = _rd_info.get("longBusinessSummary", "") or ""
+            _rd_country = _rd_info.get("country", "") or ""
+
+            # Try to get segment revenue from financials
+            _rd_shown = False
+            try:
+                _rd_fin = _rd_tk.financials
+                if _rd_fin is not None and not _rd_fin.empty:
+                    _rd_revenue_rows = [r for r in _rd_fin.index if "revenue" in str(r).lower() and "total" not in str(r).lower() and "cost" not in str(r).lower()]
+                    if len(_rd_revenue_rows) >= 2:
+                        _section("Revenue Decomposition", "📊")
+                        _rd_seg_data = _rd_fin.loc[_rd_revenue_rows].T
+                        _rd_seg_data.index = pd.to_datetime(_rd_seg_data.index, errors="coerce")
+                        _rd_seg_data = _rd_seg_data.sort_index()
+                        _rd_seg_data.columns = [str(c).replace("Revenue", "").strip() or str(c) for c in _rd_seg_data.columns]
+                        fig_rd = go.Figure()
+                        _rd_colors = ["#6B5CE7", "#E8638B", "#10B981", "#F5A623", "#3B82F6", "#8B5CF6"]
+                        for i, col in enumerate(_rd_seg_data.columns):
+                            fig_rd.add_trace(go.Bar(
+                                x=_rd_seg_data.index.strftime("%Y"), y=_rd_seg_data[col],
+                                name=col, marker_color=_rd_colors[i % len(_rd_colors)],
+                            ))
+                        fig_rd.update_layout(**_CHART_LAYOUT_BASE, barmode="stack", height=350,
+                                            margin=dict(t=30, b=40, l=60, r=30),
+                                            xaxis=dict(tickfont=dict(size=10, color="#8A85AD")),
+                                            yaxis=dict(title="Revenue", tickfont=dict(size=9, color="#8A85AD"),
+                                                      gridcolor="rgba(107,92,231,0.1)", tickformat=".2s"),
+                                            legend=dict(font=dict(size=9, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02))
+                        _apply_space_grid(fig_rd)
+                        st.plotly_chart(fig_rd, use_container_width=True, key="rev_decomp")
+                        _rd_shown = True
+            except Exception:
+                pass
+
+            # Fallback: Geographic revenue estimate from business summary
+            if not _rd_shown and _rd_summary:
+                _rd_regions = []
+                _rd_text = _rd_summary.lower()
+                if any(w in _rd_text for w in ["united states", "north america", "domestic"]):
+                    _rd_regions.append(("North America", 55))
+                if any(w in _rd_text for w in ["europe", "emea", "european"]):
+                    _rd_regions.append(("Europe", 25))
+                if any(w in _rd_text for w in ["asia", "apac", "china", "japan", "pacific"]):
+                    _rd_regions.append(("Asia-Pacific", 15))
+                if any(w in _rd_text for w in ["latin", "south america", "brazil"]):
+                    _rd_regions.append(("Latin America", 5))
+                if not _rd_regions:
+                    if _rd_country in ["United States", "Canada"]:
+                        _rd_regions = [("North America", 60), ("International", 40)]
+                    else:
+                        _rd_regions = [("Domestic", 55), ("International", 45)]
+                if _rd_regions:
+                    _section("Geographic Revenue Estimate", "🌍")
+                    st.markdown('<div style="font-size:0.7rem; color:#8A85AD; margin-bottom:0.5rem;">Estimated based on company description and headquarters location</div>', unsafe_allow_html=True)
+                    _rd_total = sum(r[1] for r in _rd_regions)
+                    fig_rd_geo = go.Figure(go.Pie(
+                        labels=[r[0] for r in _rd_regions],
+                        values=[r[1] for r in _rd_regions],
+                        hole=0.5,
+                        marker=dict(colors=["#6B5CE7", "#E8638B", "#10B981", "#F5A623", "#3B82F6"]),
+                        textinfo="label+percent", textfont=dict(size=11, color="#E0DCF5"),
+                    ))
+                    fig_rd_geo.update_layout(**_CHART_LAYOUT_BASE, height=300, margin=dict(t=20, b=20, l=20, r=20),
+                                            showlegend=False)
+                    st.plotly_chart(fig_rd_geo, use_container_width=True, key="rev_geo_est")
+        except Exception:
+            pass
 
     _divider()
 
@@ -18252,7 +18488,7 @@ elif analysis_mode == "Quick Compare" and compare_btn and compare_tickers:
         _divider()
         
         # Correlation Matrix
-        if len(companies) >= 3:
+        if len(companies) >= 2:
             _section("Price Correlation Matrix", "🔗")
             
             st.markdown(
@@ -18272,7 +18508,7 @@ elif analysis_mode == "Quick Compare" and compare_btn and compare_tickers:
                     except Exception:
                         pass
                 
-                if len(corr_data) >= 3:
+                if len(corr_data) >= 2:
                     corr_df = pd.DataFrame(corr_data)
                     corr_matrix = corr_df.corr()
                     
