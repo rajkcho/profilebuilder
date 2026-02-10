@@ -4055,7 +4055,7 @@ def _safe_section(name=""):
     try:
         yield
     except Exception as e:
-        st.warning(f"⚠️ {name} section encountered an error: {str(e)[:100]}")
+        st.warning(f"⚠️ {name} section encountered an issue — data may be unavailable for this security. Try a different ticker or check back later.")
         import traceback
         with st.expander("Show error details", expanded=False):
             st.code(traceback.format_exc())
@@ -4757,13 +4757,46 @@ with st.sidebar:
 
     st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
 
-    # Mode Toggle - Enhanced with more analysis modes
+    # Mode Toggle - Enhanced with colored indicators and hover effects
+    _mode_colors = {
+        "📊 Company Profile": "#6B5CE7",
+        "📈 Comps Analysis": "#10B981",
+        "💹 DCF Valuation": "#F5A623",
+        "⚖️ Quick Compare": "#3B82F6",
+        "🤝 Merger Analysis": "#EF4444",
+        "🔍 VMS Screener": "#8B5CF6",
+        "📊 Options P/L": "#EC4899",
+        "🔄 Sector Rotation": "#14B8A6",
+    }
+    st.markdown(
+        '<style>'
+        '[data-testid="stSidebar"] .stRadio > div { gap: 2px !important; }'
+        '[data-testid="stSidebar"] .stRadio > div > label {'
+        '  border-left: 3px solid transparent;'
+        '  padding: 0.35rem 0.6rem !important;'
+        '  border-radius: 0 6px 6px 0;'
+        '  transition: all 0.2s ease;'
+        '  margin: 1px 0;'
+        '}'
+        '[data-testid="stSidebar"] .stRadio > div > label:hover {'
+        '  background: rgba(107,92,231,0.12);'
+        '  border-left-color: #6B5CE7;'
+        '}'
+        '[data-testid="stSidebar"] .stRadio > div > label[data-checked="true"],'
+        '[data-testid="stSidebar"] .stRadio > div > label:has(input:checked) {'
+        '  background: rgba(107,92,231,0.15);'
+        '  border-left-color: #6B5CE7;'
+        '  border-left-width: 3px;'
+        '}'
+        '</style>',
+        unsafe_allow_html=True,
+    )
     st.markdown(
         '<div style="font-size:0.65rem; font-weight:700; color:#8A85AD; text-transform:uppercase; '
         'letter-spacing:1.5px; margin-bottom:0.3rem;">Analysis Mode</div>',
         unsafe_allow_html=True,
     )
-    _mode_options = ["📊 Company Profile", "📈 Comps Analysis", "💹 DCF Valuation", "⚖️ Quick Compare", "🤝 Merger Analysis", "🔍 VMS Screener"]
+    _mode_options = ["📊 Company Profile", "📈 Comps Analysis", "💹 DCF Valuation", "⚖️ Quick Compare", "🤝 Merger Analysis", "🔍 VMS Screener", "📊 Options P/L", "🔄 Sector Rotation"]
     _mode_selection = st.radio(
         "Mode", 
         _mode_options, 
@@ -4773,7 +4806,33 @@ with st.sidebar:
     # Strip emoji prefix for internal use
     analysis_mode = _mode_selection.split(" ", 1)[1] if " " in _mode_selection else _mode_selection
 
-    st.markdown('<div style="height:0.8rem;"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
+
+    # Quick Stats — S&P 500 mini-card
+    try:
+        import yfinance as _yf_sp
+        _sp500 = _yf_sp.Ticker("^GSPC")
+        _sp_info = _sp500.fast_info
+        _sp_price = getattr(_sp_info, 'last_price', None) or 0
+        _sp_prev = getattr(_sp_info, 'previous_close', None) or _sp_price
+        _sp_chg = _sp_price - _sp_prev
+        _sp_chg_pct = (_sp_chg / _sp_prev * 100) if _sp_prev else 0
+        _sp_color = "#10B981" if _sp_chg >= 0 else "#EF4444"
+        _sp_arrow = "▲" if _sp_chg >= 0 else "▼"
+        st.markdown(
+            f'<div style="background:rgba(107,92,231,0.08); border:1px solid rgba(107,92,231,0.15); border-radius:8px; padding:0.5rem 0.6rem; margin-bottom:0.5rem;">'
+            f'<div style="font-size:0.6rem; color:#8A85AD; font-weight:700; letter-spacing:1px; margin-bottom:0.2rem;">S&P 500</div>'
+            f'<div style="display:flex; justify-content:space-between; align-items:baseline;">'
+            f'<span style="font-size:0.85rem; font-weight:700; color:#E0DCF5;">{_sp_price:,.1f}</span>'
+            f'<span style="font-size:0.72rem; color:{_sp_color}; font-weight:600;">{_sp_arrow} {_sp_chg:+,.1f} ({_sp_chg_pct:+.2f}%)</span>'
+            f'</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    except Exception:
+        pass
+
+    st.markdown('<div style="height:0.3rem;"></div>', unsafe_allow_html=True)
     
     # ══════════════════════════════════════════════════════
     # WATCHLIST SECTION (shown in all modes)
@@ -5262,6 +5321,9 @@ with st.sidebar:
 
                 # Dividend yield vs ~4.3% (proxy for 10Y treasury)
                 _sa_div_yield = _sa_info.get("dividendYield", 0) or 0
+                # Normalize: if > 0.2 it's already a percentage
+                if _sa_div_yield > 0.2:
+                    _sa_div_yield = _sa_div_yield / 100.0
                 if _sa_div_yield > 0.043:
                     _sa_alerts.append(("🟢", f"Dividend yield ({_sa_div_yield*100:.1f}%) above 10Y Treasury"))
 
@@ -5779,6 +5841,38 @@ with st.sidebar:
     vms_geographies = []
     vms_target_profile = "Custom"
 
+    # ── Options P/L variables ──
+    options_pl_ticker = ""
+    options_pl_btn = False
+    if analysis_mode == "Options P/L":
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">📊</span> OPTIONS P/L</div>',
+            unsafe_allow_html=True,
+        )
+        options_pl_ticker = st.text_input(
+            "Ticker", value="", max_chars=10,
+            placeholder="Enter ticker (e.g. AAPL)",
+            key="options_pl_ticker",
+            label_visibility="collapsed",
+        ).strip().upper()
+        st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
+        options_pl_btn = st.button("📊 Analyze Options", type="primary", use_container_width=True)
+
+    # ── Sector Rotation variables ──
+    sector_rotation_btn = False
+    if analysis_mode == "Sector Rotation":
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">🔄</span> SECTOR ROTATION</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<div style="font-size:0.72rem; color:#B8B3D7; margin-bottom:0.5rem;">'
+            'Analyze sector momentum and rotation patterns across S&P 500 sectors.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        sector_rotation_btn = st.button("🔄 Run Sector Analysis", type="primary", use_container_width=True)
+
     if analysis_mode == "VMS Screener":
         # ── VMS Screener Mode ──
 
@@ -5878,7 +5972,7 @@ with st.sidebar:
                     unsafe_allow_html=True,
                 )
             except Exception as _exp_e:
-                st.warning(f"Export error: {_exp_e}")
+                st.warning(f"⚠️ Export failed — please try analyzing the company again before exporting.")
         else:
             st.info("Analyze a company first to enable export.", icon="ℹ️")
 
@@ -5915,7 +6009,7 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
 
-    # Sidebar Footer
+    # Sidebar Footer with version badge
     st.markdown('<div class="sb-divider" style="margin-top:1.5rem;"></div>', unsafe_allow_html=True)
     st.markdown(
         '<div style="text-align:center; padding: 0.5rem 0;">'
@@ -5926,6 +6020,11 @@ with st.sidebar:
         'DATA: YAHOO FINANCE • CHARTS: PLOTLY<br>'
         'AI: OPENAI (OPT.) • LOGOS: CLEARBIT'
         '</div>'
+        '<div style="margin-top:0.5rem; padding:0.3rem 0.5rem; background:rgba(107,92,231,0.08); '
+        'border:1px solid rgba(107,92,231,0.15); border-radius:6px; display:inline-block;">'
+        '<span style="font-size:0.5rem; color:#8A85AD; letter-spacing:0.5px;">'
+        'ProfileBuilder v5.2 • 16,689 lines • 150+ data points</span>'
+        '</div>'
         '<div style="margin-top:0.4rem;">'
         '<a href="https://github.com/rajkcho/profilebuilder" target="_blank" '
         'style="font-size:0.55rem; color:#6B5CE7; text-decoration:none; font-weight:600;">GitHub ↗</a>'
@@ -5933,6 +6032,141 @@ with st.sidebar:
         '</div>',
         unsafe_allow_html=True,
     )
+
+# ── Options P/L Page ─────────────────────────────────────────
+def render_options_pl_page(ticker):
+    """Render options P/L analysis for a given ticker."""
+    import yfinance as yf
+    st.markdown(
+        '<div class="space-section">'
+        '<div class="space-section-title">📊 Options P/L Analysis</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    try:
+        tk = yf.Ticker(ticker)
+        expirations = tk.options
+        if not expirations:
+            st.warning(f"😕 No options data available for **{ticker}**. This security may not have listed options. Try a different ticker.")
+            return
+        st.markdown(f'<div style="font-size:0.8rem; color:#B8B3D7; margin-bottom:1rem;">Found **{len(expirations)}** expiration dates for **{ticker}**</div>', unsafe_allow_html=True)
+        selected_exp = st.selectbox("Expiration Date", expirations, key="opt_pl_exp")
+        chain = tk.option_chain(selected_exp)
+        tab_calls, tab_puts = st.tabs(["📈 Calls", "📉 Puts"])
+        with tab_calls:
+            if chain.calls is not None and len(chain.calls) > 0:
+                calls_df = chain.calls[["strike", "lastPrice", "bid", "ask", "volume", "openInterest", "impliedVolatility"]].copy()
+                calls_df["impliedVolatility"] = (calls_df["impliedVolatility"] * 100).round(1)
+                calls_df.columns = ["Strike", "Last", "Bid", "Ask", "Volume", "Open Int", "IV %"]
+                st.dataframe(calls_df, use_container_width=True, hide_index=True)
+                # P/L chart for ATM call
+                info = tk.fast_info
+                spot = getattr(info, 'last_price', None) or 0
+                if spot > 0:
+                    atm_idx = (calls_df["Strike"] - spot).abs().idxmin()
+                    atm_call = chain.calls.iloc[atm_idx]
+                    premium = atm_call["lastPrice"]
+                    strikes_range = [spot * (1 + x/100) for x in range(-20, 41, 2)]
+                    pnl = [max(0, s - atm_call["strike"]) - premium for s in strikes_range]
+                    import plotly.graph_objects as go
+                    fig = go.Figure()
+                    fig.add_trace(go.Scatter(x=strikes_range, y=pnl, mode='lines', name='P/L', line=dict(color='#6B5CE7', width=2)))
+                    fig.add_hline(y=0, line_dash="dash", line_color="#8A85AD")
+                    fig.add_vline(x=spot, line_dash="dash", line_color="#10B981", annotation_text="Spot")
+                    fig.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                                      title=f"ATM Call P/L (Strike: ${atm_call['strike']:.0f}, Premium: ${premium:.2f})",
+                                      xaxis_title="Stock Price at Expiry", yaxis_title="Profit / Loss ($)")
+                    st.plotly_chart(fig, use_container_width=True, key="opt_pl_call_chart")
+            else:
+                st.info("No call options data available for this expiration.")
+        with tab_puts:
+            if chain.puts is not None and len(chain.puts) > 0:
+                puts_df = chain.puts[["strike", "lastPrice", "bid", "ask", "volume", "openInterest", "impliedVolatility"]].copy()
+                puts_df["impliedVolatility"] = (puts_df["impliedVolatility"] * 100).round(1)
+                puts_df.columns = ["Strike", "Last", "Bid", "Ask", "Volume", "Open Int", "IV %"]
+                st.dataframe(puts_df, use_container_width=True, hide_index=True)
+            else:
+                st.info("No put options data available for this expiration.")
+    except Exception as e:
+        st.error(f"😕 Could not load options data for **{ticker}**: {e}. Please verify the ticker and try again.")
+
+
+# ── Sector Rotation Page ─────────────────────────────────────
+def render_sector_rotation_page():
+    """Render sector rotation analysis using S&P 500 sector ETFs."""
+    import yfinance as yf
+    import plotly.graph_objects as go
+    st.markdown(
+        '<div class="space-section">'
+        '<div class="space-section-title">🔄 Sector Rotation Analysis</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    sector_etfs = {
+        "Technology": "XLK", "Healthcare": "XLV", "Financials": "XLF",
+        "Consumer Disc.": "XLY", "Consumer Staples": "XLP", "Energy": "XLE",
+        "Industrials": "XLI", "Materials": "XLB", "Real Estate": "XLRE",
+        "Utilities": "XLU", "Comm. Services": "XLC",
+    }
+    try:
+        import pandas as pd
+        from datetime import datetime, timedelta
+        periods = {"1W": 5, "1M": 21, "3M": 63, "6M": 126, "1Y": 252}
+        results = []
+        for sector, etf in sector_etfs.items():
+            try:
+                tk = yf.Ticker(etf)
+                hist = tk.history(period="1y")
+                if hist is None or len(hist) < 5:
+                    continue
+                row = {"Sector": sector, "ETF": etf}
+                for label, days in periods.items():
+                    if len(hist) >= days:
+                        row[label] = ((hist["Close"].iloc[-1] / hist["Close"].iloc[-days]) - 1) * 100
+                    else:
+                        row[label] = None
+                results.append(row)
+            except Exception:
+                pass
+        if not results:
+            st.warning("😕 Could not fetch sector ETF data. Please check your internet connection and try again.")
+            return
+        df = pd.DataFrame(results)
+        # Performance heatmap
+        st.subheader("Sector Performance Heatmap")
+        perf_cols = [c for c in ["1W", "1M", "3M", "6M", "1Y"] if c in df.columns]
+        fig = go.Figure(data=go.Heatmap(
+            z=df[perf_cols].values,
+            x=perf_cols,
+            y=df["Sector"],
+            colorscale=[[0, "#EF4444"], [0.5, "#1F1D2B"], [1, "#10B981"]],
+            text=[[f"{v:.1f}%" if v is not None else "" for v in row] for row in df[perf_cols].values],
+            texttemplate="%{text}",
+            textfont={"size": 11},
+            zmid=0,
+        ))
+        fig.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                          height=450, margin=dict(l=120, r=20, t=30, b=30))
+        st.plotly_chart(fig, use_container_width=True, key="sector_heatmap")
+        # Momentum ranking
+        st.subheader("Momentum Ranking (3M)")
+        if "3M" in df.columns:
+            df_sorted = df.sort_values("3M", ascending=False)
+            for _, row in df_sorted.iterrows():
+                val = row.get("3M", 0) or 0
+                color = "#10B981" if val >= 0 else "#EF4444"
+                arrow = "▲" if val >= 0 else "▼"
+                st.markdown(
+                    f'<div style="display:flex; justify-content:space-between; padding:0.3rem 0.5rem; '
+                    f'border-left:3px solid {color}; margin-bottom:0.3rem; background:rgba(107,92,231,0.04); border-radius:0 6px 6px 0;">'
+                    f'<span style="color:#E0DCF5; font-weight:600;">{row["Sector"]}</span>'
+                    f'<span style="color:{color}; font-weight:700;">{arrow} {val:+.1f}%</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+    except Exception as e:
+        st.error(f"😕 Sector rotation analysis failed: {e}. Please try again later.")
+
 
 # ── Main Area ────────────────────────────────────────────────
 # Orbital animated logo HTML (text inside orbit)
@@ -6308,10 +6542,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
 
     # dividend_yield: yfinance may return as decimal (0.009) or already as pct-like (0.9)
     _div_yield = getattr(cd, 'dividend_yield', None)
-    if _div_yield and _div_yield > 0.5:
-        k6.metric("Dividend Yield", f"{_div_yield:.2f}%")
-    else:
-        k6.metric("Dividend Yield", format_pct(_div_yield) if _div_yield else "N/A")
+    k6.metric("Dividend Yield", format_pct(_div_yield) if _div_yield else "N/A")
 
     # Sparkline row under KPIs
     _price_hist = getattr(cd, 'price_history', None)
@@ -7383,7 +7614,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
 
         # Dividend
         if cd.dividend_yield and cd.dividend_yield > 0.02:
-            _dy = cd.dividend_yield * 100 if cd.dividend_yield < 0.2 else cd.dividend_yield
+            _dy = cd.dividend_yield * 100
             bull_points.append(f"Attractive dividend yield ({_dy:.1f}%)")
 
         if bull_points or bear_points:
@@ -9552,7 +9783,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         
         with div_col1:
             # yfinance may return dividendYield as decimal (0.009) or pct-like (0.9)
-            dy = cd.dividend_yield * 100 if cd.dividend_yield < 0.2 else cd.dividend_yield
+            dy = cd.dividend_yield * 100
             dy_color = "#10B981" if dy > 3 else "#F59E0B" if dy > 1 else "#8A85AD"
             st.markdown(
                 f'<div style="text-align:center; padding:0.8rem; background:rgba(107,92,231,0.05); '
@@ -9811,7 +10042,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     'letter-spacing:0.5px; margin:1.2rem 0 0.5rem;">📊 Yield Comparison</div>',
                     unsafe_allow_html=True,
                 )
-                dy_val = cd.dividend_yield * 100 if cd.dividend_yield and cd.dividend_yield < 0.2 else (cd.dividend_yield or 0)
+                dy_val = (cd.dividend_yield or 0) * 100
                 _yield_data = {
                     f"{cd.ticker}": dy_val,
                     "10Y Treasury": 4.25,
@@ -16278,6 +16509,57 @@ elif analysis_mode == "VMS Screener" and not vms_screen_btn:
         unsafe_allow_html=True,
     )
 
+elif analysis_mode == "Options P/L" and options_pl_btn and options_pl_ticker:
+    render_options_pl_page(options_pl_ticker)
+
+elif analysis_mode == "Options P/L" and options_pl_btn and not options_pl_ticker:
+    st.warning("⚠️ Please enter a ticker symbol to analyze options P/L.")
+
+elif analysis_mode == "Sector Rotation" and sector_rotation_btn:
+    render_sector_rotation_page()
+
+elif analysis_mode == "Options P/L" and not options_pl_btn:
+    # Options P/L splash
+    st.markdown(
+        '<div class="splash-hero">'
+        '<div class="star-layer-1">&#8203;</div><div class="star-layer-2">&#8203;</div><div class="star-layer-3">&#8203;</div>'
+        '<div class="nebula-overlay">&#8203;</div>'
+        '<div class="orb orb-1">&#8203;</div><div class="orb orb-2">&#8203;</div>'
+        '<div class="splash-content">'
+        '<div class="orbital-logo orbital-logo-lg"><span class="orbital-text">ORBITAL</span>'
+        '<div class="orbital-ring orbital-ring-1"></div><div class="orbital-ring orbital-ring-2"></div><div class="orbital-ring orbital-ring-3"></div>'
+        '</div>'
+        '<p class="splash-subtitle" style="font-size:1.4rem; margin-top:1rem;">Options P/L Analyzer</p>'
+        '<div class="pill-row">'
+        '<span class="feature-pill">Options Chains</span>'
+        '<span class="feature-pill">P/L Visualization</span>'
+        '<span class="feature-pill">IV Analysis</span>'
+        '</div>'
+        '</div></div>',
+        unsafe_allow_html=True,
+    )
+
+elif analysis_mode == "Sector Rotation" and not sector_rotation_btn:
+    # Sector Rotation splash
+    st.markdown(
+        '<div class="splash-hero">'
+        '<div class="star-layer-1">&#8203;</div><div class="star-layer-2">&#8203;</div><div class="star-layer-3">&#8203;</div>'
+        '<div class="nebula-overlay">&#8203;</div>'
+        '<div class="orb orb-1">&#8203;</div><div class="orb orb-2">&#8203;</div>'
+        '<div class="splash-content">'
+        '<div class="orbital-logo orbital-logo-lg"><span class="orbital-text">ORBITAL</span>'
+        '<div class="orbital-ring orbital-ring-1"></div><div class="orbital-ring orbital-ring-2"></div><div class="orbital-ring orbital-ring-3"></div>'
+        '</div>'
+        '<p class="splash-subtitle" style="font-size:1.4rem; margin-top:1rem;">Sector Rotation Analysis</p>'
+        '<div class="pill-row">'
+        '<span class="feature-pill">11 S&P Sectors</span>'
+        '<span class="feature-pill">Momentum Heatmap</span>'
+        '<span class="feature-pill">Rotation Signals</span>'
+        '</div>'
+        '</div></div>',
+        unsafe_allow_html=True,
+    )
+
 else:
     # ══════════════════════════════════════════════════════
     # SPLASH / LANDING PAGE — Immersive space experience
@@ -16683,7 +16965,7 @@ st.markdown(
     '<a href="#">Documentation</a>'
     '<a href="#">API</a>'
     '</div>'
-    '<div class="orbital-footer-version">v5.1 · Built with Streamlit · Data from Yahoo Finance & Alpha Vantage</div>'
+    '<div class="orbital-footer-version">v5.2 · Built with Streamlit · Data from Yahoo Finance & Alpha Vantage</div>'
     '</div>',
     unsafe_allow_html=True,
 )

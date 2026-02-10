@@ -621,7 +621,12 @@ def fetch_company_data(ticker_str: str) -> CompanyData:
         cd.shares_outstanding = cd.market_cap / cd.current_price
 
     # ── Dividends ────────────────────────────────────────
-    cd.dividend_yield = _safe_get(info, "dividendYield")
+    _raw_div_yield = _safe_get(info, "dividendYield")
+    # yfinance may return dividendYield as decimal (0.025) or already as pct (2.5)
+    # Normalize: if > 0.2, it's already a percentage — convert to decimal for consistency
+    if _raw_div_yield is not None and _raw_div_yield > 0.2:
+        _raw_div_yield = _raw_div_yield / 100.0
+    cd.dividend_yield = _raw_div_yield
     cd.dividend_rate = _safe_get(info, "dividendRate")
     cd.payout_ratio = _safe_get(info, "payoutRatio")
     cd.ex_dividend_date = _safe_get(info, "exDividendDate")
