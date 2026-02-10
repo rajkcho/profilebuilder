@@ -5371,35 +5371,36 @@ with st.sidebar:
         max_peers = st.slider("Number of Peers", 5, 20, 10, 1)
         include_saas = st.checkbox("Include SaaS/Software peers", value=False)
 
-        # ── Smart Peer Suggestions ──
+        # ── Visual Peer Group Builder ──
         if comps_ticker_input:
-            with st.expander("🧠 Smart Peer Suggestions", expanded=False):
+            with st.expander("🧠 Peer Group Builder", expanded=True):
                 st.markdown(
                     '<div style="font-size:0.7rem; color:#B8B3D7; margin-bottom:0.5rem;">'
-                    'Auto-suggested peers based on sector/industry. Accept or override.</div>',
+                    'Click peers to add/remove. Highlighted = selected.</div>',
                     unsafe_allow_html=True,
                 )
                 # Try to get sector for this ticker
                 _sps_sector = None
                 _sps_industry = None
+                _sps_info = {}
                 try:
-                    _sps_info = _quick_ticker_lookup(comps_ticker_input)
+                    _sps_info = _quick_ticker_lookup(comps_ticker_input) or {}
                     _sps_sector = _sps_info.get("sector", "")
                     _sps_industry = _sps_info.get("industry", "")
                 except Exception:
                     pass
 
-                # Find matching peers — use discover_peers() with a lightweight CompanyData stub
+                # Find matching peers
                 _sps_candidates = []
                 try:
                     from data_engine import CompanyData as _CD, discover_peers as _dp
                     _stub_cd = _CD(ticker=comps_ticker_input, sector=_sps_sector or "", industry=_sps_industry or "")
                     _stub_cd.market_cap = _sps_info.get("marketCap", 0) if _sps_info else 0
-                    _sps_candidates = _dp(_stub_cd, max_peers=10)
+                    _sps_candidates = _dp(_stub_cd, max_peers=12)
                 except Exception:
                     pass
 
-                # Fallback to SECTOR_PEER_MAP if discover_peers found nothing
+                # Fallback to SECTOR_PEER_MAP
                 if not _sps_candidates:
                     if _sps_industry and _sps_industry in SECTOR_PEER_MAP:
                         _sps_candidates = SECTOR_PEER_MAP[_sps_industry]
@@ -5414,26 +5415,66 @@ with st.sidebar:
                                 _sps_candidates = _sv
                                 break
 
-                # Remove the target itself
-                _sps_suggestions = [t for t in _sps_candidates if t.upper() != comps_ticker_input.upper()][:8]
+                _sps_suggestions = [t for t in _sps_candidates if t.upper() != comps_ticker_input.upper()][:12]
 
                 if _sps_suggestions:
                     if _sps_sector:
-                        st.markdown(f'<div style="font-size:0.65rem; color:#9B8AFF;">Sector: {_sps_sector} · Industry: {_sps_industry or "N/A"}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div style="font-size:0.65rem; color:#9B8AFF; margin-bottom:0.4rem;">Sector: {_sps_sector} · Industry: {_sps_industry or "N/A"}</div>', unsafe_allow_html=True)
 
-                    # Initialize session state for peer suggestions
+                    # Initialize session state
                     _sps_key = f"smart_peers_{comps_ticker_input}"
                     if _sps_key not in st.session_state:
-                        st.session_state[_sps_key] = _sps_suggestions
+                        st.session_state[_sps_key] = list(_sps_suggestions)
 
-                    _sps_selected = st.multiselect(
-                        "Suggested Peers",
-                        options=_sps_suggestions,
-                        default=st.session_state[_sps_key],
-                        key=f"sps_ms_{comps_ticker_input}",
-                        label_visibility="collapsed",
-                    )
-                    st.session_state[_sps_key] = _sps_selected
+                    # Select All / Clear All buttons
+                    _sa_col, _ca_col = st.columns(2)
+                    with _sa_col:
+                        if st.button("✅ Select All", key=f"sps_selall_{comps_ticker_input}", use_container_width=True):
+                            st.session_state[_sps_key] = list(_sps_suggestions)
+                            st.rerun()
+                    with _ca_col:
+                        if st.button("🗑️ Clear All", key=f"sps_clrall_{comps_ticker_input}", use_container_width=True):
+                            st.session_state[_sps_key] = []
+                            st.rerun()
+
+                    # Visual chip/pill display with toggle buttons
+                    _peer_infos = {}
+                    for _pt in _sps_suggestions:
+                        try:
+                            _pi = _quick_ticker_lookup(_pt)
+                            if _pi:
+                                _peer_infos[_pt] = _pi
+                        except Exception:
+                            pass
+
+                    # Render peer chips as rows of toggle buttons
+                    _chip_cols_per_row = 3
+                    for _row_start in range(0, len(_sps_suggestions), _chip_cols_per_row):
+                        _row_peers = _sps_suggestions[_row_start:_row_start + _chip_cols_per_row]
+                        _chip_cols = st.columns(len(_row_peers))
+                        for _ci, _peer_t in enumerate(_row_peers):
+                            with _chip_cols[_ci]:
+                                _is_sel = _peer_t in st.session_state[_sps_key]
+                                _pi = _peer_infos.get(_peer_t, {})
+                                _p_mcap = _pi.get("marketCap", 0)
+                                _p_mcap_str = format_number(_p_mcap) if _p_mcap else "?"
+                                _p_name = _pi.get("name", _peer_t)[:15]
+                                # Chip button
+                                _chip_label = f"{'✓ ' if _is_sel else ''}{_peer_t}"
+                                if st.button(
+                                    _chip_label,
+                                    key=f"sps_chip_{comps_ticker_input}_{_peer_t}",
+                                    use_container_width=True,
+                                    type="primary" if _is_sel else "secondary",
+                                    help=f"{_p_name} · MCap: {_p_mcap_str} · {_sps_sector or 'N/A'}",
+                                ):
+                                    if _is_sel:
+                                        st.session_state[_sps_key].remove(_peer_t)
+                                    else:
+                                        st.session_state[_sps_key].append(_peer_t)
+                                    st.rerun()
+
+                    _sps_selected = st.session_state[_sps_key]
 
                     # Manual override
                     _sps_manual = st.text_input(
@@ -5444,18 +5485,21 @@ with st.sidebar:
                     )
                     if _sps_manual:
                         _sps_custom = [t.strip().upper() for t in _sps_manual.split(",") if t.strip()]
-                        _sps_selected = list(set(_sps_selected + _sps_custom))
+                        for _ct in _sps_custom:
+                            if _ct not in _sps_selected:
+                                _sps_selected.append(_ct)
                         st.session_state[_sps_key] = _sps_selected
 
                     st.markdown(
-                        f'<div style="font-size:0.65rem; color:#8A85AD; margin-top:0.3rem;">'
-                        f'{len(_sps_selected)} peers selected</div>',
+                        f'<div style="font-size:0.7rem; color:{"#10B981" if len(_sps_selected) >= 3 else "#F5A623"}; '
+                        f'margin-top:0.3rem; font-weight:600;">'
+                        f'📊 {len(_sps_selected)} peers selected</div>',
                         unsafe_allow_html=True,
                     )
                 else:
                     st.markdown(
                         '<div style="font-size:0.7rem; color:#8A85AD;">'
-                        'No auto-suggestions available for this ticker. The comps engine will find peers automatically.'
+                        'No auto-suggestions available. The comps engine will find peers automatically.'
                         '</div>',
                         unsafe_allow_html=True,
                     )
@@ -8937,6 +8981,144 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     _divider()
 
     # ══════════════════════════════════════════════════════
+    # 8a2. SHAREHOLDER VALUE CREATION
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Shareholder Value Creation"):
+        _section("Shareholder Value Creation", "💰")
+        try:
+            # Gather inputs
+            _svc_oi = _safe_val(getattr(cd, 'operating_income', None))
+            _svc_ni = _safe_val(getattr(cd, 'net_income', None))
+            _svc_mcap = getattr(cd, 'market_cap', 0) or 0
+            _svc_price = getattr(cd, 'current_price', 0) or 0
+            _svc_shares = getattr(cd, 'shares_outstanding', 0) or 0
+            _svc_beta = getattr(cd, 'beta', 1.0) or 1.0
+            _svc_total_debt_s = getattr(cd, 'total_debt', None)
+            _svc_total_equity_s = getattr(cd, 'total_equity', None)
+            _svc_bvps = getattr(cd, 'book_value_per_share', None)
+
+            _svc_total_debt = float(_svc_total_debt_s.iloc[0]) if _svc_total_debt_s is not None and len(_svc_total_debt_s) > 0 and pd.notna(_svc_total_debt_s.iloc[0]) else 0
+            _svc_total_equity = float(_svc_total_equity_s.iloc[0]) if _svc_total_equity_s is not None and len(_svc_total_equity_s) > 0 and pd.notna(_svc_total_equity_s.iloc[0]) else 0
+            _svc_book_equity = _svc_bvps * _svc_shares if _svc_bvps and _svc_shares else _svc_total_equity
+
+            # Estimate WACC
+            _svc_rf = 0.043  # risk-free rate ~4.3%
+            _svc_erp = 0.055  # equity risk premium
+            _svc_cost_equity = _svc_rf + _svc_beta * _svc_erp
+            _svc_cost_debt = 0.05  # assumed
+            _svc_tax_rate = 0.21
+            _svc_total_capital = _svc_total_debt + _svc_total_equity if (_svc_total_debt + _svc_total_equity) > 0 else 1
+            _svc_we = _svc_total_equity / _svc_total_capital
+            _svc_wd = _svc_total_debt / _svc_total_capital
+            _svc_wacc = _svc_we * _svc_cost_equity + _svc_wd * _svc_cost_debt * (1 - _svc_tax_rate)
+
+            # EVA = NOPAT - (Invested Capital × WACC)
+            _svc_nopat = _svc_oi * (1 - _svc_tax_rate) if _svc_oi else None
+            _svc_invested_capital = _svc_total_debt + _svc_total_equity
+            _svc_eva = (_svc_nopat - (_svc_invested_capital * _svc_wacc)) if _svc_nopat else None
+
+            # MVA = Market Cap - Book Value of Equity
+            _svc_mva = (_svc_mcap - _svc_book_equity) if _svc_mcap and _svc_book_equity else None
+
+            # Wealth Created (use 52-week data if available)
+            _svc_52w_low = getattr(cd, 'fifty_two_week_low', None)
+            _svc_52w_high = getattr(cd, 'fifty_two_week_high', None)
+            _svc_price_1y_ago = ((_svc_52w_low + _svc_52w_high) / 2) if _svc_52w_low and _svc_52w_high else None
+            _svc_wealth = ((_svc_price - _svc_price_1y_ago) * _svc_shares) if _svc_price_1y_ago and _svc_shares else None
+
+            cs = getattr(cd, 'currency_symbol', '$')
+
+            # Display metric cards
+            _svc_c1, _svc_c2, _svc_c3, _svc_c4 = st.columns(4)
+
+            def _svc_card(col, title, value, is_currency=True):
+                with col:
+                    if value is not None:
+                        _creating = value >= 0
+                        _color = "#10B981" if _creating else "#EF4444"
+                        _indicator = "✅ Creating Value" if _creating else "❌ Destroying Value"
+                        _val_str = format_number(abs(value), currency_symbol=cs) if is_currency else f"{value:.2f}"
+                        _sign = "+" if _creating else "-"
+                        st.markdown(
+                            f'<div style="text-align:center; padding:0.8rem; background:{"rgba(16,185,129,0.06)" if _creating else "rgba(239,68,68,0.06)"}; '
+                            f'border-radius:12px; border:1px solid {"rgba(16,185,129,0.2)" if _creating else "rgba(239,68,68,0.2)"};">'
+                            f'<div style="font-size:0.6rem; color:#8A85AD; font-weight:600; text-transform:uppercase;">{title}</div>'
+                            f'<div style="font-size:1.2rem; font-weight:800; color:{_color};">{_sign}{_val_str}</div>'
+                            f'<div style="font-size:0.6rem; color:{_color};">{_indicator}</div>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
+                    else:
+                        st.markdown(
+                            f'<div style="text-align:center; padding:0.8rem; background:rgba(107,92,231,0.05); border-radius:12px;">'
+                            f'<div style="font-size:0.6rem; color:#8A85AD; text-transform:uppercase;">{title}</div>'
+                            f'<div style="color:#8A85AD;">N/A</div></div>',
+                            unsafe_allow_html=True,
+                        )
+
+            _svc_card(_svc_c1, "Economic Value Added (EVA)", _svc_eva)
+            _svc_card(_svc_c2, "Market Value Added (MVA)", _svc_mva)
+            _svc_card(_svc_c3, "Wealth Created (Est. 1Y)", _svc_wealth)
+            _svc_card(_svc_c4, f"WACC (Est.)", None if _svc_wacc is None else _svc_wacc * 100, is_currency=False)
+            # Override WACC card with custom display
+            with _svc_c4:
+                if _svc_wacc:
+                    st.markdown(
+                        f'<div style="text-align:center; padding:0.8rem; background:rgba(107,92,231,0.06); '
+                        f'border-radius:12px; border:1px solid rgba(107,92,231,0.2);">'
+                        f'<div style="font-size:0.6rem; color:#8A85AD; font-weight:600; text-transform:uppercase;">Est. WACC</div>'
+                        f'<div style="font-size:1.2rem; font-weight:800; color:#9B8AFF;">{_svc_wacc*100:.1f}%</div>'
+                        f'<div style="font-size:0.6rem; color:#8A85AD;">Cost of Capital</div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+
+            # EVA / MVA Trend (multi-year)
+            if cd.operating_income is not None and len(cd.operating_income) > 1 and _svc_invested_capital > 0:
+                _svc_years = []
+                _svc_evas = []
+                for _yi in range(min(len(cd.operating_income), 4)):
+                    _oi_y = float(cd.operating_income.iloc[_yi]) if pd.notna(cd.operating_income.iloc[_yi]) else None
+                    if _oi_y:
+                        _nopat_y = _oi_y * (1 - _svc_tax_rate)
+                        _eva_y = _nopat_y - (_svc_invested_capital * _svc_wacc)
+                        _svc_evas.append(_eva_y)
+                        _yr_label = str(cd.operating_income.index[_yi])[:4] if hasattr(cd.operating_income.index[_yi], 'year') else f"Y-{_yi}"
+                        _svc_years.append(_yr_label)
+
+                if len(_svc_evas) > 1:
+                    _svc_evas.reverse()
+                    _svc_years.reverse()
+                    fig_eva = go.Figure()
+                    fig_eva.add_trace(go.Bar(
+                        x=_svc_years, y=_svc_evas,
+                        marker_color=["#10B981" if v >= 0 else "#EF4444" for v in _svc_evas],
+                        text=[format_number(v, currency_symbol=cs) for v in _svc_evas],
+                        textposition="outside", textfont=dict(size=9, color="#B8B3D7"),
+                    ))
+                    fig_eva.update_layout(
+                        **_CHART_LAYOUT_BASE, height=280,
+                        margin=dict(t=30, b=30, l=50, r=20),
+                        title=dict(text="EVA Trend", font=dict(size=12, color="#B8B3D7")),
+                        xaxis=dict(tickfont=dict(size=9, color="#8A85AD")),
+                        yaxis=dict(tickfont=dict(size=9, color="#8A85AD")),
+                        showlegend=False,
+                    )
+                    _apply_space_grid(fig_eva)
+                    st.plotly_chart(fig_eva, use_container_width=True, key="eva_trend_chart")
+
+            st.markdown(
+                '<div style="font-size:0.6rem; color:#5A567A; text-align:center; margin-top:0.3rem;">'
+                'EVA = NOPAT - (Invested Capital × WACC) · MVA = Market Cap - Book Equity · '
+                'WACC estimated using CAPM with β and assumed cost of debt</div>',
+                unsafe_allow_html=True,
+            )
+        except Exception:
+            st.info("Shareholder value creation data not available.")
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
     # 8b. WORKING CAPITAL ANALYSIS
     # ══════════════════════════════════════════════════════
     with _safe_section("Working Capital Analysis"):
@@ -10671,86 +10853,159 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     _divider()
 
     # ══════════════════════════════════════════════════════
-    # 10f. ESG SCORES
+    # 10f. ESG SCORING DASHBOARD
     # ══════════════════════════════════════════════════════
-    try:
-        if cd.esg_scores is not None and not cd.esg_scores.empty:
-            _section("ESG Scores", "🌱")
-            
-            esg = cd.esg_scores
-            
-            # Try to extract key scores
-            esg_total = None
-            esg_env = None
-            esg_social = None
-            esg_gov = None
-            
-            for idx_name in esg.index:
-                idx_lower = str(idx_name).lower()
-                if "total" in idx_lower and "esg" in idx_lower:
-                    esg_total = float(esg.loc[idx_name].iloc[0]) if pd.notna(esg.loc[idx_name].iloc[0]) else None
-                elif "environment" in idx_lower:
-                    esg_env = float(esg.loc[idx_name].iloc[0]) if pd.notna(esg.loc[idx_name].iloc[0]) else None
-                elif "social" in idx_lower:
-                    esg_social = float(esg.loc[idx_name].iloc[0]) if pd.notna(esg.loc[idx_name].iloc[0]) else None
-                elif "governance" in idx_lower:
-                    esg_gov = float(esg.loc[idx_name].iloc[0]) if pd.notna(esg.loc[idx_name].iloc[0]) else None
-            
-            if esg_total is not None or esg_env is not None:
-                esg_cols = st.columns(4)
-                
-                esg_items = [
-                    ("Total ESG", esg_total, "🌍"),
-                    ("Environmental", esg_env, "🌿"),
-                    ("Social", esg_social, "👥"),
-                    ("Governance", esg_gov, "⚖️"),
-                ]
-                
-                for i, (label, score, icon) in enumerate(esg_items):
-                    with esg_cols[i]:
-                        if score is not None:
-                            # Lower ESG risk score = better (Sustainalytics scale)
-                            if score < 15:
-                                color = "#10B981"
-                                rating = "Low Risk"
-                            elif score < 25:
-                                color = "#34D399"
-                                rating = "Medium"
-                            elif score < 35:
-                                color = "#F59E0B"
-                                rating = "High"
-                            else:
-                                color = "#EF4444"
-                                rating = "Severe"
-                            
-                            st.markdown(
-                                f'<div style="text-align:center; padding:0.8rem; background:rgba(107,92,231,0.05); '
-                                f'border-radius:12px; border:1px solid rgba(107,92,231,0.1);">'
-                                f'<div style="font-size:1.2rem;">{icon}</div>'
-                                f'<div style="font-size:0.6rem; color:#8A85AD; font-weight:600; text-transform:uppercase;">{label}</div>'
-                                f'<div style="font-size:1.3rem; font-weight:800; color:{color};">{score:.1f}</div>'
-                                f'<div style="font-size:0.6rem; color:{color};">{rating}</div>'
-                                f'</div>',
-                                unsafe_allow_html=True,
-                            )
-                        else:
-                            st.markdown(
-                                f'<div style="text-align:center; padding:0.8rem; background:rgba(107,92,231,0.05); '
-                                f'border-radius:12px;"><div style="font-size:1.2rem;">{icon}</div>'
-                                f'<div style="font-size:0.6rem; color:#8A85AD;">{label}</div>'
-                                f'<div style="color:#8A85AD;">N/A</div></div>',
-                                unsafe_allow_html=True,
-                            )
-                
-                st.markdown(
-                    '<div style="font-size:0.6rem; color:#5A567A; text-align:center; margin-top:0.5rem;">'
-                    'Lower scores = lower ESG risk (Sustainalytics methodology)</div>',
-                    unsafe_allow_html=True,
+    with _safe_section("ESG Scoring Dashboard"):
+        _section("ESG Scoring Dashboard", "🌱")
+
+        _esg_has_data = False
+        esg_total = esg_env = esg_social = esg_gov = None
+
+        try:
+            if cd.esg_scores is not None and not cd.esg_scores.empty:
+                esg = cd.esg_scores
+                for idx_name in esg.index:
+                    idx_lower = str(idx_name).lower()
+                    if "total" in idx_lower and "esg" in idx_lower:
+                        esg_total = float(esg.loc[idx_name].iloc[0]) if pd.notna(esg.loc[idx_name].iloc[0]) else None
+                    elif "environment" in idx_lower:
+                        esg_env = float(esg.loc[idx_name].iloc[0]) if pd.notna(esg.loc[idx_name].iloc[0]) else None
+                    elif "social" in idx_lower:
+                        esg_social = float(esg.loc[idx_name].iloc[0]) if pd.notna(esg.loc[idx_name].iloc[0]) else None
+                    elif "governance" in idx_lower:
+                        esg_gov = float(esg.loc[idx_name].iloc[0]) if pd.notna(esg.loc[idx_name].iloc[0]) else None
+                if esg_total is not None or esg_env is not None:
+                    _esg_has_data = True
+        except Exception:
+            pass
+
+        # Sector-average ESG benchmarks (Sustainalytics scale, lower = better)
+        _esg_sector_avg = {
+            "Technology": {"E": 8, "S": 12, "G": 8, "Total": 18},
+            "Financial Services": {"E": 5, "S": 15, "G": 10, "Total": 22},
+            "Healthcare": {"E": 10, "S": 14, "G": 9, "Total": 23},
+            "Energy": {"E": 30, "S": 15, "G": 10, "Total": 32},
+            "Consumer Cyclical": {"E": 14, "S": 13, "G": 9, "Total": 24},
+            "Consumer Defensive": {"E": 16, "S": 14, "G": 8, "Total": 25},
+            "Industrials": {"E": 18, "S": 13, "G": 9, "Total": 26},
+            "Basic Materials": {"E": 25, "S": 14, "G": 9, "Total": 30},
+            "Utilities": {"E": 22, "S": 12, "G": 8, "Total": 28},
+            "Real Estate": {"E": 12, "S": 10, "G": 9, "Total": 20},
+            "Communication Services": {"E": 6, "S": 14, "G": 10, "Total": 21},
+        }
+        _esg_sect = getattr(cd, 'sector', '') or ''
+        _esg_bench = _esg_sector_avg.get(_esg_sect, {"E": 15, "S": 13, "G": 9, "Total": 24})
+
+        def _esg_risk_level(score):
+            if score is None: return ("N/A", "#8A85AD")
+            if score < 10: return ("Negligible", "#10B981")
+            if score < 20: return ("Low", "#34D399")
+            if score < 30: return ("Medium", "#F59E0B")
+            if score < 40: return ("High", "#EF4444")
+            return ("Severe", "#DC2626")
+
+        def _esg_gauge(label, score, bench, icon, max_val=50):
+            """Render a semicircular gauge for ESG score."""
+            if score is None:
+                return (
+                    f'<div style="text-align:center; padding:1rem; background:rgba(107,92,231,0.05); border-radius:12px;">'
+                    f'<div style="font-size:1.4rem;">{icon}</div>'
+                    f'<div style="font-size:0.65rem; color:#8A85AD; font-weight:600; text-transform:uppercase;">{label}</div>'
+                    f'<div style="color:#8A85AD; font-size:0.8rem;">No Data</div>'
+                    f'<div style="font-size:0.55rem; color:#5A567A;">Sector avg: {bench}</div>'
+                    f'</div>'
                 )
-            
-            _divider()
-    except Exception:
-        pass
+            pct = min(score / max_val * 100, 100)
+            risk_label, color = _esg_risk_level(score)
+            vs_sector = score - bench
+            vs_str = f'{"+" if vs_sector > 0 else ""}{vs_sector:.0f} vs sector'
+            vs_color = "#EF4444" if vs_sector > 0 else "#10B981"
+            # Bar gauge
+            return (
+                f'<div style="text-align:center; padding:1rem; background:rgba(107,92,231,0.05); '
+                f'border-radius:12px; border:1px solid rgba(107,92,231,0.1);">'
+                f'<div style="font-size:1.4rem;">{icon}</div>'
+                f'<div style="font-size:0.65rem; color:#8A85AD; font-weight:600; text-transform:uppercase; margin-bottom:0.3rem;">{label}</div>'
+                f'<div style="font-size:1.5rem; font-weight:800; color:{color};">{score:.1f}</div>'
+                f'<div style="font-size:0.6rem; color:{color}; margin-bottom:0.4rem;">{risk_label}</div>'
+                f'<div style="background:rgba(255,255,255,0.05); border-radius:4px; height:6px; width:100%; margin:0.3rem 0;">'
+                f'<div style="background:{color}; height:100%; border-radius:4px; width:{pct:.0f}%;"></div></div>'
+                f'<div style="font-size:0.55rem; color:{vs_color};">{vs_str}</div>'
+                f'</div>'
+            )
+
+        if _esg_has_data:
+            _eg1, _eg2, _eg3, _eg4 = st.columns(4)
+            with _eg1:
+                st.markdown(_esg_gauge("Environmental", esg_env, _esg_bench["E"], "🌿"), unsafe_allow_html=True)
+            with _eg2:
+                st.markdown(_esg_gauge("Social", esg_social, _esg_bench["S"], "👥"), unsafe_allow_html=True)
+            with _eg3:
+                st.markdown(_esg_gauge("Governance", esg_gov, _esg_bench["G"], "⚖️"), unsafe_allow_html=True)
+            with _eg4:
+                st.markdown(_esg_gauge("Overall ESG Risk", esg_total, _esg_bench["Total"], "🌍"), unsafe_allow_html=True)
+
+            # ESG Risk Level classification
+            _esg_rl, _esg_rc = _esg_risk_level(esg_total)
+            st.markdown(
+                f'<div style="text-align:center; margin:0.8rem 0; padding:0.5rem; background:rgba(107,92,231,0.04); border-radius:8px;">'
+                f'<span style="font-size:0.75rem; color:#8A85AD;">ESG Risk Level: </span>'
+                f'<span style="font-size:0.85rem; font-weight:700; color:{_esg_rc};">{_esg_rl}</span>'
+                f'<span style="font-size:0.65rem; color:#5A567A;"> · Lower scores = lower risk (Sustainalytics)</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            # No ESG data - show industry typical ranges
+            st.markdown(
+                f'<div style="text-align:center; padding:0.8rem; background:rgba(245,166,35,0.06); border-radius:10px; '
+                f'border:1px solid rgba(245,166,35,0.15); margin-bottom:0.5rem;">'
+                f'<div style="font-size:0.8rem; color:#F5A623;">⚠️ ESG data not available for {cd.ticker}</div>'
+                f'<div style="font-size:0.65rem; color:#8A85AD; margin-top:0.3rem;">Showing typical ranges for {_esg_sect or "general market"}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            _eg1, _eg2, _eg3, _eg4 = st.columns(4)
+            with _eg1:
+                st.markdown(_esg_gauge("Environmental", None, _esg_bench["E"], "🌿"), unsafe_allow_html=True)
+            with _eg2:
+                st.markdown(_esg_gauge("Social", None, _esg_bench["S"], "👥"), unsafe_allow_html=True)
+            with _eg3:
+                st.markdown(_esg_gauge("Governance", None, _esg_bench["G"], "⚖️"), unsafe_allow_html=True)
+            with _eg4:
+                st.markdown(_esg_gauge("Overall (Sector Avg)", _esg_bench["Total"], _esg_bench["Total"], "🌍"), unsafe_allow_html=True)
+
+        # Carbon Footprint Proxy
+        st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
+        _carbon_intensity = {
+            "Technology": ("Low", "🟢", 15),
+            "Communication Services": ("Low", "🟢", 18),
+            "Financial Services": ("Low", "🟢", 12),
+            "Healthcare": ("Low-Medium", "🟡", 30),
+            "Consumer Cyclical": ("Medium", "🟡", 45),
+            "Consumer Defensive": ("Medium", "🟡", 40),
+            "Industrials": ("Medium-High", "🟠", 60),
+            "Real Estate": ("Medium", "🟡", 35),
+            "Basic Materials": ("High", "🔴", 80),
+            "Utilities": ("High", "🔴", 75),
+            "Energy": ("Very High", "🔴", 95),
+        }
+        _ci = _carbon_intensity.get(_esg_sect, ("Medium", "🟡", 50))
+        _ci_pct = _ci[2]
+        st.markdown(
+            f'<div style="padding:0.6rem 1rem; background:rgba(107,92,231,0.04); border-radius:10px; '
+            f'display:flex; align-items:center; gap:0.8rem;">'
+            f'<div style="font-size:1.3rem;">{_ci[1]}</div>'
+            f'<div style="flex:1;">'
+            f'<div style="font-size:0.7rem; color:#8A85AD; font-weight:600;">Carbon Intensity Proxy ({_esg_sect or "N/A"})</div>'
+            f'<div style="background:rgba(255,255,255,0.05); border-radius:4px; height:8px; width:100%; margin:0.3rem 0;">'
+            f'<div style="background:linear-gradient(90deg, #10B981, #F59E0B, #EF4444); height:100%; border-radius:4px; width:{_ci_pct}%;"></div></div>'
+            f'<div style="font-size:0.6rem; color:#B8B3D7;">{_ci[0]} relative carbon footprint</div>'
+            f'</div></div>',
+            unsafe_allow_html=True,
+        )
+
+        _divider()
 
     # ══════════════════════════════════════════════════════
     # 11. M&A HISTORY
@@ -11941,6 +12196,94 @@ Write in this format:
             f'border-radius:10px; color:#10B981; font-size:0.85rem;">'
             f'⭐ {cd.ticker} is in your watchlist</div>',
             unsafe_allow_html=True,
+        )
+
+    # ══════════════════════════════════════════════════════
+    # QUICK ACTIONS BAR (Fixed Bottom)
+    # ══════════════════════════════════════════════════════
+    st.markdown('<div style="height:2rem;"></div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div style="background:linear-gradient(135deg, rgba(107,92,231,0.08), rgba(232,99,139,0.06)); '
+        'border-radius:16px; border:1px solid rgba(107,92,231,0.15); padding:0.8rem 1.2rem; '
+        'backdrop-filter:blur(10px); position:sticky; bottom:0; z-index:100;">'
+        '<div style="font-size:0.6rem; color:#8A85AD; text-transform:uppercase; letter-spacing:1px; '
+        'text-align:center; margin-bottom:0.4rem;">Quick Actions</div></div>',
+        unsafe_allow_html=True,
+    )
+    _qa1, _qa2, _qa3, _qa4, _qa5 = st.columns(5)
+    with _qa1:
+        # PPTX Download
+        try:
+            if not os.path.exists("assets/template.pptx"):
+                from create_template import build
+                build()
+            _qa_pptx = generate_presentation(cd)
+            st.download_button(
+                label="📥 PPTX",
+                data=_qa_pptx,
+                file_name=f"{cd.ticker}_Profile.pptx",
+                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                use_container_width=True,
+                key="qa_pptx_dl",
+            )
+        except Exception:
+            st.button("📥 PPTX", disabled=True, use_container_width=True, key="qa_pptx_na")
+    with _qa2:
+        # Excel Export
+        try:
+            _qa_excel = _export_to_excel(cd)
+            st.download_button(
+                label="📊 Excel",
+                data=_qa_excel,
+                file_name=f"{cd.ticker}_Data.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                key="qa_excel_dl",
+            )
+        except Exception:
+            st.button("📊 Excel", disabled=True, use_container_width=True, key="qa_excel_na")
+    with _qa3:
+        # Copy Summary
+        _qa_summary = (
+            f"{cd.name} ({cd.ticker}) | {cd.sector or 'N/A'} | "
+            f"Price: {getattr(cd, 'currency_symbol', '$')}{cd.current_price:,.2f} | "
+            f"MCap: {format_number(cd.market_cap)} | "
+            f"P/E: {cd.trailing_pe:.1f}x" if cd.trailing_pe else f"{cd.name} ({cd.ticker})"
+        )
+        st.markdown(
+            f'<button onclick="navigator.clipboard.writeText(\'{_qa_summary.replace(chr(39), "")}\').then(()=>{{this.textContent=\'✅ Copied!\';setTimeout(()=>this.textContent=\'📋 Copy Summary\',1500)}})" '
+            f'style="width:100%; padding:0.4rem; background:rgba(107,92,231,0.1); border:1px solid rgba(107,92,231,0.2); '
+            f'border-radius:8px; color:#B8B3D7; cursor:pointer; font-size:0.8rem;">📋 Copy Summary</button>',
+            unsafe_allow_html=True,
+        )
+    with _qa4:
+        # Add to Watchlist
+        if not _is_in_watchlist(cd.ticker):
+            if st.button("🔖 Watchlist", use_container_width=True, key="qa_watchlist_add"):
+                _add_to_watchlist(cd.ticker)
+                st.rerun()
+        else:
+            st.button("✅ Saved", disabled=True, use_container_width=True, key="qa_watchlist_done")
+    with _qa5:
+        # Generate Memo
+        _qa_memo = (
+            f"INVESTMENT MEMO: {cd.name} ({cd.ticker})\n"
+            f"{'='*50}\n"
+            f"Sector: {cd.sector or 'N/A'} | Industry: {cd.industry or 'N/A'}\n"
+            f"Price: {getattr(cd, 'currency_symbol', '$')}{cd.current_price:,.2f} | Market Cap: {format_number(cd.market_cap)}\n"
+            f"EV/EBITDA: {format_multiple(cd.ev_to_ebitda)} | P/E: {format_multiple(cd.trailing_pe)}\n"
+            f"Gross Margin: {format_pct(cd.gross_margins)} | Op Margin: {format_pct(cd.operating_margins)}\n"
+            f"ROE: {format_pct(cd.return_on_equity)} | Revenue Growth: {format_pct(cd.revenue_growth)}\n"
+            f"\nBusiness: {(cd.business_summary or 'N/A')[:200]}\n"
+            f"\nGenerated by Orbital ProfileBuilder"
+        )
+        st.download_button(
+            label="📑 Memo",
+            data=_qa_memo,
+            file_name=f"{cd.ticker}_Memo.txt",
+            mime="text/plain",
+            use_container_width=True,
+            key="qa_memo_dl",
         )
 
 elif analysis_mode == "Company Profile" and generate_btn and not ticker_input:
