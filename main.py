@@ -4457,7 +4457,7 @@ def _build_football_field_chart(football_field, currency_symbol="$", key="footba
                 line=dict(color="rgba(255,255,255,0.15)", width=1),
             ),
             name=label,
-            text=[f"{format_number(lows[i], currency_symbol=currency_symbol)} \u2014 {format_number(highs[i], currency_symbol=currency_symbol)}"],
+            text=[f"{label}: {format_number(lows[i], currency_symbol=currency_symbol)} \u2014 {format_number(highs[i], currency_symbol=currency_symbol)}"],
             textposition="inside",
             textfont=dict(size=9, color="#fff"),
             hoverinfo="text",
@@ -8508,6 +8508,73 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                            delta_color="inverse" if prem > 0 else "normal")
             else:
                 col.metric(f"{label} vs Peers", "N/A")
+
+    # ══════════════════════════════════════════════════════
+    # 5b. LBO SCREENING METRICS
+    # ══════════════════════════════════════════════════════
+    with _safe_section("LBO Screening Metrics"):
+        _section("LBO Screening Metrics", "🏦")
+
+        # FCF Yield, Debt/EBITDA capacity, Interest Coverage
+        _lbo_fcf = None
+        if cd.free_cashflow_series is not None and len(cd.free_cashflow_series) > 0:
+            _lbo_fcf = float(cd.free_cashflow_series.iloc[0])
+        _lbo_mcap = cd.market_cap or 0
+        _lbo_fcf_yield = (_lbo_fcf / _lbo_mcap * 100) if _lbo_fcf and _lbo_mcap > 0 else None
+
+        _lbo_ebitda_v = None
+        if cd.ebitda is not None:
+            if hasattr(cd.ebitda, 'iloc') and len(cd.ebitda) > 0:
+                _lbo_ebitda_v = float(cd.ebitda.iloc[0])
+            elif isinstance(cd.ebitda, (int, float)) and cd.ebitda > 0:
+                _lbo_ebitda_v = float(cd.ebitda)
+
+        _lbo_total_debt = float(cd.total_debt.iloc[0]) if cd.total_debt is not None and len(cd.total_debt) > 0 else 0
+        _lbo_debt_ebitda = (_lbo_total_debt / _lbo_ebitda_v) if _lbo_ebitda_v and _lbo_ebitda_v > 0 else None
+
+        _lbo_int_exp = abs(float(cd.interest_expense.iloc[0])) if cd.interest_expense is not None and len(cd.interest_expense) > 0 else 0
+        _lbo_op_inc = float(cd.operating_income.iloc[0]) if cd.operating_income is not None and len(cd.operating_income) > 0 else 0
+        _lbo_int_cov = (_lbo_op_inc / _lbo_int_exp) if _lbo_int_exp > 0 else None
+
+        _lm1, _lm2, _lm3 = st.columns(3)
+        _lm1.metric("FCF Yield", f"{_lbo_fcf_yield:.1f}%" if _lbo_fcf_yield is not None else "N/A",
+                     help="Free Cash Flow / Market Cap")
+        _lm2.metric("Debt / EBITDA", f"{_lbo_debt_ebitda:.1f}x" if _lbo_debt_ebitda is not None else "N/A",
+                     help="Total Debt / LTM EBITDA — capacity for leverage")
+        _lm3.metric("Interest Coverage", f"{_lbo_int_cov:.1f}x" if _lbo_int_cov is not None else "N/A",
+                     help="Operating Income / Interest Expense")
+
+        # LBO Quick Returns Calculator
+        if _lbo_ebitda_v and _lbo_ebitda_v > 0:
+            with st.expander("🧮 Quick LBO Returns Calculator", expanded=False):
+                _lq1, _lq2 = st.columns(2)
+                with _lq1:
+                    _lq_entry = st.number_input("Entry EV/EBITDA", 4.0, 30.0, float(cd.ev_to_ebitda or 10.0), 0.5, key="prof_lbo_entry")
+                    _lq_leverage = st.slider("Debt / Total Capital (%)", 30, 80, 60, 5, key="prof_lbo_lev") / 100.0
+                with _lq2:
+                    _lq_exit = st.number_input("Exit EV/EBITDA", 4.0, 30.0, float(cd.ev_to_ebitda or 10.0), 0.5, key="prof_lbo_exit")
+                    _lq_hold = st.number_input("Hold Period (years)", 3, 10, 5, 1, key="prof_lbo_hold")
+
+                _lq_entry_ev = _lbo_ebitda_v * _lq_entry
+                _lq_entry_eq = _lq_entry_ev * (1 - _lq_leverage)
+                _lq_exit_ev = _lbo_ebitda_v * 1.05 ** _lq_hold * _lq_exit  # assume 5% EBITDA growth
+                _lq_debt = _lq_entry_ev * _lq_leverage
+                # Simple: assume 50% of EBITDA as FCF to pay down debt
+                _lq_debt_rem = _lq_debt
+                _lq_eb = _lbo_ebitda_v
+                for _ in range(_lq_hold):
+                    _lq_eb *= 1.05
+                    _lq_paydown = max(0, _lq_eb * 0.5 - _lq_debt_rem * 0.06)
+                    _lq_debt_rem = max(0, _lq_debt_rem - _lq_paydown)
+                _lq_exit_eq = _lq_exit_ev - _lq_debt_rem
+                _lq_moic = _lq_exit_eq / _lq_entry_eq if _lq_entry_eq > 0 else 0
+                _lq_irr = (_lq_moic ** (1.0 / _lq_hold) - 1) if _lq_moic > 0 and _lq_hold > 0 else 0
+
+                _lr1, _lr2, _lr3 = st.columns(3)
+                _lr1.metric("MOIC", f"{_lq_moic:.2f}x")
+                _irr_c = "#10B981" if _lq_irr > 0.20 else "#F59E0B" if _lq_irr > 0.10 else "#EF4444"
+                _lr2.metric("IRR", f"{_lq_irr*100:.1f}%")
+                _lr3.metric("Exit Equity", format_number(_lq_exit_eq, currency_symbol=cs))
 
     # ══════════════════════════════════════════════════════
     # 6. PEER COMPARISON
@@ -12762,7 +12829,7 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
                 fig_ff.add_trace(go.Bar(
                     y=names, x=values, orientation="h",
                     marker_color=colors,
-                    text=[format_num(v) for v in values],
+                    text=[f"{n.replace(chr(10),' ')}: {format_num(v)}" for n, v in zip(names, values)],
                     textposition="outside",
                     textfont=dict(size=10, color="#B8B3D7"),
                 ))
@@ -12917,6 +12984,63 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
             'Multiples based on LTM financials from Yahoo Finance.</div>',
             unsafe_allow_html=True,
         )
+
+        # ── Outlier Flagging & Trimmed Mean ──
+        with _safe_section("Comps Outlier Analysis"):
+            st.markdown(
+                '<div style="font-size:1rem; font-weight:700; color:#E0DCF5; margin:1rem 0 0.5rem 0;">'
+                '⚠️ Outlier Detection & Trimmed Statistics</div>',
+                unsafe_allow_html=True,
+            )
+            _outlier_cols = ["EV/Rev", "EV/EBITDA", "P/E"]
+            _peer_start_idx = 1
+            _peer_end_idx = len(comps_df) - 2  # exclude summary rows
+            _outlier_report = []
+
+            for _oc in _outlier_cols:
+                if _oc not in comps_df.columns:
+                    continue
+                _vals = pd.to_numeric(comps_df[_oc].iloc[_peer_start_idx:_peer_end_idx], errors="coerce").dropna()
+                if len(_vals) < 3:
+                    continue
+                _med = _vals.median()
+                _std = _vals.std()
+                _mean = _vals.mean()
+                _flagged = []
+                _clean_vals = []
+                for _i in _vals.index:
+                    _v = _vals[_i]
+                    if abs(_v - _med) > 2 * _std:
+                        _ticker_name = comps_df.iloc[_i].get("Ticker", comps_df.iloc[_i].get("Company", "?"))
+                        _flagged.append(f"{_ticker_name} ({_v:.1f}x)")
+                    else:
+                        _clean_vals.append(_v)
+                _trimmed_mean = np.mean(_clean_vals) if _clean_vals else _mean
+                _outlier_report.append({
+                    "metric": _oc, "mean": _mean, "median": _med, "std": _std,
+                    "trimmed_mean": _trimmed_mean, "flagged": _flagged, "n_flagged": len(_flagged),
+                })
+
+            if _outlier_report:
+                _out_html = '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:1rem;">'
+                for _or in _outlier_report:
+                    _flag_html = ""
+                    if _or["flagged"]:
+                        _flag_html = f'<div style="font-size:0.65rem; color:#F59E0B; margin-top:0.3rem;">⚠️ Outliers: {", ".join(_or["flagged"])}</div>'
+                    _out_html += (
+                        f'<div style="background:rgba(107,92,231,0.05); border:1px solid rgba(107,92,231,0.15); '
+                        f'border-radius:10px; padding:0.8rem;">'
+                        f'<div style="font-size:0.72rem; font-weight:700; color:#9B8AFF;">{_or["metric"]}</div>'
+                        f'<div style="display:grid; grid-template-columns:1fr 1fr; gap:0.3rem; margin-top:0.3rem; font-size:0.7rem;">'
+                        f'<div style="color:#8A85AD;">Mean: <b style="color:#E0DCF5;">{_or["mean"]:.1f}x</b></div>'
+                        f'<div style="color:#8A85AD;">Median: <b style="color:#E0DCF5;">{_or["median"]:.1f}x</b></div>'
+                        f'<div style="color:#10B981;">Trimmed Mean: <b>{_or["trimmed_mean"]:.1f}x</b></div>'
+                        f'<div style="color:#8A85AD;">Std Dev: <b style="color:#E0DCF5;">{_or["std"]:.1f}x</b></div>'
+                        f'</div>'
+                        f'{_flag_html}</div>'
+                    )
+                _out_html += '</div>'
+                st.markdown(_out_html, unsafe_allow_html=True)
 
         # ── Export Comps Table ──
         try:
@@ -13559,6 +13683,78 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     _divider()
 
     # ══════════════════════════════════════════════════════
+    # M3a-NEW. SOURCES & USES TABLE
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Sources & Uses"):
+        _section("Sources & Uses", "🏦")
+        st.markdown(
+            '<div style="font-size:0.8rem; color:#B8B3D7; margin-bottom:0.8rem;">'
+            'Standard M&A sources & uses of funds breakdown.</div>',
+            unsafe_allow_html=True,
+        )
+        _su_purchase = pro_forma.purchase_price or 0
+        _su_fees = pro_forma.transaction_fees or 0
+        _su_total_uses = _su_purchase + _su_fees
+        _su_cash = pro_forma.cash_consideration or 0
+        _su_new_debt = _su_cash  # cash portion funded by new debt
+        _su_stock = pro_forma.stock_consideration or 0
+        _su_total_sources = _su_new_debt + _su_stock
+
+        _su_table = (
+            '<div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">'
+            '<div>'
+            '<div style="font-size:0.75rem; font-weight:700; color:#10B981; text-transform:uppercase; '
+            'letter-spacing:1px; border-bottom:2px solid #10B981; padding-bottom:0.3rem; margin-bottom:0.5rem;">Sources</div>'
+        )
+        _su_sources = [
+            ("New Debt / Cash on Hand", _su_new_debt),
+            ("New Equity (Stock Issued)", _su_stock),
+        ]
+        for _sl, _sv in _su_sources:
+            _su_table += (
+                f'<div style="display:flex; justify-content:space-between; padding:0.35rem 0; '
+                f'border-bottom:1px solid rgba(255,255,255,0.05); font-size:0.78rem;">'
+                f'<span style="color:#B8B3D7;">{_sl}</span>'
+                f'<span style="color:#E0DCF5; font-weight:600;">{format_number(_sv, currency_symbol=acq_cs)}</span>'
+                f'</div>'
+            )
+        _su_table += (
+            f'<div style="display:flex; justify-content:space-between; padding:0.5rem 0; '
+            f'border-top:2px solid rgba(16,185,129,0.4); margin-top:0.3rem; font-size:0.82rem;">'
+            f'<span style="color:#10B981; font-weight:700;">Total Sources</span>'
+            f'<span style="color:#10B981; font-weight:700;">{format_number(_su_total_sources, currency_symbol=acq_cs)}</span>'
+            f'</div></div>'
+        )
+
+        _su_table += (
+            '<div>'
+            '<div style="font-size:0.75rem; font-weight:700; color:#E8638B; text-transform:uppercase; '
+            'letter-spacing:1px; border-bottom:2px solid #E8638B; padding-bottom:0.3rem; margin-bottom:0.5rem;">Uses</div>'
+        )
+        _su_uses = [
+            ("Equity Purchase Price", _su_purchase),
+            ("Transaction Fees & Expenses", _su_fees),
+        ]
+        for _ul, _uv in _su_uses:
+            _su_table += (
+                f'<div style="display:flex; justify-content:space-between; padding:0.35rem 0; '
+                f'border-bottom:1px solid rgba(255,255,255,0.05); font-size:0.78rem;">'
+                f'<span style="color:#B8B3D7;">{_ul}</span>'
+                f'<span style="color:#E0DCF5; font-weight:600;">{format_number(_uv, currency_symbol=acq_cs)}</span>'
+                f'</div>'
+            )
+        _su_table += (
+            f'<div style="display:flex; justify-content:space-between; padding:0.5rem 0; '
+            f'border-top:2px solid rgba(232,99,139,0.4); margin-top:0.3rem; font-size:0.82rem;">'
+            f'<span style="color:#E8638B; font-weight:700;">Total Uses</span>'
+            f'<span style="color:#E8638B; font-weight:700;">{format_number(_su_total_uses, currency_symbol=acq_cs)}</span>'
+            f'</div></div></div>'
+        )
+        _mhtml(_su_table)
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
     # M3b. IMPLIED MULTIPLES AT OFFER PRICE
     # ══════════════════════════════════════════════════════
     _section("Implied Multiples at Offer Price", "📐")
@@ -13961,6 +14157,55 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
             st.plotly_chart(fig_prem, use_container_width=True, key="premium_sensitivity")
     except Exception:
         pass  # Premium sensitivity is non-critical
+
+    # ══════════════════════════════════════════════════════
+    # M5a-NEW. PRO FORMA EPS ACCRETION/DILUTION SENSITIVITY TABLE
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Pro Forma EPS Sensitivity Table"):
+        _section("Pro Forma EPS Sensitivity", "📊")
+        st.markdown(
+            '<div style="font-size:0.8rem; color:#B8B3D7; margin-bottom:0.8rem;">'
+            'EPS accretion/dilution across purchase price premiums and cash/stock mix.</div>',
+            unsafe_allow_html=True,
+        )
+        _eps_premiums = [10, 20, 30, 40]
+        _eps_cash_splits = [0, 25, 50, 75, 100]
+
+        _eps_header = '<table style="width:100%; border-collapse:collapse; font-size:0.75rem;">'
+        _eps_header += '<thead><tr><th style="padding:0.4rem; color:#8A85AD; text-align:left; border-bottom:2px solid rgba(107,92,231,0.3);">Cash %</th>'
+        for _ep in _eps_premiums:
+            _eps_header += f'<th style="padding:0.4rem; color:#6B5CE7; text-align:center; border-bottom:2px solid rgba(107,92,231,0.3);">{_ep}% Premium</th>'
+        _eps_header += '</tr></thead><tbody>'
+
+        for _ec in _eps_cash_splits:
+            _eps_header += f'<tr><td style="padding:0.35rem; color:#B8B3D7; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.05);">{_ec}% Cash / {100-_ec}% Stock</td>'
+            for _ep in _eps_premiums:
+                try:
+                    _test_a = MergerAssumptions(
+                        offer_premium_pct=_ep, pct_cash=_ec, pct_stock=100 - _ec,
+                        cost_synergies_pct=merger_assumptions.cost_synergies_pct,
+                        revenue_synergies_pct=merger_assumptions.revenue_synergies_pct,
+                        transaction_fees_pct=merger_assumptions.transaction_fees_pct,
+                        tax_rate=merger_assumptions.tax_rate, cost_of_debt=merger_assumptions.cost_of_debt,
+                    )
+                    _test_pf = calculate_pro_forma(acq_cd, tgt_cd, _test_a)
+                    _ad = _test_pf.accretion_dilution_pct or 0
+                    _pf_eps_val = _test_pf.pf_eps or 0
+                    _ad_color = "#10B981" if _ad >= 0 else "#EF4444"
+                    _cell = f'{acq_cs}{_pf_eps_val:.2f} <span style="color:{_ad_color};">({_ad:+.1f}%)</span>'
+                except Exception:
+                    _cell = "—"
+                _eps_header += f'<td style="padding:0.35rem; text-align:center; color:#E0DCF5; border-bottom:1px solid rgba(255,255,255,0.05);">{_cell}</td>'
+            _eps_header += '</tr>'
+        _eps_header += '</tbody></table>'
+        _mhtml(f'<div style="overflow-x:auto;">{_eps_header}</div>')
+
+        st.markdown(
+            f'<div style="font-size:0.65rem; color:#8A85AD; margin-top:0.5rem;">'
+            f'Standalone EPS: {acq_cs}{pro_forma.acq_eps:.2f} · Synergies held constant at '
+            f'{merger_assumptions.cost_synergies_pct:.0f}% cost / {merger_assumptions.revenue_synergies_pct:.0f}% revenue</div>',
+            unsafe_allow_html=True,
+        )
 
     _divider()
 
@@ -15084,6 +15329,67 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
         a2.metric("Terminal Growth", f"{dcf_result['terminal_growth']*100:.1f}%")
         a3.metric("Discount Rate (WACC)", f"{dcf_result['discount_rate']*100:.1f}%")
         a4.metric("Projection Years", f"{dcf_result['projection_years']}")
+
+        # ── WACC Build-Up Detail ──
+        with _safe_section("WACC Build-Up Detail"):
+            _dcf_wacc_data = st.session_state.get("_auto_wacc_data", None)
+            if _dcf_wacc_data is None:
+                # Calculate from scratch for display
+                _dw_beta = dcf_cd.beta if dcf_cd.beta else 1.0
+                _dw_rf = 0.0425
+                _dw_erp = 0.055
+                _dw_ke = _dw_rf + _dw_beta * _dw_erp
+                _dw_ie = abs(float(dcf_cd.interest_expense.iloc[0])) if dcf_cd.interest_expense is not None and len(dcf_cd.interest_expense) > 0 else 0
+                _dw_td = float(dcf_cd.total_debt.iloc[0]) if dcf_cd.total_debt is not None and len(dcf_cd.total_debt) > 0 else 0
+                _dw_kd = (_dw_ie / _dw_td) if _dw_td > 0 else 0.05
+                _dw_tp = abs(float(dcf_cd.tax_provision.iloc[0])) if dcf_cd.tax_provision is not None and len(dcf_cd.tax_provision) > 0 else 0
+                _dw_oi = float(dcf_cd.operating_income.iloc[0]) if dcf_cd.operating_income is not None and len(dcf_cd.operating_income) > 0 else 0
+                _dw_pretax = _dw_oi - _dw_ie
+                _dw_tax = (abs(_dw_tp) / abs(_dw_pretax)) if abs(_dw_pretax) > 0 else 0.21
+                _dw_tax = max(0, min(_dw_tax, 0.50))
+                _dw_mcap = dcf_cd.market_cap or 0
+                _dw_ev_calc = _dw_mcap + _dw_td
+                _dw_we = (_dw_mcap / _dw_ev_calc) if _dw_ev_calc > 0 else 0.7
+                _dw_wd = (_dw_td / _dw_ev_calc) if _dw_ev_calc > 0 else 0.3
+                _dw_wacc = _dw_we * _dw_ke + _dw_wd * _dw_kd * (1 - _dw_tax)
+                _dcf_wacc_data = {"rf": _dw_rf, "beta": _dw_beta, "erp": _dw_erp, "ke": _dw_ke,
+                                  "kd": _dw_kd, "tax_rate": _dw_tax, "we": _dw_we, "wd": _dw_wd,
+                                  "wacc": _dw_wacc, "mcap": _dw_mcap, "debt": _dw_td}
+
+            _wacc_build_html = (
+                '<div style="background:rgba(107,92,231,0.05); border:1px solid rgba(107,92,231,0.15); '
+                'border-radius:12px; padding:1rem; margin-top:0.5rem;">'
+                '<div style="font-size:0.72rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
+                'letter-spacing:1px; margin-bottom:0.5rem;">WACC Build-Up</div>'
+                '<div style="display:grid; grid-template-columns:1fr 1fr; gap:0.3rem 2rem;">'
+            )
+            _wacc_rows = [
+                ("Risk-Free Rate (Rf)", f"{_dcf_wacc_data['rf']*100:.2f}%"),
+                ("Equity Risk Premium (ERP)", f"{_dcf_wacc_data['erp']*100:.2f}%"),
+                ("Beta (β)", f"{_dcf_wacc_data['beta']:.2f}"),
+                ("Cost of Equity (Ke = Rf + β×ERP)", f"{_dcf_wacc_data['ke']*100:.2f}%"),
+                ("Pre-tax Cost of Debt (Kd)", f"{_dcf_wacc_data['kd']*100:.2f}%"),
+                ("Effective Tax Rate", f"{_dcf_wacc_data['tax_rate']*100:.1f}%"),
+                ("D/E Ratio", f"{(_dcf_wacc_data['wd']/_dcf_wacc_data['we']*100):.0f}%" if _dcf_wacc_data['we'] > 0 else "N/A"),
+                ("Equity Weight (E/V)", f"{_dcf_wacc_data['we']*100:.1f}%"),
+                ("Debt Weight (D/V)", f"{_dcf_wacc_data['wd']*100:.1f}%"),
+            ]
+            for _wl, _wv in _wacc_rows:
+                _wacc_build_html += (
+                    f'<div style="display:flex; justify-content:space-between; padding:0.2rem 0; '
+                    f'border-bottom:1px solid rgba(255,255,255,0.03); font-size:0.72rem;">'
+                    f'<span style="color:#B8B3D7;">{_wl}</span>'
+                    f'<span style="color:#E0DCF5; font-weight:600;">{_wv}</span></div>'
+                )
+            _wacc_build_html += '</div>'
+            _wacc_build_html += (
+                f'<div style="display:flex; justify-content:space-between; padding:0.5rem 0; margin-top:0.3rem; '
+                f'border-top:2px solid rgba(107,92,231,0.3); font-size:0.82rem;">'
+                f'<span style="color:#6B5CE7; font-weight:700;">WACC = E/V×Ke + D/V×Kd×(1-t)</span>'
+                f'<span style="color:#6B5CE7; font-weight:700;">{_dcf_wacc_data["wacc"]*100:.2f}%</span></div>'
+                f'</div>'
+            )
+            st.markdown(_wacc_build_html, unsafe_allow_html=True)
         
         _divider()
         
@@ -15112,6 +15418,75 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
             f'</div>',
             unsafe_allow_html=True,
         )
+
+        # ── Terminal Value % of TEV + Warning ──
+        _tv_pct_of_ev = (dcf_result["pv_terminal"] / dcf_result["enterprise_value"] * 100) if dcf_result["enterprise_value"] > 0 else 0
+        _tv_warn = " ⚠️ TV >75% of TEV — model is heavily dependent on terminal assumptions" if _tv_pct_of_ev > 75 else ""
+        _tv_color = "#EF4444" if _tv_pct_of_ev > 75 else "#F59E0B" if _tv_pct_of_ev > 60 else "#10B981"
+        st.markdown(
+            f'<div style="text-align:center; padding:0.6rem; background:rgba(107,92,231,0.05); '
+            f'border-radius:10px; margin-top:0.8rem; border:1px solid {"rgba(239,68,68,0.3)" if _tv_pct_of_ev > 75 else "rgba(107,92,231,0.15)"};">'
+            f'<span style="font-size:0.75rem; color:#8A85AD;">Terminal Value as % of Enterprise Value: </span>'
+            f'<span style="font-size:1.3rem; font-weight:800; color:{_tv_color};">{_tv_pct_of_ev:.1f}%</span>'
+            f'<div style="font-size:0.65rem; color:{_tv_color}; margin-top:0.2rem;">{_tv_warn}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        # ── Implied Perpetuity Growth from Exit Multiple ──
+        try:
+            _last_fcf = dcf_result["projected_fcf"][-1]
+            _exit_mult = dcf_result["terminal_value"] / _last_fcf if _last_fcf > 0 else 0
+            # TV = FCF*(1+g)/(WACC-g) => g = (TV*WACC - FCF) / (TV + FCF)  simplified via algebra
+            # From exit multiple: TV = FCF * mult, so mult = (1+g)/(r-g) => g = (mult*r - 1)/(mult + 1)
+            _r = dcf_result["discount_rate"]
+            if _exit_mult > 0:
+                _implied_g = (_exit_mult * _r - 1) / (_exit_mult + 1)
+                _ig_reasonable = -0.05 < _implied_g < 0.10
+                _ig_color = "#10B981" if _ig_reasonable else "#EF4444"
+                st.markdown(
+                    f'<div style="text-align:center; padding:0.5rem; margin-top:0.5rem;">'
+                    f'<span style="font-size:0.72rem; color:#8A85AD;">Implied Perpetuity Growth Rate (from terminal multiple {_exit_mult:.1f}x): </span>'
+                    f'<span style="font-size:1.1rem; font-weight:700; color:{_ig_color};">{_implied_g*100:.2f}%</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+        except Exception:
+            pass
+
+        # ── Enterprise Value → Equity Value Waterfall Chart ──
+        with _safe_section("EV to Equity Bridge"):
+            _dcf_gross_debt = 0
+            _dcf_cash = 0
+            if dcf_cd.total_debt is not None and len(dcf_cd.total_debt) > 0:
+                _dcf_gross_debt = float(dcf_cd.total_debt.iloc[0])
+            if dcf_cd.cash_and_equivalents is not None and len(dcf_cd.cash_and_equivalents) > 0:
+                _dcf_cash = float(dcf_cd.cash_and_equivalents.iloc[0])
+            fig_ev_bridge = go.Figure(go.Waterfall(
+                x=["Enterprise Value", "Less: Gross Debt", "Plus: Cash", "Equity Value"],
+                y=[dcf_result["enterprise_value"], -_dcf_gross_debt, _dcf_cash, 0],
+                measure=["absolute", "relative", "relative", "total"],
+                connector=dict(line=dict(color="rgba(107,92,231,0.3)", width=1)),
+                increasing=dict(marker_color="#10B981"),
+                decreasing=dict(marker_color="#EF4444"),
+                totals=dict(marker_color="#6B5CE7"),
+                text=[format_number(dcf_result["enterprise_value"], currency_symbol=cs),
+                      f"({format_number(_dcf_gross_debt, currency_symbol=cs)})",
+                      format_number(_dcf_cash, currency_symbol=cs),
+                      format_number(dcf_result["equity_value"], currency_symbol=cs)],
+                textposition="outside",
+                textfont=dict(size=10, color="#B8B3D7"),
+            ))
+            fig_ev_bridge.update_layout(
+                **_CHART_LAYOUT_BASE, height=350,
+                margin=dict(t=30, b=40, l=50, r=30),
+                yaxis=dict(tickprefix=cs, tickfont=dict(size=9, color="#8A85AD"), showgrid=True,
+                           gridcolor="rgba(255,255,255,0.05)"),
+                xaxis=dict(tickfont=dict(size=10, color="#B8B3D7")),
+                showlegend=False,
+            )
+            _apply_space_grid(fig_ev_bridge)
+            st.plotly_chart(fig_ev_bridge, use_container_width=True, key="dcf_ev_bridge_waterfall")
         
         _divider()
         
