@@ -1,4 +1,4 @@
-# ProfileBuilder v5.3
+# ProfileBuilder v5.8
 
 **Wall Street–grade company analysis in a Streamlit app.** ProfileBuilder generates institutional-quality equity research profiles, comparable company analyses, DCF valuations, and M&A models — all from a single ticker input.
 
@@ -71,7 +71,7 @@ echo "OPENAI_API_KEY=sk-..." > .env
 ## 📁 Project Structure
 
 ```
-main.py               — Main Streamlit application (17,000+ lines)
+main.py               — Main Streamlit application (19,100+ lines)
 data_engine.py        — Financial data fetching & processing
 comps_analysis.py     — Comparable company analysis engine
 merger_analysis.py    — M&A / pro forma modeling
