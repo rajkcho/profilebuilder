@@ -7193,6 +7193,144 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 )
 
     # ══════════════════════════════════════════════════════
+    # 2b-iv. HISTORICAL VALUATION TRENDS (5Y)
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Historical Valuation Trends"):
+        _section("Historical Valuation Trends (5Y)", "📉")
+        try:
+            _hvt_tk = yf.Ticker(cd.ticker)
+            _hvt_hist = _hvt_tk.history(period="5y")
+
+            if _hvt_hist is not None and len(_hvt_hist) > 60:
+                # Get quarterly financials for computing trailing multiples
+                _hvt_qe = _hvt_tk.quarterly_earnings
+                _hvt_qf = _hvt_tk.quarterly_financials if hasattr(_hvt_tk, 'quarterly_financials') else None
+                _hvt_qi = _hvt_tk.quarterly_income_stmt if hasattr(_hvt_tk, 'quarterly_income_stmt') else None
+
+                _hvt_close = _hvt_hist['Close']
+                _hvt_shares = cd.shares_outstanding or _hvt_tk.info.get("sharesOutstanding", 1)
+
+                # Compute trailing P/E series (using current TTM EPS as approximation scaled by price)
+                _hvt_pe_series = None
+                _hvt_ps_series = None
+                _hvt_ev_ebitda_series = None
+
+                _hvt_current_pe = cd.trailing_pe
+                _hvt_current_ps = cd.price_to_sales
+                _hvt_current_ev_ebitda = cd.ev_to_ebitda
+                _hvt_current_price = cd.current_price or _hvt_close.iloc[-1]
+
+                # Approximate historical multiples by scaling current multiple with price ratio
+                # P/E(t) ≈ P/E(now) * [Price(t) / Price(now)] — assumes roughly stable earnings over short periods
+                # More accurate: use quarterly earnings to compute rolling TTM EPS
+                if _hvt_current_pe and _hvt_current_pe > 0 and _hvt_current_price > 0:
+                    # Try to use quarterly earnings for real P/E computation
+                    _hvt_pe_computed = False
+                    if _hvt_qe is not None and hasattr(_hvt_qe, 'columns'):
+                        try:
+                            _eps_col = 'Earnings' if 'Earnings' in _hvt_qe.columns else _hvt_qe.columns[0]
+                            _eps_series = _hvt_qe[_eps_col].sort_index()
+                            if len(_eps_series) >= 4:
+                                _ttm_eps = _eps_series.rolling(4).sum().dropna()
+                                if len(_ttm_eps) > 0:
+                                    _latest_ttm_eps = float(_ttm_eps.iloc[-1])
+                                    if _latest_ttm_eps > 0:
+                                        _hvt_pe_series = _hvt_close / _latest_ttm_eps
+                                        _hvt_pe_series = _hvt_pe_series[(_hvt_pe_series > 0) & (_hvt_pe_series < _hvt_pe_series.quantile(0.98))]
+                                        _hvt_pe_computed = True
+                        except Exception:
+                            pass
+                    if not _hvt_pe_computed:
+                        _hvt_eps_now = _hvt_current_price / _hvt_current_pe
+                        if _hvt_eps_now > 0:
+                            _hvt_pe_series = _hvt_close / _hvt_eps_now
+                            _hvt_pe_series = _hvt_pe_series[(_hvt_pe_series > 0) & (_hvt_pe_series < _hvt_pe_series.quantile(0.98))]
+
+                if _hvt_current_ps and _hvt_current_ps > 0 and _hvt_current_price > 0:
+                    _hvt_sps = _hvt_current_price / _hvt_current_ps
+                    if _hvt_sps > 0:
+                        _hvt_ps_series = _hvt_close / _hvt_sps
+                        _hvt_ps_series = _hvt_ps_series[(_hvt_ps_series > 0) & (_hvt_ps_series < _hvt_ps_series.quantile(0.98))]
+
+                if _hvt_current_ev_ebitda and _hvt_current_ev_ebitda > 0 and _hvt_current_price > 0:
+                    # Approximate EV/EBITDA using EV ≈ MCap (simplified) scaled by price
+                    _hvt_ebitda_implied = (_hvt_current_price * _hvt_shares) / _hvt_current_ev_ebitda if _hvt_shares else None
+                    if _hvt_ebitda_implied and _hvt_ebitda_implied > 0:
+                        _hvt_ev_ebitda_series = (_hvt_close * _hvt_shares) / _hvt_ebitda_implied
+                        _hvt_ev_ebitda_series = _hvt_ev_ebitda_series[(_hvt_ev_ebitda_series > 0) & (_hvt_ev_ebitda_series < _hvt_ev_ebitda_series.quantile(0.98))]
+
+                # Build multi-line chart
+                _hvt_fig = go.Figure()
+                _hvt_has_data = False
+
+                if _hvt_pe_series is not None and len(_hvt_pe_series) > 10:
+                    _hvt_fig.add_trace(go.Scatter(x=_hvt_pe_series.index, y=_hvt_pe_series.values, name="P/E (TTM)", line=dict(color="#6B5CE7", width=2)))
+                    if _hvt_current_pe:
+                        _hvt_fig.add_trace(go.Scatter(x=[_hvt_pe_series.index[-1]], y=[_hvt_current_pe], name=f"Current P/E: {_hvt_current_pe:.1f}x", mode="markers", marker=dict(color="#6B5CE7", size=10, symbol="diamond")))
+                    _hvt_has_data = True
+
+                if _hvt_ev_ebitda_series is not None and len(_hvt_ev_ebitda_series) > 10:
+                    _hvt_fig.add_trace(go.Scatter(x=_hvt_ev_ebitda_series.index, y=_hvt_ev_ebitda_series.values, name="EV/EBITDA", line=dict(color="#E8638B", width=2)))
+                    if _hvt_current_ev_ebitda:
+                        _hvt_fig.add_trace(go.Scatter(x=[_hvt_ev_ebitda_series.index[-1]], y=[_hvt_current_ev_ebitda], name=f"Current EV/EBITDA: {_hvt_current_ev_ebitda:.1f}x", mode="markers", marker=dict(color="#E8638B", size=10, symbol="diamond")))
+                    _hvt_has_data = True
+
+                if _hvt_ps_series is not None and len(_hvt_ps_series) > 10:
+                    _hvt_fig.add_trace(go.Scatter(x=_hvt_ps_series.index, y=_hvt_ps_series.values, name="P/S (TTM)", line=dict(color="#10B981", width=2)))
+                    if _hvt_current_ps:
+                        _hvt_fig.add_trace(go.Scatter(x=[_hvt_ps_series.index[-1]], y=[_hvt_current_ps], name=f"Current P/S: {_hvt_current_ps:.1f}x", mode="markers", marker=dict(color="#10B981", size=10, symbol="diamond")))
+                    _hvt_has_data = True
+
+                if _hvt_has_data:
+                    _hvt_fig.update_layout(
+                        **_CHART_LAYOUT_BASE, height=380,
+                        title=dict(text="Trailing 5Y Valuation Multiples", font=dict(size=12, color="#B8B3D7")),
+                        yaxis=dict(title=dict(text="Multiple (x)", font=dict(size=10, color="#8A85AD")), ticksuffix="x", tickfont=dict(size=9, color="#8A85AD")),
+                        xaxis=dict(tickfont=dict(size=9, color="#8A85AD")),
+                        legend=dict(font=dict(size=9, color="#8A85AD"), orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5),
+                    )
+                    _apply_space_grid(_hvt_fig)
+                    st.plotly_chart(_hvt_fig, use_container_width=True, key="hvt_5y_chart")
+
+                    # ── Valuation Percentile ──
+                    _hvt_pctiles = []
+                    if _hvt_pe_series is not None and len(_hvt_pe_series) > 10 and _hvt_current_pe:
+                        _pct = ((_hvt_pe_series < _hvt_current_pe).sum() / len(_hvt_pe_series)) * 100
+                        _hvt_pctiles.append(("P/E", _hvt_current_pe, _pct, "#6B5CE7"))
+                    if _hvt_ev_ebitda_series is not None and len(_hvt_ev_ebitda_series) > 10 and _hvt_current_ev_ebitda:
+                        _pct = ((_hvt_ev_ebitda_series < _hvt_current_ev_ebitda).sum() / len(_hvt_ev_ebitda_series)) * 100
+                        _hvt_pctiles.append(("EV/EBITDA", _hvt_current_ev_ebitda, _pct, "#E8638B"))
+                    if _hvt_ps_series is not None and len(_hvt_ps_series) > 10 and _hvt_current_ps:
+                        _pct = ((_hvt_ps_series < _hvt_current_ps).sum() / len(_hvt_ps_series)) * 100
+                        _hvt_pctiles.append(("P/S", _hvt_current_ps, _pct, "#10B981"))
+
+                    if _hvt_pctiles:
+                        st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; margin:0.8rem 0 0.5rem 0;">📊 Valuation Percentile (vs Own 5Y History)</div>', unsafe_allow_html=True)
+                        _pct_cols = st.columns(len(_hvt_pctiles))
+                        for _pi, (_p_label, _p_val, _p_pct, _p_color) in enumerate(_hvt_pctiles):
+                            _p_interp = "Cheap" if _p_pct < 25 else "Below Avg" if _p_pct < 40 else "Fair" if _p_pct < 60 else "Above Avg" if _p_pct < 75 else "Expensive"
+                            _p_interp_color = "#10B981" if _p_pct < 30 else "#F5A623" if _p_pct < 70 else "#EF4444"
+                            with _pct_cols[_pi]:
+                                st.markdown(
+                                    f'<div style="background:rgba(255,255,255,0.03); border:1px solid {_p_color}33; border-radius:12px; padding:0.8rem; text-align:center;">'
+                                    f'<div style="font-size:0.6rem; color:#8A85AD; text-transform:uppercase; letter-spacing:0.5px;">{_p_label}</div>'
+                                    f'<div style="font-size:1.3rem; font-weight:800; color:#E0DCF5;">{_p_val:.1f}x</div>'
+                                    f'<div style="margin:0.4rem 0; height:6px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden;">'
+                                    f'<div style="width:{_p_pct:.0f}%; height:100%; background:{_p_color}; border-radius:3px;"></div></div>'
+                                    f'<div style="font-size:0.7rem; font-weight:700; color:{_p_interp_color};">{_p_pct:.0f}th percentile — {_p_interp}</div>'
+                                    f'</div>',
+                                    unsafe_allow_html=True,
+                                )
+                else:
+                    st.info("Insufficient historical data for valuation trend chart.")
+            else:
+                st.info("Need at least 60 days of price history for valuation trends.")
+        except Exception as _hvt_e:
+            st.info(f"Historical valuation trends unavailable: {_hvt_e}")
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
     # 2b-ii. EXECUTIVE SUMMARY (IB Pitch Book style)
     # ══════════════════════════════════════════════════════
     with _safe_section("Executive Summary"):
@@ -8302,6 +8440,202 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             )
 
     # ══════════════════════════════════════════════════════
+    # 2c. INVESTMENT THESIS GENERATOR
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Investment Thesis Generator"):
+        _section("Investment Thesis Generator", "📝")
+        try:
+            _itg_tk = yf.Ticker(cd.ticker)
+            _itg_info = _itg_tk.info or {}
+
+            # ── Gather financial data ──
+            _itg_rev_growth = cd.revenue_growth
+            _itg_gm = cd.gross_margins
+            _itg_om = cd.operating_margins
+            _itg_pm = cd.profit_margins
+            _itg_roe = cd.return_on_equity
+            _itg_pe = cd.trailing_pe
+            _itg_fwd_pe = cd.forward_pe
+            _itg_ev_ebitda = cd.ev_to_ebitda
+            _itg_de = cd.debt_to_equity
+            _itg_price = cd.current_price or 0
+            _itg_mcap = cd.market_cap or 0
+            _itg_beta = cd.beta
+            _itg_52h = cd.fifty_two_week_high or 0
+            _itg_52l = cd.fifty_two_week_low or 0
+            _itg_sector = cd.sector or "N/A"
+            _itg_short_pct = _itg_info.get("shortPercentOfFloat", 0) or 0
+
+            # FCF
+            _itg_fcf = None
+            if cd.free_cashflow_series is not None and len(cd.free_cashflow_series) > 0:
+                _itg_fcf = float(cd.free_cashflow_series.iloc[0])
+            _itg_fcf_yield = (_itg_fcf / _itg_mcap * 100) if _itg_fcf and _itg_mcap > 0 else 0
+
+            # DCF intrinsic value
+            _itg_iv = None
+            _itg_upside = 0
+            try:
+                _itg_iv = calculate_intrinsic_value(cd)
+                if _itg_iv:
+                    _itg_upside = _itg_iv.get("upside_pct", 0)
+            except Exception:
+                pass
+
+            # Margin trend
+            _itg_gm_expanding = False
+            if cd.gross_margin_series is not None and len(cd.gross_margin_series) >= 2:
+                _gms_vals = [v for v in cd.gross_margin_series.values if v is not None and v == v]
+                if len(_gms_vals) >= 2:
+                    _itg_gm_expanding = _gms_vals[0] > _gms_vals[-1]
+
+            # Sector benchmark
+            _itg_bench = get_sector_benchmarks(cd.sector) if cd.sector else None
+            _itg_sector_pe = _itg_bench["pe"]["median"] if _itg_bench else None
+
+            # ── Bull Case (3 bullets from actual data) ──
+            _itg_bulls = []
+            if _itg_rev_growth and _itg_rev_growth > 0.08:
+                _itg_bulls.append(f"<b>Revenue momentum:</b> {_itg_rev_growth*100:.1f}% growth signals strong demand — above-market top-line expansion in {_itg_sector}")
+            elif _itg_fcf_yield > 4:
+                _itg_bulls.append(f"<b>Cash cow profile:</b> {_itg_fcf_yield:.1f}% FCF yield — strong cash generation funds buybacks, dividends, or M&A")
+            else:
+                _itg_bulls.append(f"<b>Market position:</b> {format_number(_itg_mcap)} market cap in {_itg_sector} — scale advantages and brand moat")
+
+            if _itg_gm_expanding and _itg_gm:
+                _itg_bulls.append(f"<b>Margin expansion:</b> Gross margins trending up to {_itg_gm*100:.1f}% — operating leverage kicking in, path to higher profitability")
+            elif _itg_om and _itg_om > 0.15:
+                _itg_bulls.append(f"<b>Operational efficiency:</b> {_itg_om*100:.1f}% operating margin demonstrates cost discipline and pricing power")
+            elif _itg_roe and _itg_roe > 0.15:
+                _itg_bulls.append(f"<b>Capital efficiency:</b> {_itg_roe*100:.1f}% ROE — management effectively deploying shareholder capital")
+            else:
+                _itg_bulls.append(f"<b>Valuation upside:</b> Current multiples suggest room for re-rating as fundamentals improve")
+
+            if _itg_pe and _itg_sector_pe and _itg_pe < _itg_sector_pe:
+                _itg_bulls.append(f"<b>Undervalued vs peers:</b> {_itg_pe:.1f}x P/E vs sector median {_itg_sector_pe:.1f}x — potential re-rating candidate")
+            elif _itg_de is not None and _itg_de < 50:
+                _itg_bulls.append(f"<b>Balance sheet strength:</b> D/E of {_itg_de:.0f}% — financial flexibility for growth investments or shareholder returns")
+            else:
+                _itg_bulls.append(f"<b>Strategic value:</b> {cd.industry or _itg_sector} positioning provides optionality for strategic acquirers or organic expansion")
+
+            # ── Bear Case (3 bullets from actual data) ──
+            _itg_bears = []
+            if _itg_rev_growth is not None and _itg_rev_growth < 0:
+                _itg_bears.append(f"<b>Top-line decline:</b> Revenue contracting at {_itg_rev_growth*100:.1f}% — secular headwinds or market share loss")
+            elif _itg_rev_growth is not None and _itg_rev_growth < 0.03:
+                _itg_bears.append(f"<b>Stagnant growth:</b> {_itg_rev_growth*100:.1f}% revenue growth barely keeps pace with inflation")
+            else:
+                _itg_bears.append(f"<b>Growth sustainability:</b> Current growth rate may not be sustainable as comps normalize and market matures")
+
+            if _itg_pe and _itg_pe > 35:
+                _itg_bears.append(f"<b>Valuation risk:</b> {_itg_pe:.0f}x P/E prices in perfection — any earnings miss could trigger significant multiple compression")
+            elif _itg_de is not None and _itg_de > 100:
+                _itg_bears.append(f"<b>Leverage concern:</b> D/E of {_itg_de:.0f}% — rising rates increase interest burden and limit strategic flexibility")
+            elif _itg_beta and _itg_beta > 1.3:
+                _itg_bears.append(f"<b>Volatility risk:</b> Beta of {_itg_beta:.2f} means amplified downside in market corrections")
+            else:
+                _itg_bears.append(f"<b>Competitive pressure:</b> {_itg_sector} sector faces intensifying competition that could pressure margins")
+
+            if _itg_short_pct > 0.05:
+                _itg_bears.append(f"<b>Short interest elevated:</b> {_itg_short_pct*100:.1f}% of float shorted — market skeptics see near-term downside")
+            elif _itg_pm and _itg_pm < 0.05:
+                _itg_bears.append(f"<b>Thin margins:</b> {_itg_pm*100:.1f}% net margin leaves minimal buffer — execution risk is high")
+            else:
+                _itg_bears.append(f"<b>Macro sensitivity:</b> Economic slowdown or sector rotation could weigh on valuation and sentiment")
+
+            # ── Key Catalysts ──
+            _itg_catalysts = []
+            try:
+                _itg_cal = _itg_tk.calendar
+                if _itg_cal is not None:
+                    if isinstance(_itg_cal, dict):
+                        _ed = _itg_cal.get("Earnings Date", [])
+                        if _ed:
+                            _ed_str = _ed[0].strftime("%b %d, %Y") if hasattr(_ed[0], 'strftime') else str(_ed[0])
+                            _itg_catalysts.append(f"📅 <b>Earnings:</b> Next report ~{_ed_str} — key test of growth trajectory")
+                    elif isinstance(_itg_cal, pd.DataFrame) and not _itg_cal.empty:
+                        for col in _itg_cal.columns:
+                            if "earnings" in str(col).lower():
+                                _ed_val = _itg_cal[col].iloc[0] if len(_itg_cal[col]) > 0 else None
+                                if _ed_val:
+                                    _ed_str = _ed_val.strftime("%b %d, %Y") if hasattr(_ed_val, 'strftime') else str(_ed_val)
+                                    _itg_catalysts.append(f"📅 <b>Earnings:</b> Next report ~{_ed_str}")
+                                    break
+            except Exception:
+                pass
+
+            if _itg_rev_growth and _itg_rev_growth > 0.15:
+                _itg_catalysts.append(f"🚀 <b>Growth inflection:</b> {_itg_rev_growth*100:.1f}% growth could attract momentum investors and analyst upgrades")
+            if _itg_fcf_yield > 3:
+                _itg_catalysts.append(f"💰 <b>Capital return:</b> {_itg_fcf_yield:.1f}% FCF yield supports potential buyback or dividend increase announcements")
+            if _itg_upside > 20:
+                _itg_catalysts.append(f"🎯 <b>Valuation gap:</b> DCF suggests {_itg_upside:+.0f}% upside — catalyst for value investors if market recognizes intrinsic worth")
+            elif _itg_upside < -20:
+                _itg_catalysts.append(f"⚠️ <b>Overvaluation risk:</b> DCF suggests {_itg_upside:+.0f}% — any negative news could close the gap quickly")
+            if _itg_short_pct > 0.10:
+                _itg_catalysts.append(f"🔥 <b>Short squeeze potential:</b> {_itg_short_pct*100:.1f}% short interest — positive surprise could trigger forced covering")
+            if not _itg_catalysts:
+                _itg_catalysts.append("📊 <b>Steady state:</b> No near-term catalysts identified — stock likely trades with sector sentiment")
+
+            # ── Verdict ──
+            if _itg_iv and _itg_iv.get("intrinsic_value_per_share"):
+                _itg_dcf_price = _itg_iv["intrinsic_value_per_share"]
+                if _itg_upside > 15:
+                    _itg_verdict = f"BUY at {cs}{_itg_price:,.2f}"
+                    _itg_verdict_color = "#10B981"
+                    _itg_verdict_detail = f"DCF target: {cs}{_itg_dcf_price:,.2f} ({_itg_upside:+.1f}% upside)"
+                elif _itg_upside < -15:
+                    _itg_verdict = "SELL"
+                    _itg_verdict_color = "#EF4444"
+                    _itg_verdict_detail = f"DCF target: {cs}{_itg_dcf_price:,.2f} ({_itg_upside:+.1f}% — overvalued)"
+                else:
+                    _itg_verdict = "HOLD"
+                    _itg_verdict_color = "#F5A623"
+                    _itg_verdict_detail = f"DCF target: {cs}{_itg_dcf_price:,.2f} ({_itg_upside:+.1f}% — fairly valued)"
+            else:
+                if _itg_pe and _itg_sector_pe and _itg_pe < _itg_sector_pe * 0.8:
+                    _itg_verdict = f"BUY at {cs}{_itg_price:,.2f}"
+                    _itg_verdict_color = "#10B981"
+                    _itg_verdict_detail = f"Trading at significant discount to sector ({_itg_pe:.1f}x vs {_itg_sector_pe:.1f}x)"
+                elif _itg_pe and _itg_sector_pe and _itg_pe > _itg_sector_pe * 1.3:
+                    _itg_verdict = "SELL"
+                    _itg_verdict_color = "#EF4444"
+                    _itg_verdict_detail = f"Trading at premium to sector ({_itg_pe:.1f}x vs {_itg_sector_pe:.1f}x)"
+                else:
+                    _itg_verdict = "HOLD"
+                    _itg_verdict_color = "#F5A623"
+                    _itg_verdict_detail = "Insufficient DCF data — valuation appears fair on relative basis"
+
+            # ── Render ──
+            _bull_items = "".join(f'<div style="padding:0.3rem 0; font-size:0.82rem; color:#B8B3D7; line-height:1.6;"><span style="color:#10B981; font-weight:700;">▲</span> {b}</div>' for b in _itg_bulls[:3])
+            _bear_items = "".join(f'<div style="padding:0.3rem 0; font-size:0.82rem; color:#B8B3D7; line-height:1.6;"><span style="color:#EF4444; font-weight:700;">▼</span> {b}</div>' for b in _itg_bears[:3])
+            _catalyst_items = "".join(f'<div style="padding:0.3rem 0; font-size:0.82rem; color:#B8B3D7; line-height:1.6;">{c}</div>' for c in _itg_catalysts[:4])
+
+            st.markdown(
+                f'<div style="background:rgba(107,92,231,0.05); border:1px solid rgba(107,92,231,0.15); border-radius:16px; padding:1.2rem; margin:0.5rem 0;">'
+                f'<div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">'
+                f'<div style="background:rgba(16,185,129,0.04); border:1px solid rgba(16,185,129,0.15); border-radius:12px; padding:1rem;">'
+                f'<div style="font-size:0.65rem; font-weight:700; color:#10B981; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:0.5rem;">🐂 Bull Case</div>'
+                f'{_bull_items}</div>'
+                f'<div style="background:rgba(239,68,68,0.04); border:1px solid rgba(239,68,68,0.15); border-radius:12px; padding:1rem;">'
+                f'<div style="font-size:0.65rem; font-weight:700; color:#EF4444; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:0.5rem;">🐻 Bear Case</div>'
+                f'{_bear_items}</div></div>'
+                f'<div style="background:rgba(245,166,35,0.04); border:1px solid rgba(245,166,35,0.15); border-radius:12px; padding:1rem; margin-bottom:1rem;">'
+                f'<div style="font-size:0.65rem; font-weight:700; color:#F5A623; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:0.5rem;">⚡ Key Catalysts</div>'
+                f'{_catalyst_items}</div>'
+                f'<div style="background:rgba(107,92,231,0.08); border:2px solid {_itg_verdict_color}; border-radius:12px; padding:1rem; text-align:center;">'
+                f'<div style="font-size:0.6rem; color:#8A85AD; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:0.3rem;">Investment Verdict</div>'
+                f'<div style="font-size:1.5rem; font-weight:900; color:{_itg_verdict_color};">{_itg_verdict}</div>'
+                f'<div style="font-size:0.8rem; color:#B8B3D7; margin-top:0.3rem;">{_itg_verdict_detail}</div>'
+                f'</div></div>',
+                unsafe_allow_html=True,
+            )
+        except Exception as _itg_e:
+            st.info(f"Investment thesis generator unavailable: {_itg_e}")
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
     # 3. BUSINESS OVERVIEW
     # ══════════════════════════════════════════════════════
     _section("Business Overview")
@@ -9118,6 +9452,107 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         st.plotly_chart(fig_donut, use_container_width=True, key="ownership_donut")
             except Exception:
                 pass
+
+    # ══════════════════════════════════════════════════════
+    # 4b. SHAREHOLDER ANALYSIS (Deep Dive)
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Shareholder Analysis"):
+        _section("Shareholder Analysis", "🏛️")
+        try:
+            _sha_tk = yf.Ticker(cd.ticker)
+            _sha_info = _sha_tk.info or {}
+
+            # ── Major Holders ──
+            _sha_major = None
+            try:
+                _sha_major = _sha_tk.major_holders
+            except Exception:
+                pass
+
+            _sha_insider_pct = None
+            _sha_inst_pct = None
+            if _sha_major is not None and not _sha_major.empty:
+                for _, _sha_row in _sha_major.iterrows():
+                    _sha_label = str(_sha_row.iloc[1]).lower() if len(_sha_row) > 1 else ""
+                    _sha_val_raw = _sha_row.iloc[0] if len(_sha_row) > 0 else ""
+                    try:
+                        _sha_val_num = float(str(_sha_val_raw).replace("%", "")) / 100 if "%" in str(_sha_val_raw) else float(_sha_val_raw)
+                    except (ValueError, TypeError):
+                        _sha_val_num = None
+                    if "insider" in _sha_label and _sha_val_num is not None:
+                        _sha_insider_pct = _sha_val_num
+                    if "institution" in _sha_label and "hold" in _sha_label and _sha_val_num is not None:
+                        _sha_inst_pct = _sha_val_num
+
+            # ── Short Interest ──
+            _sha_short_pct = _sha_info.get("shortPercentOfFloat", 0) or 0
+            _sha_short_ratio = _sha_info.get("shortRatio", 0) or 0
+            _sha_shares_short = _sha_info.get("sharesShort", 0) or 0
+
+            # Short interest interpretation
+            if _sha_short_pct > 0.20:
+                _sha_short_interp = ("🔴 Very High", "Significant bearish sentiment — potential short squeeze candidate", "#EF4444")
+            elif _sha_short_pct > 0.10:
+                _sha_short_interp = ("🟠 High", "Elevated bearish positioning — watch for squeeze or further downside", "#F5A623")
+            elif _sha_short_pct > 0.05:
+                _sha_short_interp = ("🟡 Moderate", "Normal level of skepticism — not a major concern", "#F5A623")
+            else:
+                _sha_short_interp = ("🟢 Low", "Minimal bearish positioning — market broadly constructive", "#10B981")
+
+            # ── Render summary metrics ──
+            _sha_cols = st.columns(4)
+            with _sha_cols[0]:
+                _v = f"{_sha_inst_pct*100:.1f}%" if _sha_inst_pct else "N/A"
+                st.markdown(f'<div style="background:rgba(107,92,231,0.06); border:1px solid rgba(107,92,231,0.15); border-radius:12px; padding:0.8rem; text-align:center;"><div style="font-size:0.6rem; color:#8A85AD; text-transform:uppercase; letter-spacing:0.5px;">Institutional</div><div style="font-size:1.2rem; font-weight:700; color:#6B5CE7;">{_v}</div></div>', unsafe_allow_html=True)
+            with _sha_cols[1]:
+                _v = f"{_sha_insider_pct*100:.1f}%" if _sha_insider_pct else "N/A"
+                st.markdown(f'<div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.15); border-radius:12px; padding:0.8rem; text-align:center;"><div style="font-size:0.6rem; color:#8A85AD; text-transform:uppercase; letter-spacing:0.5px;">Insider Ownership</div><div style="font-size:1.2rem; font-weight:700; color:#10B981;">{_v}</div></div>', unsafe_allow_html=True)
+            with _sha_cols[2]:
+                _v = f"{_sha_short_pct*100:.1f}%" if _sha_short_pct else "N/A"
+                st.markdown(f'<div style="background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.15); border-radius:12px; padding:0.8rem; text-align:center;"><div style="font-size:0.6rem; color:#8A85AD; text-transform:uppercase; letter-spacing:0.5px;">Float Short %</div><div style="font-size:1.2rem; font-weight:700; color:{_sha_short_interp[2]};">{_v}</div></div>', unsafe_allow_html=True)
+            with _sha_cols[3]:
+                _v = f"{_sha_short_ratio:.1f} days" if _sha_short_ratio else "N/A"
+                st.markdown(f'<div style="background:rgba(245,166,35,0.06); border:1px solid rgba(245,166,35,0.15); border-radius:12px; padding:0.8rem; text-align:center;"><div style="font-size:0.6rem; color:#8A85AD; text-transform:uppercase; letter-spacing:0.5px;">Days to Cover</div><div style="font-size:1.2rem; font-weight:700; color:#F5A623;">{_v}</div></div>', unsafe_allow_html=True)
+
+            # Short interest interpretation bar
+            st.markdown(
+                f'<div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:0.6rem 1rem; margin:0.5rem 0;">'
+                f'<span style="font-size:0.75rem; font-weight:700; color:{_sha_short_interp[2]};">{_sha_short_interp[0]}</span>'
+                f'<span style="font-size:0.75rem; color:#8A85AD; margin-left:0.5rem;">{_sha_short_interp[1]}</span></div>',
+                unsafe_allow_html=True,
+            )
+
+            # ── Top 10 Institutional Holders Table ──
+            try:
+                _sha_inst = _sha_tk.institutional_holders
+                if _sha_inst is not None and not _sha_inst.empty:
+                    st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; margin:1rem 0 0.5rem 0;">🏛️ Top 10 Institutional Holders</div>', unsafe_allow_html=True)
+                    _sha_header = (
+                        '<div style="display:flex; padding:0.4rem 0; border-bottom:2px solid rgba(107,92,231,0.2); font-size:0.65rem; color:#8A85AD; text-transform:uppercase; letter-spacing:0.5px;">'
+                        '<span style="flex:2.5;">Holder</span><span style="flex:1.2; text-align:right;">Shares</span>'
+                        '<span style="flex:1; text-align:right;">Value</span><span style="flex:0.8; text-align:right;">% Out</span></div>'
+                    )
+                    _sha_rows_html = _sha_header
+                    for _si, _sha_r in _sha_inst.head(10).iterrows():
+                        _h_name = _sha_r.get("Holder", "Unknown")
+                        _h_shares = _sha_r.get("Shares", 0)
+                        _h_val = _sha_r.get("Value", 0)
+                        _h_pct = _sha_r.get("% Out", _sha_r.get("pctHeld", 0))
+                        _h_pct_s = f"{_h_pct:.2%}" if isinstance(_h_pct, float) and _h_pct < 1 else f"{_h_pct}"
+                        _h_val_s = f"${_h_val/1e9:,.1f}B" if _h_val and _h_val >= 1e9 else f"${_h_val/1e6:,.0f}M" if _h_val and _h_val >= 1e6 else "—"
+                        _sha_rows_html += (
+                            f'<div style="display:flex; padding:0.35rem 0; border-bottom:1px solid rgba(255,255,255,0.04); font-size:0.75rem;">'
+                            f'<span style="color:#E0DCF5; flex:2.5;">{_h_name}</span>'
+                            f'<span style="color:#B8B3D7; flex:1.2; text-align:right;">{_h_shares:,.0f}</span>'
+                            f'<span style="color:#9B8AFF; flex:1; text-align:right;">{_h_val_s}</span>'
+                            f'<span style="color:#6B5CE7; flex:0.8; text-align:right; font-weight:600;">{_h_pct_s}</span></div>'
+                        )
+                    st.markdown(_sha_rows_html, unsafe_allow_html=True)
+            except Exception:
+                pass
+
+        except Exception as _sha_e:
+            st.info(f"Shareholder analysis unavailable: {_sha_e}")
 
     _divider()
 
@@ -13653,6 +14088,131 @@ Write in this format:
             use_container_width=True,
             key="qa_memo_dl",
         )
+
+    # ── Additional Quick Action Row ──
+    st.markdown('<div style="height:0.3rem;"></div>', unsafe_allow_html=True)
+    _qa6, _qa7, _qa8 = st.columns(3)
+    with _qa6:
+        # Compare with S&P 500
+        if st.button("📈 vs S&P 500", use_container_width=True, key="qa_sp500_cmp"):
+            st.session_state["_qa_show_sp500"] = True
+    with _qa7:
+        # Export All (PPTX + HTML + Excel)
+        try:
+            _qa_all_buf = io.BytesIO()
+            import zipfile as _qa_zf
+            with _qa_zf.ZipFile(_qa_all_buf, 'w', _qa_zf.ZIP_DEFLATED) as _qa_zip:
+                # PPTX
+                try:
+                    if not os.path.exists("assets/template.pptx"):
+                        from create_template import build
+                        build()
+                    _qa_pptx_data = generate_presentation(cd)
+                    _qa_zip.writestr(f"{cd.ticker}_Profile.pptx", _qa_pptx_data)
+                except Exception:
+                    pass
+                # Excel
+                try:
+                    _qa_xl_data = _export_to_excel(cd)
+                    _qa_zip.writestr(f"{cd.ticker}_Data.xlsx", _qa_xl_data)
+                except Exception:
+                    pass
+                # HTML summary
+                _qa_html_content = (
+                    f"<html><head><title>{cd.name} ({cd.ticker}) Analysis</title>"
+                    f"<style>body{{font-family:Arial,sans-serif;background:#0F0E1A;color:#E0DCF5;padding:2rem;}}"
+                    f"h1{{color:#6B5CE7;}}h2{{color:#9B8AFF;}}table{{border-collapse:collapse;width:100%;}}"
+                    f"td,th{{border:1px solid #333;padding:8px;text-align:right;}}th{{background:#1A1830;}}</style></head><body>"
+                    f"<h1>{cd.name} ({cd.ticker})</h1>"
+                    f"<p>Sector: {cd.sector or 'N/A'} | Industry: {cd.industry or 'N/A'}</p>"
+                    f"<h2>Key Metrics</h2><table><tr><th>Metric</th><th>Value</th></tr>"
+                    f"<tr><td>Price</td><td>{cs}{cd.current_price:,.2f}</td></tr>"
+                    f"<tr><td>Market Cap</td><td>{format_number(cd.market_cap)}</td></tr>"
+                    f"<tr><td>P/E (TTM)</td><td>{format_multiple(cd.trailing_pe)}</td></tr>"
+                    f"<tr><td>EV/EBITDA</td><td>{format_multiple(cd.ev_to_ebitda)}</td></tr>"
+                    f"<tr><td>Gross Margin</td><td>{format_pct(cd.gross_margins)}</td></tr>"
+                    f"<tr><td>Op Margin</td><td>{format_pct(cd.operating_margins)}</td></tr>"
+                    f"<tr><td>ROE</td><td>{format_pct(cd.return_on_equity)}</td></tr>"
+                    f"<tr><td>Revenue Growth</td><td>{format_pct(cd.revenue_growth)}</td></tr>"
+                    f"</table><p style='color:#8A85AD;font-size:0.8rem;margin-top:2rem;'>Generated by Orbital ProfileBuilder</p></body></html>"
+                )
+                _qa_zip.writestr(f"{cd.ticker}_Summary.html", _qa_html_content)
+            _qa_all_buf.seek(0)
+            st.download_button(
+                label="📦 Export All",
+                data=_qa_all_buf.getvalue(),
+                file_name=f"{cd.ticker}_Complete.zip",
+                mime="application/zip",
+                use_container_width=True,
+                key="qa_export_all_dl",
+            )
+        except Exception:
+            st.button("📦 Export All", disabled=True, use_container_width=True, key="qa_export_all_na")
+    with _qa8:
+        # Share Analysis — base64 encoded summary URL
+        import base64 as _qa_b64
+        _qa_share_data = json.dumps({
+            "t": cd.ticker, "n": cd.name, "p": round(cd.current_price, 2) if cd.current_price else 0,
+            "mc": format_number(cd.market_cap), "pe": round(cd.trailing_pe, 1) if cd.trailing_pe else None,
+            "ev": round(cd.ev_to_ebitda, 1) if cd.ev_to_ebitda else None,
+            "gm": round(cd.gross_margins * 100, 1) if cd.gross_margins else None,
+            "rg": round(cd.revenue_growth * 100, 1) if cd.revenue_growth else None,
+            "s": cd.sector,
+        })
+        _qa_share_encoded = _qa_b64.b64encode(_qa_share_data.encode()).decode()
+        _qa_share_url = f"?shared={_qa_share_encoded}"
+        st.markdown(
+            f'<button onclick="navigator.clipboard.writeText(window.location.origin + window.location.pathname + \'{_qa_share_url}\').then(()=>{{this.textContent=\'✅ Copied!\';setTimeout(()=>this.textContent=\'🔗 Share Analysis\',1500)}})" '
+            f'style="width:100%; padding:0.4rem; background:rgba(107,92,231,0.1); border:1px solid rgba(107,92,231,0.2); '
+            f'border-radius:8px; color:#B8B3D7; cursor:pointer; font-size:0.8rem;">🔗 Share Analysis</button>',
+            unsafe_allow_html=True,
+        )
+
+    # ── S&P 500 Comparison Chart (shown when button clicked) ──
+    if st.session_state.get("_qa_show_sp500", False):
+        try:
+            _sp_ticker = yf.Ticker("^GSPC")
+            _sp_hist = _sp_ticker.history(period="1y")
+            _co_hist = yf.Ticker(cd.ticker).history(period="1y")
+            if _sp_hist is not None and len(_sp_hist) > 10 and _co_hist is not None and len(_co_hist) > 10:
+                _sp_norm = (_sp_hist['Close'] / _sp_hist['Close'].iloc[0] - 1) * 100
+                _co_norm = (_co_hist['Close'] / _co_hist['Close'].iloc[0] - 1) * 100
+                _sp_fig = go.Figure()
+                _sp_fig.add_trace(go.Scatter(x=_co_norm.index, y=_co_norm.values, name=cd.ticker, line=dict(color="#6B5CE7", width=2.5)))
+                _sp_fig.add_trace(go.Scatter(x=_sp_norm.index, y=_sp_norm.values, name="S&P 500", line=dict(color="#8A85AD", width=1.5, dash="dash")))
+                _sp_fig.add_hline(y=0, line_dash="dot", line_color="rgba(255,255,255,0.15)")
+                _sp_fig.update_layout(
+                    **_CHART_LAYOUT_BASE, height=350,
+                    title=dict(text=f"{cd.ticker} vs S&P 500 — 1Y Relative Performance", font=dict(size=12, color="#B8B3D7")),
+                    yaxis=dict(title=dict(text="Return (%)", font=dict(size=10, color="#8A85AD")), ticksuffix="%", tickfont=dict(size=9, color="#8A85AD")),
+                    xaxis=dict(tickfont=dict(size=9, color="#8A85AD")),
+                    legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+                )
+                _apply_space_grid(_sp_fig)
+                st.plotly_chart(_sp_fig, use_container_width=True, key="qa_sp500_chart")
+
+                # Performance summary
+                _co_ret = _co_norm.iloc[-1] if len(_co_norm) > 0 else 0
+                _sp_ret = _sp_norm.iloc[-1] if len(_sp_norm) > 0 else 0
+                _alpha = _co_ret - _sp_ret
+                _alpha_color = "#10B981" if _alpha > 0 else "#EF4444"
+                st.markdown(
+                    f'<div style="display:flex; gap:1rem; justify-content:center; margin:0.5rem 0;">'
+                    f'<div style="background:rgba(107,92,231,0.08); border-radius:10px; padding:0.5rem 1rem; text-align:center;">'
+                    f'<div style="font-size:0.6rem; color:#8A85AD;">{cd.ticker}</div>'
+                    f'<div style="font-size:1rem; font-weight:700; color:{"#10B981" if _co_ret > 0 else "#EF4444"};">{_co_ret:+.1f}%</div></div>'
+                    f'<div style="background:rgba(138,133,173,0.08); border-radius:10px; padding:0.5rem 1rem; text-align:center;">'
+                    f'<div style="font-size:0.6rem; color:#8A85AD;">S&P 500</div>'
+                    f'<div style="font-size:1rem; font-weight:700; color:{"#10B981" if _sp_ret > 0 else "#EF4444"};">{_sp_ret:+.1f}%</div></div>'
+                    f'<div style="background:rgba(255,255,255,0.04); border-radius:10px; padding:0.5rem 1rem; text-align:center;">'
+                    f'<div style="font-size:0.6rem; color:#8A85AD;">Alpha (1Y)</div>'
+                    f'<div style="font-size:1rem; font-weight:700; color:{_alpha_color};">{_alpha:+.1f}%</div></div></div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.info("Insufficient data for S&P 500 comparison.")
+        except Exception as _sp_e:
+            st.info(f"S&P 500 comparison unavailable: {_sp_e}")
 
 elif analysis_mode == "Company Profile" and generate_btn and not ticker_input:
     st.warning("⚠️ Please enter a ticker symbol in the sidebar (e.g., AAPL, MSFT, GOOGL).")
