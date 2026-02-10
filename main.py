@@ -6059,6 +6059,68 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             unsafe_allow_html=True,
         )
 
+    # ══════════════════════════════════════════════════════
+    # INDUSTRY SNAPSHOT PANEL
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Industry Snapshot"):
+        _ind_sector = cd.sector or ""
+        _ind_industry = cd.industry or ""
+        _ind_bench = get_sector_benchmarks(_ind_sector) if _ind_sector else None
+        if _ind_sector and _ind_bench:
+            _ind_pe_med = _ind_bench["pe"]["median"]
+            _ind_ev_med = _ind_bench["ev_ebitda"]["median"]
+            _ind_gr_med = _ind_bench["revenue_growth"]["median"]
+            # Discover top peers
+            _ind_peers = []
+            if cd.peer_data:
+                _sorted_peers = sorted(cd.peer_data, key=lambda p: p.get("market_cap", 0) or 0, reverse=True)
+                _ind_peers = _sorted_peers[:3]
+            _ind_peer_count = len(cd.peer_data) if cd.peer_data else 0
+            _ind_mcap_str = ""
+            if cd.market_cap:
+                if cd.market_cap >= 200e9:
+                    _ind_mcap_str = "Mega Cap"
+                elif cd.market_cap >= 10e9:
+                    _ind_mcap_str = "Large Cap"
+                elif cd.market_cap >= 2e9:
+                    _ind_mcap_str = "Mid Cap"
+                elif cd.market_cap >= 300e6:
+                    _ind_mcap_str = "Small Cap"
+                else:
+                    _ind_mcap_str = "Micro Cap"
+
+            _ind_peers_html = ""
+            for _ip in _ind_peers:
+                _ip_name = _ip.get("name", _ip.get("ticker", "?"))
+                _ip_mcap = _ip.get("market_cap", 0)
+                _ip_mcap_fmt = f"${_ip_mcap/1e9:.1f}B" if _ip_mcap >= 1e9 else f"${_ip_mcap/1e6:.0f}M" if _ip_mcap >= 1e6 else "N/A"
+                _ind_peers_html += (
+                    f'<div style="display:flex; justify-content:space-between; padding:0.15rem 0; '
+                    f'font-size:0.72rem; color:#B8B3D7;">'
+                    f'<span>{_ip_name}</span><span style="color:#9B8AFF;">{_ip_mcap_fmt}</span></div>'
+                )
+
+            st.markdown(
+                f'<div style="background:rgba(107,92,231,0.04); border:1px solid rgba(107,92,231,0.12); '
+                f'border-radius:12px; padding:0.8rem 1rem; margin:0.3rem 0 0.6rem 0;">'
+                f'<div style="font-size:0.65rem; font-weight:700; color:#6B5CE7; text-transform:uppercase; '
+                f'letter-spacing:1.5px; margin-bottom:0.5rem;">🏭 Industry Snapshot</div>'
+                f'<div style="display:grid; grid-template-columns:1fr 1fr; gap:0.3rem 1rem; font-size:0.75rem;">'
+                f'<div style="color:#8A85AD;">Sector</div><div style="color:#E0DCF5;">{_ind_sector}</div>'
+                f'<div style="color:#8A85AD;">Industry</div><div style="color:#E0DCF5;">{_ind_industry}</div>'
+                f'<div style="color:#8A85AD;">Market Position</div><div style="color:#E0DCF5;">{_ind_mcap_str}</div>'
+                f'<div style="color:#8A85AD;">Sector Median P/E</div><div style="color:#E0DCF5;">{_ind_pe_med:.1f}x</div>'
+                f'<div style="color:#8A85AD;">Sector Median EV/EBITDA</div><div style="color:#E0DCF5;">{_ind_ev_med:.1f}x</div>'
+                f'<div style="color:#8A85AD;">Sector Growth Rate</div><div style="color:#E0DCF5;">{_ind_gr_med*100:.1f}%</div>'
+                f'<div style="color:#8A85AD;">Tracked Peers</div><div style="color:#E0DCF5;">{_ind_peer_count} companies</div>'
+                f'</div>'
+                + (f'<div style="margin-top:0.5rem; border-top:1px solid rgba(107,92,231,0.1); padding-top:0.4rem;">'
+                   f'<div style="font-size:0.62rem; color:#6B5CE7; font-weight:600; margin-bottom:0.2rem;">Top Peers by Market Cap</div>'
+                   f'{_ind_peers_html}</div>' if _ind_peers_html else '')
+                + f'</div>',
+                unsafe_allow_html=True,
+            )
+
     # ── Price Context Bar (52-week range with MA markers) ──
     _pc_low = getattr(cd, 'fifty_two_week_low', None) or 0
     _pc_high = getattr(cd, 'fifty_two_week_high', None) or 0
@@ -6671,6 +6733,222 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         pass
 
     # ══════════════════════════════════════════════════════
+    # 🏰 ECONOMIC MOAT ASSESSMENT
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Economic Moat Assessment"):
+        try:
+            # ── Calculate 5 moat dimensions (0-100 each) ──
+            _moat_scores = {}
+            _moat_details = {}
+
+            # 1) Pricing Power: gross margin stability & level
+            _pp_score = 0
+            _pp_detail = "Insufficient margin data"
+            if cd.gross_margin_series is not None and len(cd.gross_margin_series) >= 2:
+                _gm_vals = [v for v in cd.gross_margin_series.values if v is not None and not (isinstance(v, float) and v != v)]
+                if _gm_vals:
+                    _gm_avg = sum(_gm_vals) / len(_gm_vals)
+                    _gm_std = (sum((v - _gm_avg)**2 for v in _gm_vals) / len(_gm_vals)) ** 0.5
+                    _gm_stability = max(0, 1 - _gm_std * 10)  # Low std = high stability
+                    _gm_level = min(1, _gm_avg)  # Higher margin = better
+                    _pp_score = int(min(100, (_gm_level * 60 + _gm_stability * 40)))
+                    _pp_detail = f"Avg gross margin {_gm_avg*100:.1f}% with {'stable' if _gm_std < 0.03 else 'variable'} trend"
+            elif cd.gross_margins is not None:
+                _gm_single = cd.gross_margins
+                _pp_score = int(min(100, max(0, _gm_single * 100)))
+                _pp_detail = f"Current gross margin {_gm_single*100:.1f}%"
+            _moat_scores["Pricing Power"] = _pp_score
+            _moat_details["Pricing Power"] = _pp_detail
+
+            # 2) Switching Costs: revenue growth consistency (proxy for retention)
+            _sc_score = 0
+            _sc_detail = "Insufficient revenue data"
+            if cd.revenue is not None and len(cd.revenue) >= 3:
+                _rev_vals = [float(v) for v in cd.revenue.values if v is not None and float(v) > 0]
+                if len(_rev_vals) >= 3:
+                    _rev_growths = [(_rev_vals[i] / _rev_vals[i+1] - 1) for i in range(len(_rev_vals)-1)]
+                    _pos_growth = sum(1 for g in _rev_growths if g > 0) / len(_rev_growths)
+                    _avg_growth = sum(_rev_growths) / len(_rev_growths)
+                    _sc_score = int(min(100, max(0, _pos_growth * 50 + min(1, max(0, _avg_growth * 5)) * 50)))
+                    # Boost for industries with inherently high switching costs
+                    _high_switch_industries = ["software", "saas", "cloud", "banking", "insurance", "enterprise"]
+                    if any(kw in (cd.industry or "").lower() for kw in _high_switch_industries):
+                        _sc_score = min(100, _sc_score + 15)
+                    _sc_detail = f"{'Consistent' if _pos_growth > 0.7 else 'Mixed'} revenue growth ({_avg_growth*100:.1f}% avg)"
+            _moat_scores["Switching Costs"] = _sc_score
+            _moat_details["Switching Costs"] = _sc_detail
+
+            # 3) Scale Advantage: market cap vs industry, size
+            _sa_score = 0
+            _sa_detail = "No market cap data"
+            if cd.market_cap and cd.market_cap > 0:
+                if cd.market_cap >= 200e9:
+                    _sa_score = 90
+                    _sa_detail = "Mega-cap with dominant scale"
+                elif cd.market_cap >= 50e9:
+                    _sa_score = 70
+                    _sa_detail = "Large-cap with significant scale advantages"
+                elif cd.market_cap >= 10e9:
+                    _sa_score = 50
+                    _sa_detail = "Mid-to-large cap with moderate scale"
+                elif cd.market_cap >= 2e9:
+                    _sa_score = 30
+                    _sa_detail = "Mid-cap with limited scale advantages"
+                else:
+                    _sa_score = 15
+                    _sa_detail = "Small-cap, minimal scale advantage"
+                # Boost if significantly larger than peers
+                if cd.peer_data:
+                    _peer_mcaps = [p.get("market_cap", 0) for p in cd.peer_data if p.get("market_cap", 0) > 0]
+                    if _peer_mcaps:
+                        _peer_median = sorted(_peer_mcaps)[len(_peer_mcaps)//2]
+                        if cd.market_cap > _peer_median * 3:
+                            _sa_score = min(100, _sa_score + 15)
+                            _sa_detail += " — dominant vs peers"
+            _moat_scores["Scale Advantage"] = _sa_score
+            _moat_details["Scale Advantage"] = _sa_detail
+
+            # 4) Intangible Assets: R&D intensity + brand proxy (profit margins)
+            _ia_score = 0
+            _ia_detail = "Limited intangible asset signals"
+            _ia_rd_pct = None
+            if cd.income_stmt is not None:
+                try:
+                    _rd_row = None
+                    for _rd_label in ["ResearchAndDevelopment", "Research And Development", "ResearchDevelopment"]:
+                        if _rd_label in cd.income_stmt.index:
+                            _rd_row = cd.income_stmt.loc[_rd_label]
+                            break
+                    if _rd_row is not None and cd.revenue is not None and len(cd.revenue) > 0:
+                        _rd_val = float(_rd_row.iloc[0]) if len(_rd_row) > 0 else 0
+                        _rev_val = float(cd.revenue.iloc[0])
+                        if _rev_val > 0 and _rd_val > 0:
+                            _ia_rd_pct = _rd_val / _rev_val
+                except Exception:
+                    pass
+            _pm_score = 0
+            if cd.profit_margins is not None and cd.profit_margins > 0:
+                _pm_score = min(50, int(cd.profit_margins * 200))  # 25% margin = 50 pts
+            _rd_score = 0
+            if _ia_rd_pct is not None:
+                _rd_score = min(50, int(_ia_rd_pct * 300))  # ~17% R&D = 50 pts
+                _ia_detail = f"R&D at {_ia_rd_pct*100:.1f}% of revenue"
+            else:
+                _ia_detail = "No R&D data available"
+            if cd.profit_margins and cd.profit_margins > 0.15:
+                _ia_detail += f"; strong brand proxy ({cd.profit_margins*100:.1f}% net margin)"
+            _ia_score = min(100, _pm_score + _rd_score)
+            _moat_scores["Intangible Assets"] = _ia_score
+            _moat_details["Intangible Assets"] = _ia_detail
+
+            # 5) Network Effects: industry-based scoring
+            _ne_score = 10  # baseline
+            _ne_detail = "No strong network effect signals"
+            _ne_keywords = {
+                "social": 40, "platform": 35, "marketplace": 35, "payment": 30,
+                "exchange": 30, "network": 25, "advertising": 20, "media": 15,
+                "software": 10, "internet": 20,
+            }
+            _ind_lower = (cd.industry or "").lower() + " " + (cd.sector or "").lower()
+            for _ne_kw, _ne_boost in _ne_keywords.items():
+                if _ne_kw in _ind_lower:
+                    _ne_score = min(100, _ne_score + _ne_boost)
+                    _ne_detail = f"Industry ({cd.industry}) has network effect characteristics"
+            # Revenue growth as network effect proxy
+            if cd.revenue_growth and cd.revenue_growth > 0.15:
+                _ne_score = min(100, _ne_score + 10)
+            _moat_scores["Network Effects"] = _ne_score
+            _moat_details["Network Effects"] = _ne_detail
+
+            # ── Overall Moat Rating ──
+            _moat_threshold = 50
+            _strong_moats = sum(1 for s in _moat_scores.values() if s >= _moat_threshold)
+            if _strong_moats >= 3:
+                _moat_rating = "Wide"
+                _moat_color = "#10B981"
+                _moat_emoji = "🏰🏰🏰"
+                _moat_width = 90
+            elif _strong_moats >= 1:
+                _moat_rating = "Narrow"
+                _moat_color = "#F59E0B"
+                _moat_emoji = "🏰🏰"
+                _moat_width = 55
+            else:
+                _moat_rating = "None"
+                _moat_color = "#EF4444"
+                _moat_emoji = "🏰"
+                _moat_width = 20
+
+            # ── Render ──
+            with st.expander(f"🏰 Economic Moat Assessment — {_moat_rating} Moat", expanded=False):
+                # Castle with moat width visual
+                _moat_castle_html = (
+                    f'<div style="text-align:center; margin:0.5rem 0 1rem 0;">'
+                    f'<div style="font-size:2.5rem; margin-bottom:0.3rem;">🏰</div>'
+                    f'<div style="display:inline-block; width:80%; position:relative; height:18px; '
+                    f'background:rgba(255,255,255,0.05); border-radius:10px; overflow:hidden;">'
+                    f'<div style="width:{_moat_width}%; height:100%; border-radius:10px; '
+                    f'background:linear-gradient(90deg, {_moat_color}44, {_moat_color}); '
+                    f'transition:width 0.5s;"></div></div>'
+                    f'<div style="font-size:0.9rem; font-weight:700; color:{_moat_color}; margin-top:0.4rem;">'
+                    f'{_moat_emoji} {_moat_rating} Moat</div>'
+                    f'<div style="font-size:0.68rem; color:#8A85AD; margin-top:0.15rem;">'
+                    f'{_strong_moats} of 5 moat dimensions above threshold</div>'
+                    f'</div>'
+                )
+                st.markdown(_moat_castle_html, unsafe_allow_html=True)
+
+                # Radar chart
+                try:
+                    _moat_cats = list(_moat_scores.keys())
+                    _moat_vals = [_moat_scores[c] for c in _moat_cats]
+                    _moat_cats_r = _moat_cats + [_moat_cats[0]]
+                    _moat_vals_r = _moat_vals + [_moat_vals[0]]
+                    _moat_fig = go.Figure()
+                    _moat_fig.add_trace(go.Scatterpolar(
+                        r=_moat_vals_r, theta=_moat_cats_r,
+                        fill='toself',
+                        fillcolor=f'{_moat_color}22',
+                        line=dict(color=_moat_color, width=2),
+                        marker=dict(size=6, color=_moat_color),
+                        name="Moat Score",
+                    ))
+                    _moat_fig.update_layout(
+                        **_CHART_LAYOUT_BASE, height=320,
+                        margin=dict(t=30, b=30, l=60, r=60),
+                        polar=dict(
+                            bgcolor="rgba(0,0,0,0)",
+                            radialaxis=dict(visible=True, range=[0, 100], showticklabels=True,
+                                           tickfont=dict(size=8, color="#6B6B80"),
+                                           gridcolor="rgba(255,255,255,0.06)"),
+                            angularaxis=dict(tickfont=dict(size=10, color="#B8B3D7"),
+                                            gridcolor="rgba(255,255,255,0.06)"),
+                        ),
+                        showlegend=False,
+                    )
+                    st.plotly_chart(_moat_fig, use_container_width=True, key="moat_radar")
+                except Exception:
+                    pass
+
+                # Dimension details
+                for _md_name, _md_score in _moat_scores.items():
+                    _md_color = "#10B981" if _md_score >= 60 else "#F59E0B" if _md_score >= 40 else "#EF4444"
+                    _md_bar_w = max(5, _md_score)
+                    st.markdown(
+                        f'<div style="display:flex; align-items:center; margin:0.3rem 0; gap:0.5rem;">'
+                        f'<div style="width:120px; font-size:0.72rem; color:#B8B3D7; flex-shrink:0;">{_md_name}</div>'
+                        f'<div style="flex:1; background:rgba(255,255,255,0.05); border-radius:6px; height:14px; overflow:hidden;">'
+                        f'<div style="width:{_md_bar_w}%; height:100%; background:{_md_color}; border-radius:6px;"></div></div>'
+                        f'<div style="width:35px; font-size:0.72rem; color:{_md_color}; font-weight:600; text-align:right;">{_md_score}</div>'
+                        f'</div>'
+                        f'<div style="font-size:0.65rem; color:#6B6B80; margin-left:120px; padding-left:0.5rem; margin-bottom:0.3rem;">'
+                        f'{_moat_details[_md_name]}</div>',
+                        unsafe_allow_html=True,
+                    )
+        except Exception:
+            pass
+
+    # ══════════════════════════════════════════════════════
     # 2c-ii. WHAT-IF SIMULATOR
     # ══════════════════════════════════════════════════════
     with _safe_section("What-If Simulator"):
@@ -6775,6 +7053,140 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         '</div>',
                         unsafe_allow_html=True,
                     )
+        except Exception:
+            pass
+
+    # ══════════════════════════════════════════════════════
+    # 🐻 BEAR CASE / 🐂 BULL CASE GENERATOR
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Bear Bull Case"):
+        try:
+            _bb_bull_factors = []
+            _bb_bear_factors = []
+
+            # ── Gather data points ──
+            _bb_rev_growth = cd.revenue_growth
+            _bb_hist_rev_growths = []
+            if cd.revenue is not None and len(cd.revenue) >= 3:
+                _bb_rv = [float(v) for v in cd.revenue.values if v is not None and float(v) > 0]
+                if len(_bb_rv) >= 2:
+                    _bb_hist_rev_growths = [(_bb_rv[i] / _bb_rv[i+1] - 1) for i in range(len(_bb_rv)-1)]
+            _bb_avg_hist_growth = sum(_bb_hist_rev_growths) / len(_bb_hist_rev_growths) if _bb_hist_rev_growths else None
+
+            _bb_gm = cd.gross_margins
+            _bb_om = cd.operating_margins
+            _bb_gm_trend = None
+            if cd.gross_margin_series is not None and len(cd.gross_margin_series) >= 2:
+                _gms = [v for v in cd.gross_margin_series.values if v is not None and v == v]
+                if len(_gms) >= 2:
+                    _bb_gm_trend = _gms[0] - _gms[-1]  # positive = expanding
+
+            _bb_pe = cd.trailing_pe
+            _bb_sector_bench = get_sector_benchmarks(cd.sector) if cd.sector else None
+            _bb_hist_pe = _bb_sector_bench["pe"]["median"] if _bb_sector_bench else None
+
+            _bb_fcf = None
+            if cd.free_cashflow_series is not None and len(cd.free_cashflow_series) > 0:
+                _bb_fcf = float(cd.free_cashflow_series.iloc[0])
+            _bb_fcf_trend = None
+            if cd.free_cashflow_series is not None and len(cd.free_cashflow_series) >= 2:
+                _fcf_vals = [float(v) for v in cd.free_cashflow_series.values]
+                _bb_fcf_trend = _fcf_vals[0] - _fcf_vals[-1]
+
+            _bb_de = cd.debt_to_equity
+            _bb_price = cd.current_price or 0
+            _bb_52h = cd.fifty_two_week_high or 0
+            _bb_52l = cd.fifty_two_week_low or 0
+            _bb_52_pct = ((_bb_price - _bb_52l) / (_bb_52h - _bb_52l) * 100) if _bb_52h > _bb_52l > 0 else 50
+
+            # ── Bull factors ──
+            if _bb_rev_growth and _bb_avg_hist_growth and _bb_rev_growth > _bb_avg_hist_growth:
+                _bb_bull_factors.append(("📈 Revenue Accelerating",
+                    f"Recent growth ({_bb_rev_growth*100:.1f}%) exceeds historical avg ({_bb_avg_hist_growth*100:.1f}%)"))
+            if _bb_gm_trend is not None and _bb_gm_trend > 0.005:
+                _bb_bull_factors.append(("📊 Margin Expanding",
+                    f"Gross margin expanded {_bb_gm_trend*100:.1f}pp over reported periods"))
+            if _bb_pe and _bb_hist_pe and _bb_pe < _bb_hist_pe:
+                _bb_bull_factors.append(("💰 Below Sector P/E",
+                    f"Trading at {_bb_pe:.1f}x vs sector median {_bb_hist_pe:.1f}x"))
+            if _bb_fcf and _bb_fcf > 0:
+                _bb_fcf_yield = (_bb_fcf / cd.market_cap * 100) if cd.market_cap and cd.market_cap > 0 else 0
+                if _bb_fcf_yield > 3:
+                    _bb_bull_factors.append(("💵 Strong FCF Generation",
+                        f"FCF yield of {_bb_fcf_yield:.1f}%"))
+            if _bb_de is not None and _bb_de < 50:
+                _bb_bull_factors.append(("🛡️ Low Leverage",
+                    f"Debt/Equity of {_bb_de:.1f}% provides financial flexibility"))
+            if _bb_52_pct < 30:
+                _bb_bull_factors.append(("🔄 Near 52-Week Low",
+                    f"Trading in bottom {_bb_52_pct:.0f}% of range — potential rebound"))
+            if _bb_rev_growth and _bb_rev_growth > 0.10:
+                _bb_bull_factors.append(("🚀 Strong Top-Line Growth",
+                    f"Revenue growing at {_bb_rev_growth*100:.1f}%"))
+
+            # ── Bear factors ──
+            if _bb_rev_growth and _bb_avg_hist_growth and _bb_rev_growth < _bb_avg_hist_growth:
+                _bb_bear_factors.append(("📉 Revenue Decelerating",
+                    f"Recent growth ({_bb_rev_growth*100:.1f}%) trails historical avg ({_bb_avg_hist_growth*100:.1f}%)"))
+            if _bb_gm_trend is not None and _bb_gm_trend < -0.005:
+                _bb_bear_factors.append(("📊 Margin Compression",
+                    f"Gross margin declined {abs(_bb_gm_trend)*100:.1f}pp over reported periods"))
+            if _bb_pe and _bb_hist_pe and _bb_pe > _bb_hist_pe * 1.2:
+                _bb_bear_factors.append(("⚠️ Above Sector P/E",
+                    f"Trading at {_bb_pe:.1f}x vs sector median {_bb_hist_pe:.1f}x"))
+            if _bb_de is not None and _bb_de > 150:
+                _bb_bear_factors.append(("🔴 High Leverage",
+                    f"Debt/Equity of {_bb_de:.1f}% increases financial risk"))
+            if _bb_52_pct > 85:
+                _bb_bear_factors.append(("📍 Near 52-Week High",
+                    f"Trading in top {100-_bb_52_pct:.0f}% of range — limited upside"))
+            if _bb_fcf_trend is not None and _bb_fcf_trend < 0:
+                _bb_bear_factors.append(("💸 Negative FCF Trend",
+                    f"Free cash flow declining over reported periods"))
+            if _bb_rev_growth and _bb_rev_growth < 0:
+                _bb_bear_factors.append(("🔻 Revenue Declining",
+                    f"Top line shrinking at {_bb_rev_growth*100:.1f}%"))
+
+            _bb_bull_top3 = _bb_bull_factors[:3]
+            _bb_bear_top3 = _bb_bear_factors[:3]
+
+            if _bb_bull_top3 or _bb_bear_top3:
+                with st.expander("🐻 Bear Case / 🐂 Bull Case", expanded=False):
+                    _bbc1, _bbc2 = st.columns(2)
+                    with _bbc1:
+                        _bull_items = ""
+                        for _bf_title, _bf_desc in _bb_bull_top3:
+                            _bull_items += (
+                                f'<div style="padding:0.4rem 0; border-bottom:1px solid rgba(16,185,129,0.1);">'
+                                f'<div style="font-size:0.78rem; font-weight:600; color:#10B981;">{_bf_title}</div>'
+                                f'<div style="font-size:0.68rem; color:#8A85AD; margin-top:0.1rem;">{_bf_desc}</div></div>'
+                            )
+                        if not _bull_items:
+                            _bull_items = '<div style="font-size:0.72rem; color:#6B6B80; padding:0.5rem 0;">No strong bull factors identified</div>'
+                        st.markdown(
+                            f'<div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.2); '
+                            f'border-radius:12px; padding:0.8rem 1rem; height:100%;">'
+                            f'<div style="font-size:0.85rem; font-weight:700; color:#10B981; margin-bottom:0.4rem;">'
+                            f'🐂 Bull Case</div>{_bull_items}</div>',
+                            unsafe_allow_html=True,
+                        )
+                    with _bbc2:
+                        _bear_items = ""
+                        for _br_title, _br_desc in _bb_bear_top3:
+                            _bear_items += (
+                                f'<div style="padding:0.4rem 0; border-bottom:1px solid rgba(239,68,68,0.1);">'
+                                f'<div style="font-size:0.78rem; font-weight:600; color:#EF4444;">{_br_title}</div>'
+                                f'<div style="font-size:0.68rem; color:#8A85AD; margin-top:0.1rem;">{_br_desc}</div></div>'
+                            )
+                        if not _bear_items:
+                            _bear_items = '<div style="font-size:0.72rem; color:#6B6B80; padding:0.5rem 0;">No strong bear factors identified</div>'
+                        st.markdown(
+                            f'<div style="background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.2); '
+                            f'border-radius:12px; padding:0.8rem 1rem; height:100%;">'
+                            f'<div style="font-size:0.85rem; font-weight:700; color:#EF4444; margin-bottom:0.4rem;">'
+                            f'🐻 Bear Case</div>{_bear_items}</div>',
+                            unsafe_allow_html=True,
+                        )
         except Exception:
             pass
 
