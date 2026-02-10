@@ -6,7 +6,7 @@ Generates an 8-slide investment-banker-grade PowerPoint tear sheet.
 
 Run:  streamlit run main.py
 
-v5.0 - Full Feature Suite:
+v5.1 - Full Feature Suite:
 - Watchlist with session persistence & notes
 - Excel/CSV export for all financial data
 - DCF Valuation with sensitivity analysis
@@ -5921,7 +5921,7 @@ with st.sidebar:
         '<div style="text-align:center; padding: 0.5rem 0;">'
         '<div style="font-size:0.55rem; font-weight:800; background:linear-gradient(135deg, #6B5CE7, #E8638B); '
         '-webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:2px; margin-bottom:0.3rem;">'
-        'ORBITAL v5.0</div>'
+        'ORBITAL v5.1</div>'
         '<div style="font-size:0.55rem; color:#4B5563; letter-spacing:0.5px; line-height:1.8;">'
         'DATA: YAHOO FINANCE • CHARTS: PLOTLY<br>'
         'AI: OPENAI (OPT.) • LOGOS: CLEARBIT'
@@ -16683,7 +16683,7 @@ st.markdown(
     '<a href="#">Documentation</a>'
     '<a href="#">API</a>'
     '</div>'
-    '<div class="orbital-footer-version">v5.0 · Built with Streamlit · Data from Yahoo Finance & Alpha Vantage</div>'
+    '<div class="orbital-footer-version">v5.1 · Built with Streamlit · Data from Yahoo Finance & Alpha Vantage</div>'
     '</div>',
     unsafe_allow_html=True,
 )

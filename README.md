@@ -124,7 +124,7 @@ ALPHA_VANTAGE_API_KEY=...
 
 ```
 orbital/
-├── main.py                  # Application entry point (~15,000 lines)
+├── main.py                  # Application entry point (~16,700 lines)
 ├── requirements.txt         # Python dependencies
 ├── .env                     # API keys (optional, not committed)
 ├── .streamlit/
