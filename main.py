@@ -9547,7 +9547,401 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     _divider()
 
     # ══════════════════════════════════════════════════════
-    # 9. ANALYST CONSENSUS
+    # 9a. ESG RISK DASHBOARD
+    # ══════════════════════════════════════════════════════
+    with _safe_section("ESG Risk Dashboard"):
+        _section("ESG Risk Dashboard", "🌱")
+        _esg = cd.esg_scores
+        _esg_available = _esg is not None and not (hasattr(_esg, 'empty') and _esg.empty)
+        if _esg_available:
+            try:
+                # Extract scores — yfinance sustainability is a DataFrame with Value column or dict-like
+                def _esg_val(key):
+                    try:
+                        if isinstance(_esg, pd.DataFrame):
+                            if key in _esg.index:
+                                v = _esg.loc[key]
+                                return float(v.iloc[0]) if hasattr(v, 'iloc') else float(v)
+                            if 'Value' in _esg.columns and key in _esg.index:
+                                return float(_esg.loc[key, 'Value'])
+                        elif isinstance(_esg, dict):
+                            return float(_esg.get(key, 0)) if _esg.get(key) is not None else None
+                    except Exception:
+                        pass
+                    return None
+
+                _total_esg = _esg_val('totalEsg')
+                _env_score = _esg_val('environmentScore')
+                _soc_score = _esg_val('socialScore')
+                _gov_score = _esg_val('governanceScore')
+                _controversy = _esg_val('highestControversy')
+
+                # Determine ESG risk rating from total score
+                def _esg_risk_label(score):
+                    if score is None:
+                        return "N/A", "#8A85AD"
+                    if score < 10:
+                        return "Negligible", "#10B981"
+                    elif score < 20:
+                        return "Low", "#34D399"
+                    elif score < 30:
+                        return "Medium", "#F59E0B"
+                    elif score < 40:
+                        return "High", "#EF4444"
+                    else:
+                        return "Severe", "#991B1B"
+
+                _risk_label, _risk_color = _esg_risk_label(_total_esg)
+
+                # Total ESG + Risk Rating header
+                _esg_h1, _esg_h2 = st.columns(2)
+                with _esg_h1:
+                    st.markdown(
+                        f'<div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); '
+                        f'border-radius:12px; padding:1rem; text-align:center;">'
+                        f'<div style="font-size:0.65rem; font-weight:700; color:#8A85AD; text-transform:uppercase; '
+                        f'letter-spacing:1.5px; margin-bottom:0.3rem;">Total ESG Risk Score</div>'
+                        f'<div style="font-size:2rem; font-weight:800; color:#E0DCF5;">'
+                        f'{_total_esg:.1f}</div></div>' if _total_esg is not None else
+                        f'<div style="background:rgba(255,255,255,0.05); border-radius:12px; padding:1rem; text-align:center;">'
+                        f'<div style="font-size:0.65rem; font-weight:700; color:#8A85AD;">TOTAL ESG</div>'
+                        f'<div style="font-size:1.2rem; color:#8A85AD;">N/A</div></div>',
+                        unsafe_allow_html=True,
+                    )
+                with _esg_h2:
+                    st.markdown(
+                        f'<div style="background:rgba(255,255,255,0.05); border:1px solid {_risk_color}40; '
+                        f'border-radius:12px; padding:1rem; text-align:center;">'
+                        f'<div style="font-size:0.65rem; font-weight:700; color:#8A85AD; text-transform:uppercase; '
+                        f'letter-spacing:1.5px; margin-bottom:0.3rem;">ESG Risk Rating</div>'
+                        f'<div style="font-size:1.5rem; font-weight:800; color:{_risk_color};">'
+                        f'{_risk_label}</div>'
+                        f'{"<div style=" + chr(34) + "font-size:0.7rem; color:#8A85AD; margin-top:0.2rem;" + chr(34) + ">Controversy Level: " + str(int(_controversy)) + "/5</div>" if _controversy is not None else ""}'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                # E / S / G gauge charts
+                _esg_scores_list = [
+                    ("Environmental", _env_score, "#10B981"),
+                    ("Social", _soc_score, "#6B5CE7"),
+                    ("Governance", _gov_score, "#F59E0B"),
+                ]
+                _has_esg_scores = any(s is not None for _, s, _ in _esg_scores_list)
+                if _has_esg_scores:
+                    _esg_cols = st.columns(3)
+                    for _ei, (_elabel, _eval, _ecolor) in enumerate(_esg_scores_list):
+                        with _esg_cols[_ei]:
+                            if _eval is not None:
+                                _efig = go.Figure(go.Indicator(
+                                    mode="gauge+number",
+                                    value=_eval,
+                                    title=dict(text=_elabel, font=dict(size=14, color="#E0DCF5")),
+                                    number=dict(font=dict(size=24, color="#E0DCF5")),
+                                    gauge=dict(
+                                        axis=dict(range=[0, 50], tickfont=dict(size=10, color="#8A85AD")),
+                                        bar=dict(color=_ecolor),
+                                        bgcolor="rgba(255,255,255,0.05)",
+                                        bordercolor="rgba(255,255,255,0.1)",
+                                        steps=[
+                                            dict(range=[0, 10], color="rgba(16,185,129,0.1)"),
+                                            dict(range=[10, 20], color="rgba(52,211,153,0.1)"),
+                                            dict(range=[20, 30], color="rgba(245,158,11,0.1)"),
+                                            dict(range=[30, 40], color="rgba(239,68,68,0.1)"),
+                                            dict(range=[40, 50], color="rgba(153,27,27,0.1)"),
+                                        ],
+                                    ),
+                                ))
+                                _efig.update_layout(**_CHART_LAYOUT_BASE, height=200, margin=dict(t=40, b=10, l=20, r=20))
+                                st.plotly_chart(_efig, use_container_width=True, key=f"esg_gauge_{_elabel}")
+                            else:
+                                st.markdown(f'<div style="text-align:center; padding:1rem; color:#8A85AD;">{_elabel}<br>N/A</div>', unsafe_allow_html=True)
+
+                # Peer ESG comparison
+                if cd.peer_data:
+                    _peer_esg_data = []
+                    for _p in cd.peer_data:
+                        _ptk = _p.get("ticker", "")
+                        try:
+                            _ptk_obj = yf.Ticker(_ptk)
+                            _psust = _ptk_obj.sustainability
+                            if _psust is not None and not _psust.empty:
+                                _pt_esg = float(_psust.loc['totalEsg'].iloc[0]) if 'totalEsg' in _psust.index else None
+                                if _pt_esg is not None:
+                                    _peer_esg_data.append({"ticker": _ptk, "score": _pt_esg})
+                        except Exception:
+                            pass
+                    if _peer_esg_data:
+                        _peer_esg_data.append({"ticker": cd.ticker, "score": _total_esg or 0})
+                        _peer_esg_data.sort(key=lambda x: x["score"])
+                        _esg_peer_fig = go.Figure(go.Bar(
+                            x=[d["ticker"] for d in _peer_esg_data],
+                            y=[d["score"] for d in _peer_esg_data],
+                            marker=dict(
+                                color=[_risk_color if d["ticker"] == cd.ticker else "rgba(107,92,231,0.5)" for d in _peer_esg_data],
+                                line=dict(color="rgba(255,255,255,0.15)", width=1),
+                            ),
+                            text=[f'{d["score"]:.1f}' for d in _peer_esg_data],
+                            textposition="outside",
+                            textfont=dict(size=11, color="#B8B3D7"),
+                        ))
+                        _esg_peer_fig.update_layout(
+                            **_CHART_LAYOUT_BASE, height=300,
+                            title=dict(text="ESG Risk Score — Peer Comparison (lower is better)", font=dict(size=14, color="#E0DCF5")),
+                            margin=dict(t=50, b=30, l=40, r=20),
+                            yaxis=dict(title="ESG Risk Score", titlefont=dict(size=12, color="#8A85AD")),
+                        )
+                        _apply_space_grid(_esg_peer_fig)
+                        st.plotly_chart(_esg_peer_fig, use_container_width=True, key="esg_peer_comparison")
+            except Exception:
+                st.info("ESG data could not be processed for this security.")
+        else:
+            st.info("🌱 ESG data not available for this security.")
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # 9b. MANAGEMENT EFFECTIVENESS SCORE
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Management Effectiveness Score"):
+        _section("Management Effectiveness Score", "🏆")
+        try:
+            # Component metrics (each scored 0-20, total 0-100)
+            _mgmt_components = []
+
+            # 1. ROE (0-20): 0%=0, 15%+=20
+            _roe_val = (cd.return_on_equity or 0) * 100
+            _roe_score = min(20, max(0, _roe_val / 15 * 20)) if cd.return_on_equity is not None else None
+            if _roe_score is not None:
+                _mgmt_components.append(("Return on Equity", _roe_val, _roe_score, "%", 15))
+
+            # 2. ROA (0-20): 0%=0, 10%+=20
+            _roa_val = (cd.return_on_assets or 0) * 100
+            _roa_score = min(20, max(0, _roa_val / 10 * 20)) if cd.return_on_assets is not None else None
+            if _roa_score is not None:
+                _mgmt_components.append(("Return on Assets", _roa_val, _roa_score, "%", 10))
+
+            # 3. ROIC proxy (Operating Income / (Total Equity + Total Debt)) (0-20): 0%=0, 12%+=20
+            _roic_val = None
+            try:
+                _oi_0 = cd.operating_income.iloc[0] if cd.operating_income is not None and len(cd.operating_income) > 0 else None
+                _eq_0 = cd.total_equity.iloc[0] if cd.total_equity is not None and len(cd.total_equity) > 0 else None
+                _td_0 = cd.total_debt.iloc[0] if cd.total_debt is not None and len(cd.total_debt) > 0 else None
+                if _oi_0 and _eq_0 and _td_0 and (_eq_0 + _td_0) > 0:
+                    _roic_val = (_oi_0 / (_eq_0 + _td_0)) * 100
+            except Exception:
+                pass
+            _roic_score = min(20, max(0, _roic_val / 12 * 20)) if _roic_val is not None else None
+            if _roic_score is not None:
+                _mgmt_components.append(("ROIC (est.)", _roic_val, _roic_score, "%", 12))
+
+            # 4. Revenue per Employee (0-20): $0=0, $500K+=20
+            _rpe_val = None
+            try:
+                _rev_0 = cd.revenue.iloc[0] if cd.revenue is not None and len(cd.revenue) > 0 else None
+                if _rev_0 and cd.full_time_employees and cd.full_time_employees > 0:
+                    _rpe_val = _rev_0 / cd.full_time_employees
+            except Exception:
+                pass
+            _rpe_score = min(20, max(0, (_rpe_val or 0) / 500000 * 20)) if _rpe_val is not None else None
+            if _rpe_score is not None:
+                _mgmt_components.append(("Revenue / Employee", _rpe_val, _rpe_score, "K", 500))
+
+            # 5. Operating Margin Trend (0-20): improving = 20, flat = 10, declining = 0
+            _opm_trend_score = None
+            _opm_trend_label = "N/A"
+            try:
+                if cd.operating_margin_series is not None and len(cd.operating_margin_series) >= 2:
+                    _opm_recent = cd.operating_margin_series.iloc[0]
+                    _opm_older = cd.operating_margin_series.iloc[-1]
+                    _opm_chg = _opm_recent - _opm_older
+                    if _opm_chg > 0.02:
+                        _opm_trend_score = 20
+                        _opm_trend_label = "Expanding"
+                    elif _opm_chg > -0.02:
+                        _opm_trend_score = 10
+                        _opm_trend_label = "Stable"
+                    else:
+                        _opm_trend_score = 0
+                        _opm_trend_label = "Contracting"
+            except Exception:
+                pass
+            if _opm_trend_score is not None:
+                _mgmt_components.append(("Op. Margin Trend", _opm_trend_label, _opm_trend_score, "", 20))
+
+            if _mgmt_components:
+                # Calculate composite score (normalize to 0-100)
+                _total_possible = len(_mgmt_components) * 20
+                _total_earned = sum(c[2] for c in _mgmt_components)
+                _composite = (_total_earned / _total_possible) * 100
+
+                # Letter grade
+                def _letter_grade(score):
+                    if score >= 90: return "A+", "#10B981"
+                    if score >= 80: return "A", "#10B981"
+                    if score >= 70: return "B+", "#34D399"
+                    if score >= 60: return "B", "#34D399"
+                    if score >= 50: return "C+", "#F59E0B"
+                    if score >= 40: return "C", "#F59E0B"
+                    if score >= 30: return "D", "#EF4444"
+                    return "F", "#991B1B"
+
+                _grade, _grade_color = _letter_grade(_composite)
+
+                _mg1, _mg2 = st.columns([1, 2])
+                with _mg1:
+                    _mgmt_fig = go.Figure(go.Indicator(
+                        mode="gauge+number",
+                        value=_composite,
+                        title=dict(text=f"Grade: {_grade}", font=dict(size=20, color=_grade_color)),
+                        number=dict(font=dict(size=32, color="#E0DCF5"), suffix="/100"),
+                        gauge=dict(
+                            axis=dict(range=[0, 100], tickfont=dict(size=10, color="#8A85AD")),
+                            bar=dict(color=_grade_color),
+                            bgcolor="rgba(255,255,255,0.05)",
+                            bordercolor="rgba(255,255,255,0.1)",
+                            steps=[
+                                dict(range=[0, 30], color="rgba(239,68,68,0.08)"),
+                                dict(range=[30, 50], color="rgba(245,158,11,0.08)"),
+                                dict(range=[50, 70], color="rgba(52,211,153,0.08)"),
+                                dict(range=[70, 100], color="rgba(16,185,129,0.08)"),
+                            ],
+                        ),
+                    ))
+                    _mgmt_fig.update_layout(**_CHART_LAYOUT_BASE, height=250, margin=dict(t=50, b=10, l=20, r=20))
+                    st.plotly_chart(_mgmt_fig, use_container_width=True, key="mgmt_effectiveness_gauge")
+
+                with _mg2:
+                    st.markdown("<p style='font-size:0.8rem; font-weight:700; color:#E0DCF5; margin-bottom:0.5rem;'>Component Breakdown</p>", unsafe_allow_html=True)
+                    for _cname, _cval, _cscore, _csuffix, _cbench in _mgmt_components:
+                        _cpct = (_cscore / 20) * 100
+                        _cbar_color = "#10B981" if _cpct >= 70 else "#F59E0B" if _cpct >= 40 else "#EF4444"
+                        if isinstance(_cval, str):
+                            _cdisp = _cval
+                        elif _csuffix == "K":
+                            _cdisp = f"{cs}{_cval/1000:,.0f}K (benchmark: {cs}{_cbench}K)"
+                        elif _csuffix == "%":
+                            _cdisp = f"{_cval:.1f}% (benchmark: {_cbench}%)"
+                        else:
+                            _cdisp = f"{_cval} (max: {_cbench})"
+                        st.markdown(
+                            f'<div style="margin-bottom:0.5rem;">'
+                            f'<div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#B8B3D7;">'
+                            f'<span>{_cname}</span><span>{_cdisp}</span></div>'
+                            f'<div style="background:rgba(255,255,255,0.05); border-radius:4px; height:8px; margin-top:2px;">'
+                            f'<div style="background:{_cbar_color}; width:{_cpct:.0f}%; height:100%; border-radius:4px;"></div>'
+                            f'</div></div>',
+                            unsafe_allow_html=True,
+                        )
+            else:
+                st.info("Insufficient financial data to calculate management effectiveness score.")
+        except Exception:
+            st.info("Management effectiveness data not available for this security.")
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # 9c. DEBT MATURITY PROFILE
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Debt Maturity Profile"):
+        _section("Debt Maturity Profile", "🏦")
+        try:
+            _debt_val = cd.total_debt.iloc[0] if cd.total_debt is not None and len(cd.total_debt) > 0 else (cd.total_debt_info or 0)
+            _cash_val = cd.cash_and_equivalents.iloc[0] if cd.cash_and_equivalents is not None and len(cd.cash_and_equivalents) > 0 else (cd.total_cash or 0)
+            _ebitda_val = cd.ebitda.iloc[0] if cd.ebitda is not None and len(cd.ebitda) > 0 else None
+
+            if _debt_val or _cash_val:
+                _net_debt = (_debt_val or 0) - (_cash_val or 0)
+
+                # Debt vs Cash visual
+                _dm1, _dm2 = st.columns([3, 2])
+                with _dm1:
+                    _dm_fig = go.Figure()
+                    _dm_fig.add_trace(go.Bar(
+                        x=["Total Debt", "Cash & Equivalents", "Net Debt"],
+                        y=[_debt_val or 0, _cash_val or 0, _net_debt],
+                        marker=dict(
+                            color=["#EF4444", "#10B981", "#F59E0B" if _net_debt > 0 else "#10B981"],
+                            line=dict(color="rgba(255,255,255,0.15)", width=1),
+                        ),
+                        text=[format_number(_debt_val or 0), format_number(_cash_val or 0), format_number(abs(_net_debt))],
+                        textposition="outside",
+                        textfont=dict(size=12, color="#B8B3D7"),
+                    ))
+                    _dm_fig.update_layout(
+                        **_CHART_LAYOUT_BASE, height=350,
+                        title=dict(text="Debt vs Cash Position", font=dict(size=14, color="#E0DCF5")),
+                        margin=dict(t=50, b=30, l=40, r=20),
+                        yaxis=dict(title="Amount", titlefont=dict(size=12, color="#8A85AD")),
+                    )
+                    _apply_space_grid(_dm_fig)
+                    st.plotly_chart(_dm_fig, use_container_width=True, key="debt_cash_bars")
+
+                with _dm2:
+                    # Net Debt / EBITDA traffic light
+                    if _ebitda_val and _ebitda_val > 0:
+                        _nd_ebitda = _net_debt / _ebitda_val
+                        if _nd_ebitda < 2:
+                            _tl_color, _tl_label, _tl_bg = "#10B981", "Low Risk", "rgba(16,185,129,0.08)"
+                        elif _nd_ebitda < 4:
+                            _tl_color, _tl_label, _tl_bg = "#F59E0B", "Moderate Risk", "rgba(245,158,11,0.08)"
+                        else:
+                            _tl_color, _tl_label, _tl_bg = "#EF4444", "High Risk", "rgba(239,68,68,0.08)"
+
+                        st.markdown(
+                            f'<div style="background:{_tl_bg}; border:1px solid {_tl_color}40; '
+                            f'border-radius:12px; padding:1rem; text-align:center; margin-bottom:0.8rem;">'
+                            f'<div style="font-size:0.65rem; font-weight:700; color:#8A85AD; text-transform:uppercase; '
+                            f'letter-spacing:1.5px; margin-bottom:0.3rem;">Net Debt / EBITDA</div>'
+                            f'<div style="font-size:2rem; font-weight:800; color:{_tl_color};">'
+                            f'{_nd_ebitda:.1f}x</div>'
+                            f'<div style="font-size:0.75rem; color:{_tl_color}; font-weight:600;">{_tl_label}</div>'
+                            f'<div style="font-size:0.6rem; color:#8A85AD; margin-top:0.3rem;">'
+                            f'🟢 &lt;2x&nbsp; 🟡 2-4x&nbsp; 🔴 &gt;4x</div></div>',
+                            unsafe_allow_html=True,
+                        )
+                    else:
+                        st.markdown(
+                            f'<div style="background:rgba(255,255,255,0.05); border-radius:12px; padding:1rem; text-align:center;">'
+                            f'<div style="font-size:0.65rem; font-weight:700; color:#8A85AD;">NET DEBT</div>'
+                            f'<div style="font-size:1.3rem; font-weight:800; color:{"#EF4444" if _net_debt > 0 else "#10B981"};">'
+                            f'{cs}{abs(_net_debt)/1e9:.1f}B {"net debt" if _net_debt > 0 else "net cash"}</div></div>',
+                            unsafe_allow_html=True,
+                        )
+
+                    # Refinancing risk assessment
+                    _interest = cd.interest_expense.iloc[0] if cd.interest_expense is not None and len(cd.interest_expense) > 0 else None
+                    _ocf = cd.operating_cashflow_series.iloc[0] if cd.operating_cashflow_series is not None and len(cd.operating_cashflow_series) > 0 else None
+                    _icr = None
+                    if _interest and abs(_interest) > 0 and _ebitda_val:
+                        _icr = _ebitda_val / abs(_interest)
+
+                    st.markdown("<p style='font-size:0.75rem; font-weight:700; color:#E0DCF5; margin-top:0.5rem;'>Refinancing Risk Indicators</p>", unsafe_allow_html=True)
+                    _refi_items = []
+                    if _icr is not None:
+                        _icr_color = "#10B981" if _icr > 5 else "#F59E0B" if _icr > 2 else "#EF4444"
+                        _refi_items.append(f'<span style="color:{_icr_color};">Interest Coverage: {_icr:.1f}x</span>')
+                    _dte = cd.debt_to_equity
+                    if _dte is not None:
+                        _dte_color = "#10B981" if _dte < 100 else "#F59E0B" if _dte < 200 else "#EF4444"
+                        _refi_items.append(f'<span style="color:{_dte_color};">D/E Ratio: {_dte:.0f}%</span>')
+                    if _ocf and _debt_val and _debt_val > 0:
+                        _debt_payback = _debt_val / _ocf if _ocf > 0 else float('inf')
+                        _dp_color = "#10B981" if _debt_payback < 5 else "#F59E0B" if _debt_payback < 10 else "#EF4444"
+                        _refi_items.append(f'<span style="color:{_dp_color};">Debt Payback: {_debt_payback:.1f} yrs</span>')
+                    if _refi_items:
+                        st.markdown('<div style="font-size:0.8rem; line-height:2;">' + '<br>'.join(_refi_items) + '</div>', unsafe_allow_html=True)
+                    else:
+                        st.info("Insufficient data for refinancing risk assessment.")
+            else:
+                st.info("Debt position data not available for this security.")
+        except Exception:
+            st.info("Debt maturity data not available for this security.")
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # 9d. ANALYST CONSENSUS DASHBOARD (enhanced)
     # ══════════════════════════════════════════════════════
     _section("Analyst Consensus")
     a1, a2 = st.columns([3, 2])
