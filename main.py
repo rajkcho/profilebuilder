@@ -8405,6 +8405,256 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     _divider()
 
     # ══════════════════════════════════════════════════════
+    # 8a. CAPITAL ALLOCATION ANALYSIS
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Capital Allocation Framework"):
+        _section("Capital Allocation Framework", "🏗️")
+        try:
+            _ca_ocf = _safe_val(getattr(cd, 'operating_cashflow_series', None))
+            _ca_capex = _safe_val(getattr(cd, 'capital_expenditure', None))
+            _ca_divs = _safe_val(getattr(cd, 'dividends_paid', None))
+            _ca_mcap = getattr(cd, 'market_cap', 0) or 0
+
+            # Try to get buybacks from cashflow statement
+            _ca_buybacks = 0
+            _ca_debt_repay = 0
+            if cd.cashflow is not None and not cd.cashflow.empty:
+                _cf = cd.cashflow
+                for idx_name in _cf.index:
+                    _idx_l = str(idx_name).lower()
+                    if "repurchase" in _idx_l and "stock" in _idx_l:
+                        try:
+                            _ca_buybacks = float(_cf.loc[idx_name].iloc[0]) if pd.notna(_cf.loc[idx_name].iloc[0]) else 0
+                        except Exception:
+                            pass
+                    if "repayment" in _idx_l and "debt" in _idx_l:
+                        try:
+                            _ca_debt_repay = float(_cf.loc[idx_name].iloc[0]) if pd.notna(_cf.loc[idx_name].iloc[0]) else 0
+                        except Exception:
+                            pass
+
+            if _ca_ocf and _ca_ocf > 0:
+                _ca_capex_abs = abs(_ca_capex) if _ca_capex else 0
+                _ca_divs_abs = abs(_ca_divs) if _ca_divs else 0
+                _ca_buybacks_abs = abs(_ca_buybacks)
+                _ca_debt_abs = abs(_ca_debt_repay)
+                _ca_remainder = max(0, _ca_ocf - _ca_capex_abs - _ca_divs_abs - _ca_buybacks_abs - _ca_debt_abs)
+
+                # Waterfall chart
+                _ca_labels = ["Operating CF"]
+                _ca_values = [_ca_ocf]
+                _ca_measures = ["absolute"]
+                _ca_display = [_ca_ocf]
+
+                if _ca_capex_abs > 0:
+                    _ca_labels.append("CapEx")
+                    _ca_values.append(-_ca_capex_abs)
+                    _ca_measures.append("relative")
+                    _ca_display.append(-_ca_capex_abs)
+                if _ca_divs_abs > 0:
+                    _ca_labels.append("Dividends")
+                    _ca_values.append(-_ca_divs_abs)
+                    _ca_measures.append("relative")
+                    _ca_display.append(-_ca_divs_abs)
+                if _ca_buybacks_abs > 0:
+                    _ca_labels.append("Buybacks")
+                    _ca_values.append(-_ca_buybacks_abs)
+                    _ca_measures.append("relative")
+                    _ca_display.append(-_ca_buybacks_abs)
+                if _ca_debt_abs > 0:
+                    _ca_labels.append("Debt Repayment")
+                    _ca_values.append(-_ca_debt_abs)
+                    _ca_measures.append("relative")
+                    _ca_display.append(-_ca_debt_abs)
+                _ca_labels.append("Cash Remaining")
+                _ca_values.append(0)
+                _ca_measures.append("total")
+                _ca_display.append(_ca_remainder)
+
+                fig_ca = go.Figure(go.Waterfall(
+                    x=_ca_labels, y=_ca_values, measure=_ca_measures,
+                    text=[format_number(v, currency_symbol=cs) for v in _ca_display],
+                    textposition="outside",
+                    textfont=dict(size=9, color="#B8B3D7"),
+                    connector=dict(line=dict(color="rgba(107,92,231,0.2)", width=1, dash="dot")),
+                    increasing=dict(marker=dict(color="#10B981")),
+                    decreasing=dict(marker=dict(color="#EF4444")),
+                    totals=dict(marker=dict(color="#6B5CE7")),
+                ))
+                fig_ca.update_layout(
+                    **_CHART_LAYOUT_BASE, height=400,
+                    margin=dict(t=30, b=40, l=60, r=30),
+                    xaxis=dict(tickfont=dict(size=9, color="#8A85AD"), showgrid=False),
+                    yaxis=dict(tickfont=dict(size=9, color="#8A85AD")),
+                )
+                _apply_space_grid(fig_ca)
+                st.plotly_chart(fig_ca, use_container_width=True, key="capital_allocation_waterfall")
+
+                # Shareholder Yield
+                if _ca_mcap > 0:
+                    _sh_yield = (_ca_divs_abs + _ca_buybacks_abs) / _ca_mcap * 100
+                    _div_yield_only = _ca_divs_abs / _ca_mcap * 100
+                    _sy1, _sy2 = st.columns(2)
+                    _sy1.metric("Shareholder Yield", f"{_sh_yield:.2f}%",
+                                help="(Dividends + Buybacks) / Market Cap")
+                    _sy2.metric("Dividend Yield Only", f"{_div_yield_only:.2f}%",
+                                delta=f"+{_sh_yield - _div_yield_only:.2f}% from buybacks" if _ca_buybacks_abs > 0 else None)
+
+                # Allocation percentages
+                _ca_total_uses = _ca_capex_abs + _ca_divs_abs + _ca_buybacks_abs + _ca_debt_abs + _ca_remainder
+                if _ca_total_uses > 0:
+                    _alloc_items = []
+                    if _ca_capex_abs > 0:
+                        _alloc_items.append(("CapEx", _ca_capex_abs / _ca_ocf * 100))
+                    if _ca_divs_abs > 0:
+                        _alloc_items.append(("Dividends", _ca_divs_abs / _ca_ocf * 100))
+                    if _ca_buybacks_abs > 0:
+                        _alloc_items.append(("Buybacks", _ca_buybacks_abs / _ca_ocf * 100))
+                    if _ca_debt_abs > 0:
+                        _alloc_items.append(("Debt Repayment", _ca_debt_abs / _ca_ocf * 100))
+                    if _ca_remainder > 0:
+                        _alloc_items.append(("Cash Accumulation", _ca_remainder / _ca_ocf * 100))
+
+                    _alloc_text = " · ".join([f"**{n}**: {v:.0f}%" for n, v in _alloc_items])
+                    st.markdown(f"**OCF Allocation:** {_alloc_text}")
+            else:
+                st.info("Operating cash flow data not available or negative.")
+        except Exception:
+            st.info("Could not compute capital allocation analysis.")
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # 8b. WORKING CAPITAL ANALYSIS
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Working Capital Analysis"):
+        _section("Working Capital Dashboard", "💰")
+        try:
+            _wc_has_data = False
+            _wc_dso_curr = _wc_dso_prev = _wc_dio_curr = _wc_dio_prev = None
+            _wc_dpo_curr = _wc_dpo_prev = None
+
+            if cd.balance_sheet is not None and not cd.balance_sheet.empty and cd.income_stmt is not None and not cd.income_stmt.empty:
+                _bs = cd.balance_sheet
+                _is = cd.income_stmt
+
+                # Extract rows from financial statements
+                def _wc_find_row(df, keywords):
+                    for idx_name in df.index:
+                        _idx_lower = str(idx_name).lower()
+                        for kw in keywords:
+                            if kw in _idx_lower:
+                                return df.loc[idx_name]
+                    return None
+
+                _wc_recv = _wc_find_row(_bs, ["accounts receivable", "net receivable", "receivable"])
+                _wc_inv = _wc_find_row(_bs, ["inventory"])
+                _wc_pay = _wc_find_row(_bs, ["accounts payable", "payable"])
+                _wc_rev_row = _wc_find_row(_is, ["total revenue", "revenue"])
+                _wc_cogs_row = _wc_find_row(_is, ["cost of revenue", "cost of goods"])
+
+                if _wc_rev_row is not None and len(_wc_rev_row) > 0:
+                    _wc_rev_curr = float(_wc_rev_row.iloc[0]) if pd.notna(_wc_rev_row.iloc[0]) else None
+                    _wc_rev_prev = float(_wc_rev_row.iloc[1]) if len(_wc_rev_row) > 1 and pd.notna(_wc_rev_row.iloc[1]) else None
+                else:
+                    _wc_rev_curr = _wc_rev_prev = None
+
+                _wc_cogs_curr = _wc_cogs_prev = None
+                if _wc_cogs_row is not None and len(_wc_cogs_row) > 0:
+                    _wc_cogs_curr = abs(float(_wc_cogs_row.iloc[0])) if pd.notna(_wc_cogs_row.iloc[0]) else None
+                    _wc_cogs_prev = abs(float(_wc_cogs_row.iloc[1])) if len(_wc_cogs_row) > 1 and pd.notna(_wc_cogs_row.iloc[1]) else None
+
+                # DSO
+                if _wc_recv is not None and _wc_rev_curr and _wc_rev_curr > 0:
+                    _wc_recv_curr = float(_wc_recv.iloc[0]) if pd.notna(_wc_recv.iloc[0]) else 0
+                    _wc_dso_curr = (_wc_recv_curr / _wc_rev_curr) * 365
+                    if len(_wc_recv) > 1 and _wc_rev_prev and _wc_rev_prev > 0:
+                        _wc_recv_prev_v = float(_wc_recv.iloc[1]) if pd.notna(_wc_recv.iloc[1]) else 0
+                        _wc_dso_prev = (_wc_recv_prev_v / _wc_rev_prev) * 365
+
+                # DIO
+                if _wc_inv is not None and _wc_cogs_curr and _wc_cogs_curr > 0:
+                    _wc_inv_curr = float(_wc_inv.iloc[0]) if pd.notna(_wc_inv.iloc[0]) else 0
+                    _wc_dio_curr = (_wc_inv_curr / _wc_cogs_curr) * 365
+                    if len(_wc_inv) > 1 and _wc_cogs_prev and _wc_cogs_prev > 0:
+                        _wc_inv_prev_v = float(_wc_inv.iloc[1]) if pd.notna(_wc_inv.iloc[1]) else 0
+                        _wc_dio_prev = (_wc_inv_prev_v / _wc_cogs_prev) * 365
+
+                # DPO
+                if _wc_pay is not None and _wc_cogs_curr and _wc_cogs_curr > 0:
+                    _wc_pay_curr = float(_wc_pay.iloc[0]) if pd.notna(_wc_pay.iloc[0]) else 0
+                    _wc_dpo_curr = (_wc_pay_curr / _wc_cogs_curr) * 365
+                    if len(_wc_pay) > 1 and _wc_cogs_prev and _wc_cogs_prev > 0:
+                        _wc_pay_prev_v = float(_wc_pay.iloc[1]) if pd.notna(_wc_pay.iloc[1]) else 0
+                        _wc_dpo_prev = (_wc_pay_prev_v / _wc_cogs_prev) * 365
+
+                # Display metrics
+                _wc_metrics = []
+                if _wc_dso_curr is not None:
+                    _wc_metrics.append(("DSO", _wc_dso_curr, _wc_dso_prev, "Days Sales Outstanding"))
+                    _wc_has_data = True
+                if _wc_dio_curr is not None:
+                    _wc_metrics.append(("DIO", _wc_dio_curr, _wc_dio_prev, "Days Inventory Outstanding"))
+                    _wc_has_data = True
+                if _wc_dpo_curr is not None:
+                    _wc_metrics.append(("DPO", _wc_dpo_curr, _wc_dpo_prev, "Days Payable Outstanding"))
+                    _wc_has_data = True
+
+                if _wc_has_data:
+                    _wc_cols = st.columns(len(_wc_metrics) + 1)
+                    for i, (_wc_name, _wc_val, _wc_prev, _wc_desc) in enumerate(_wc_metrics):
+                        _wc_delta = None
+                        if _wc_prev is not None:
+                            _wc_delta = f"{_wc_val - _wc_prev:+.1f} days"
+                        _wc_cols[i].metric(_wc_desc, f"{_wc_val:.1f} days", delta=_wc_delta, delta_color="inverse" if _wc_name != "DPO" else "normal")
+
+                    # CCC
+                    _wc_ccc = (_wc_dso_curr or 0) + (_wc_dio_curr or 0) - (_wc_dpo_curr or 0)
+                    _wc_ccc_prev = None
+                    if _wc_dso_prev is not None or _wc_dio_prev is not None or _wc_dpo_prev is not None:
+                        _wc_ccc_prev = (_wc_dso_prev or 0) + (_wc_dio_prev or 0) - (_wc_dpo_prev or 0)
+                    _ccc_delta = f"{_wc_ccc - _wc_ccc_prev:+.1f} days" if _wc_ccc_prev is not None else None
+                    _ccc_color = "#10B981" if _wc_ccc < 30 else ("#F5A623" if _wc_ccc < 60 else "#EF4444")
+                    _ccc_label = "Good" if _wc_ccc < 30 else ("Moderate" if _wc_ccc < 60 else "Poor")
+                    _wc_cols[-1].metric("Cash Conversion Cycle", f"{_wc_ccc:.1f} days", delta=_ccc_delta, delta_color="inverse")
+                    _wc_cols[-1].markdown(f'<span style="color:{_ccc_color}; font-weight:600; font-size:0.8rem;">● {_ccc_label}</span>', unsafe_allow_html=True)
+
+                    # Stacked bar chart
+                    _wc_bar_data = []
+                    _wc_years = ["Current"]
+                    _wc_dso_vals = [_wc_dso_curr or 0]
+                    _wc_dio_vals = [_wc_dio_curr or 0]
+                    _wc_dpo_vals = [_wc_dpo_curr or 0]
+                    if _wc_dso_prev is not None or _wc_dio_prev is not None or _wc_dpo_prev is not None:
+                        _wc_years.insert(0, "Prior Year")
+                        _wc_dso_vals.insert(0, _wc_dso_prev or 0)
+                        _wc_dio_vals.insert(0, _wc_dio_prev or 0)
+                        _wc_dpo_vals.insert(0, _wc_dpo_prev or 0)
+
+                    fig_wc = go.Figure()
+                    fig_wc.add_trace(go.Bar(name="DSO", x=_wc_years, y=_wc_dso_vals, marker_color="#6B5CE7"))
+                    fig_wc.add_trace(go.Bar(name="DIO", x=_wc_years, y=_wc_dio_vals, marker_color="#10B981"))
+                    fig_wc.add_trace(go.Bar(name="DPO", x=_wc_years, y=_wc_dpo_vals, marker_color="#EF4444"))
+                    fig_wc.update_layout(
+                        **_CHART_LAYOUT_BASE, height=350, barmode="stack",
+                        margin=dict(t=30, b=40, l=60, r=30),
+                        xaxis=dict(tickfont=dict(size=10, color="#8A85AD")),
+                        yaxis=dict(title="Days", tickfont=dict(size=9, color="#8A85AD")),
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5,
+                                    font=dict(size=10, color="#C4B5FD")),
+                    )
+                    _apply_space_grid(fig_wc)
+                    st.plotly_chart(fig_wc, use_container_width=True, key="working_capital_ccc_chart")
+                else:
+                    st.info("Insufficient balance sheet data for working capital analysis.")
+            else:
+                st.info("Financial statements not available for working capital analysis.")
+        except Exception:
+            st.info("Could not compute working capital metrics.")
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
     # 9. ANALYST CONSENSUS
     # ══════════════════════════════════════════════════════
     _section("Analyst Consensus")
@@ -9265,6 +9515,138 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     _divider()
 
     # ══════════════════════════════════════════════════════
+    # 10d-i-b. CREDIT RATING ESTIMATOR
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Credit Rating Estimator"):
+        _section("Synthetic Credit Rating", "🏛️")
+        try:
+            _cr_ebitda = _safe_val(getattr(cd, 'ebitda', None))
+            _cr_ebit = _safe_val(getattr(cd, 'operating_income', None))
+            _cr_interest = _safe_val(getattr(cd, 'interest_expense', None))
+            _cr_total_debt = _safe_val(getattr(cd, 'total_debt', None))
+            _cr_op_margins = getattr(cd, 'operating_margins', None)
+            _cr_mcap = getattr(cd, 'market_cap', 0) or 0
+
+            _rating_scale = ["AAA", "AA+", "AA", "AA-", "A+", "A", "A-",
+                             "BBB+", "BBB", "BBB-", "BB+", "BB", "BB-",
+                             "B+", "B", "B-", "CCC+", "CCC", "CCC-", "CC", "C"]
+
+            _cr_components = []
+
+            # Interest Coverage Score
+            if _cr_ebit and _cr_interest and abs(_cr_interest) > 0:
+                _ic_ratio = abs(_cr_ebit / _cr_interest)
+                if _ic_ratio > 8:
+                    _ic_score = 2  # AAA-AA range
+                    _ic_label = f"{_ic_ratio:.1f}x — Excellent"
+                elif _ic_ratio > 4:
+                    _ic_score = 6  # A-BBB range
+                    _ic_label = f"{_ic_ratio:.1f}x — Adequate"
+                elif _ic_ratio > 2:
+                    _ic_score = 11  # BB-B range
+                    _ic_label = f"{_ic_ratio:.1f}x — Weak"
+                else:
+                    _ic_score = 17  # CCC or below
+                    _ic_label = f"{_ic_ratio:.1f}x — Distressed"
+                _cr_components.append(("Interest Coverage", _ic_score, _ic_label))
+
+            # Debt/EBITDA Score
+            if _cr_total_debt is not None and _cr_ebitda and abs(_cr_ebitda) > 0:
+                _de_ratio = abs(_cr_total_debt / _cr_ebitda)
+                if _de_ratio < 1:
+                    _de_score = 0
+                    _de_label = f"{_de_ratio:.1f}x — Very Low Leverage"
+                elif _de_ratio < 2:
+                    _de_score = 4
+                    _de_label = f"{_de_ratio:.1f}x — Conservative"
+                elif _de_ratio < 4:
+                    _de_score = 9
+                    _de_label = f"{_de_ratio:.1f}x — Moderate"
+                else:
+                    _de_score = 14
+                    _de_label = f"{_de_ratio:.1f}x — High Leverage"
+                _cr_components.append(("Debt / EBITDA", _de_score, _de_label))
+
+            # Operating Margin Score
+            if _cr_op_margins is not None:
+                _opm = _cr_op_margins * 100 if abs(_cr_op_margins) < 1 else _cr_op_margins
+                if _opm > 25:
+                    _om_score = 2
+                    _om_label = f"{_opm:.1f}% — Premium"
+                elif _opm > 15:
+                    _om_score = 6
+                    _om_label = f"{_opm:.1f}% — Solid"
+                else:
+                    _om_score = 12
+                    _om_label = f"{_opm:.1f}% — Weaker"
+                _cr_components.append(("Operating Margin", _om_score, _om_label))
+
+            # Size Premium
+            if _cr_mcap > 50e9:
+                _sz_adj = -1
+                _sz_label = f"{format_number(_cr_mcap, currency_symbol=cs)} — Large Cap (+1 notch)"
+            elif _cr_mcap > 10e9:
+                _sz_adj = 0
+                _sz_label = f"{format_number(_cr_mcap, currency_symbol=cs)} — Mid Cap (neutral)"
+            elif _cr_mcap > 1e9:
+                _sz_adj = 0
+                _sz_label = f"{format_number(_cr_mcap, currency_symbol=cs)} — Small-Mid Cap (neutral)"
+            else:
+                _sz_adj = 1
+                _sz_label = f"{format_number(_cr_mcap, currency_symbol=cs)} — Small Cap (-1 notch)"
+
+            if _cr_components:
+                _avg_score = sum(c[1] for c in _cr_components) / len(_cr_components)
+                _final_idx = max(0, min(len(_rating_scale) - 1, int(round(_avg_score)) + _sz_adj))
+                _final_rating = _rating_scale[_final_idx]
+                _cr_components.append(("Size Adjustment", _sz_adj, _sz_label))
+
+                # Color mapping
+                if _final_idx <= 3:
+                    _badge_color = "#10B981"  # Green - Investment Grade High
+                elif _final_idx <= 9:
+                    _badge_color = "#6B5CE7"  # Purple - Investment Grade
+                elif _final_idx <= 14:
+                    _badge_color = "#F5A623"  # Orange - Speculative
+                else:
+                    _badge_color = "#EF4444"  # Red - Distressed
+
+                _ig_label = "Investment Grade" if _final_idx <= 9 else ("Speculative Grade" if _final_idx <= 16 else "Distressed")
+
+                st.markdown(
+                    f'<div style="text-align:center; padding:1.5rem;">'
+                    f'<div style="font-size:0.8rem; color:#8A85AD; margin-bottom:0.3rem;">Estimated Synthetic Rating</div>'
+                    f'<div style="display:inline-block; background:{_badge_color}; color:white; font-size:3rem; '
+                    f'font-weight:900; padding:0.5rem 2rem; border-radius:12px; letter-spacing:2px; '
+                    f'box-shadow: 0 4px 20px {_badge_color}66;">{_final_rating}</div>'
+                    f'<div style="font-size:0.9rem; color:{_badge_color}; margin-top:0.5rem; font-weight:600;">{_ig_label}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+                # Component breakdown
+                st.markdown("##### Component Breakdown")
+                for _comp_name, _comp_score, _comp_label in _cr_components:
+                    _comp_rating = _rating_scale[max(0, min(len(_rating_scale) - 1, int(round(_comp_score))))] if _comp_name != "Size Adjustment" else (f"{'+1' if _sz_adj < 0 else ('-1' if _sz_adj > 0 else '0')} notch")
+                    st.markdown(
+                        f'<div style="display:flex; justify-content:space-between; align-items:center; '
+                        f'padding:0.5rem 0.8rem; margin:0.3rem 0; background:rgba(107,92,231,0.05); border-radius:8px;">'
+                        f'<span style="color:#C4B5FD; font-weight:600;">{_comp_name}</span>'
+                        f'<span style="color:#8A85AD;">{_comp_label}</span>'
+                        f'<span style="color:white; font-weight:700; background:rgba(107,92,231,0.2); padding:2px 10px; border-radius:6px;">{_comp_rating}</span>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                st.caption("⚠️ This is a simplified model-based estimate, not an official credit agency rating.")
+            else:
+                st.info("Insufficient data to estimate credit rating.")
+        except Exception:
+            st.info("Could not compute synthetic credit rating.")
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
     # 10d-ii. EARNINGS QUALITY SCORE
     # ══════════════════════════════════════════════════════
     with _safe_section("Earnings Quality"):
@@ -9657,7 +10039,120 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     st.info("Insufficient data for 5-factor DuPont analysis.")
         else:
             st.info("Insufficient financial data for DuPont Analysis.")
-    
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
+    # 10d-iii. MANAGEMENT SCORECARD
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Management Scorecard"):
+        _section("Management Effectiveness Scorecard", "🎯")
+        try:
+            _ms_oi = _safe_val(getattr(cd, 'operating_income', None))
+            _ms_tax = _safe_val(getattr(cd, 'tax_provision', None))
+            _ms_ni = _safe_val(getattr(cd, 'net_income', None))
+            _ms_equity = _safe_val(getattr(cd, 'total_equity', None))
+            _ms_debt = _safe_val(getattr(cd, 'total_debt', None))
+            _ms_cash = _safe_val(getattr(cd, 'cash_and_equivalents', None))
+            _ms_rev = _safe_val(getattr(cd, 'revenue', None))
+            _ms_employees = getattr(cd, 'full_time_employees', None)
+            _ms_mcap = getattr(cd, 'market_cap', 0) or 0
+            _ms_roe_info = getattr(cd, 'return_on_equity', None)
+
+            _ms_cards = []
+
+            # ROIC
+            if _ms_oi is not None and _ms_ni is not None and _ms_equity is not None:
+                # Estimate effective tax rate
+                _ms_ebt = _ms_oi  # approximate
+                _ms_tax_rate = abs(_ms_tax / _ms_ebt) if _ms_tax and _ms_ebt and abs(_ms_ebt) > 0 else 0.25
+                _ms_tax_rate = min(_ms_tax_rate, 0.5)  # cap at 50%
+                _ms_nopat = _ms_oi * (1 - _ms_tax_rate)
+                _ms_invested_cap = (_ms_equity or 0) + (_ms_debt or 0) - (_ms_cash or 0)
+                if _ms_invested_cap and abs(_ms_invested_cap) > 0:
+                    _ms_roic = (_ms_nopat / abs(_ms_invested_cap)) * 100
+                    _ms_roic_color = "#10B981" if _ms_roic > 15 else ("#F5A623" if _ms_roic > 8 else "#EF4444")
+                    _ms_cards.append(("ROIC", f"{_ms_roic:.1f}%", _ms_roic_color,
+                                      "NOPAT / Invested Capital"))
+
+                    # ROIC vs WACC spread (assume ~10% WACC as baseline)
+                    _ms_wacc_est = 10.0
+                    _ms_spread = _ms_roic - _ms_wacc_est
+                    _ms_spread_color = "#10B981" if _ms_spread > 0 else "#EF4444"
+                    _ms_spread_icon = "✅ Value Creator" if _ms_spread > 0 else "⚠️ Value Destroyer"
+                    _ms_cards.append(("ROIC-WACC Spread", f"{_ms_spread:+.1f}%", _ms_spread_color,
+                                      _ms_spread_icon))
+
+            # ROE
+            if _ms_roe_info is not None:
+                _ms_roe_pct = _ms_roe_info * 100 if abs(_ms_roe_info) < 1 else _ms_roe_info
+                _ms_roe_color = "#10B981" if _ms_roe_pct > 15 else ("#F5A623" if _ms_roe_pct > 8 else "#EF4444")
+                _ms_cards.append(("Return on Equity", f"{_ms_roe_pct:.1f}%", _ms_roe_color, "Net Income / Equity"))
+
+            # Revenue per Employee
+            if _ms_rev and _ms_employees and _ms_employees > 0:
+                _ms_rev_per_emp = _ms_rev / _ms_employees
+                _ms_cards.append(("Revenue / Employee", format_number(_ms_rev_per_emp, currency_symbol=cs),
+                                  "#6B5CE7", f"{_ms_employees:,} employees"))
+
+            if _ms_cards:
+                _ms_cols = st.columns(len(_ms_cards))
+                for i, (_ms_title, _ms_val_str, _ms_color, _ms_sub) in enumerate(_ms_cards):
+                    _ms_cols[i].markdown(
+                        f'<div style="background:rgba(107,92,231,0.05); border-radius:12px; padding:1rem; '
+                        f'text-align:center; border-left:3px solid {_ms_color};">'
+                        f'<div style="font-size:0.75rem; color:#8A85AD;">{_ms_title}</div>'
+                        f'<div style="font-size:1.8rem; font-weight:800; color:{_ms_color};">{_ms_val_str}</div>'
+                        f'<div style="font-size:0.7rem; color:#8A85AD;">{_ms_sub}</div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                # ROE Trend (3 years)
+                if cd.income_stmt is not None and cd.balance_sheet is not None:
+                    try:
+                        _ni_series = getattr(cd, 'net_income', None)
+                        _eq_series = getattr(cd, 'total_equity', None)
+                        if _ni_series is not None and _eq_series is not None and len(_ni_series) >= 2 and len(_eq_series) >= 2:
+                            _roe_years = []
+                            _roe_vals = []
+                            _n_years = min(len(_ni_series), len(_eq_series), 4)
+                            for _yi in range(_n_years):
+                                try:
+                                    _ni_v = float(_ni_series.iloc[_yi])
+                                    _eq_v = float(_eq_series.iloc[_yi])
+                                    if _eq_v and abs(_eq_v) > 0:
+                                        _roe_vals.append((_ni_v / abs(_eq_v)) * 100)
+                                        _yr_label = _ni_series.index[_yi].strftime("%Y") if hasattr(_ni_series.index[_yi], "strftime") else str(_ni_series.index[_yi])
+                                        _roe_years.append(_yr_label)
+                                except Exception:
+                                    pass
+                            if len(_roe_vals) >= 2:
+                                _roe_years.reverse()
+                                _roe_vals.reverse()
+                                fig_roe = go.Figure()
+                                fig_roe.add_trace(go.Scatter(
+                                    x=_roe_years, y=_roe_vals, mode="lines+markers+text",
+                                    text=[f"{v:.1f}%" for v in _roe_vals], textposition="top center",
+                                    textfont=dict(size=10, color="#C4B5FD"),
+                                    line=dict(color="#6B5CE7", width=2),
+                                    marker=dict(size=8, color="#6B5CE7"),
+                                ))
+                                fig_roe.update_layout(
+                                    **_CHART_LAYOUT_BASE, height=250,
+                                    margin=dict(t=30, b=30, l=50, r=30),
+                                    xaxis=dict(tickfont=dict(size=10, color="#8A85AD")),
+                                    yaxis=dict(title="ROE %", tickfont=dict(size=9, color="#8A85AD")),
+                                )
+                                _apply_space_grid(fig_roe)
+                                st.plotly_chart(fig_roe, use_container_width=True, key="mgmt_roe_trend")
+                    except Exception:
+                        pass
+            else:
+                st.info("Insufficient data for management effectiveness analysis.")
+        except Exception:
+            st.info("Could not compute management scorecard.")
+
     _divider()
 
     # ══════════════════════════════════════════════════════
