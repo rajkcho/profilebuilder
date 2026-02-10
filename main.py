@@ -4818,7 +4818,172 @@ with st.sidebar:
                 )
                 if new_note != current_note:
                     _set_watchlist_note(wl_ticker, new_note)
-    
+
+            # ── Watchlist Heat Map & Correlation (3+ items) ──
+            if len(watchlist) >= 3:
+                st.markdown(
+                    '<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF; margin:0.5rem 0 0.3rem;">📊 WATCHLIST INTELLIGENCE</div>',
+                    unsafe_allow_html=True,
+                )
+
+                wl_intel_tab1, wl_intel_tab2 = st.tabs(["🗺️ Heat Map", "🔗 Correlation"])
+
+                with wl_intel_tab1:
+                    try:
+                        _hm_labels = []
+                        _hm_values = []
+                        _hm_colors = []
+                        _hm_sizes = []
+                        for _wt in watchlist:
+                            _wi = st.session_state.watchlist_data.get(_wt, {})
+                            _chg = _wi.get("change_pct", 0) or 0
+                            _mcap = _wi.get("market_cap", 1e9) or 1e9
+                            _hm_labels.append(_wt)
+                            _hm_values.append(_mcap)
+                            _hm_colors.append(_chg)
+                            _hm_sizes.append(_mcap)
+
+                        if _hm_labels:
+                            _hm_text = [f"{l}<br>{c:+.2f}%" for l, c in zip(_hm_labels, _hm_colors)]
+                            fig_hm = go.Figure(go.Treemap(
+                                labels=_hm_labels,
+                                parents=[""] * len(_hm_labels),
+                                values=_hm_sizes,
+                                marker=dict(
+                                    colors=_hm_colors,
+                                    colorscale=[[0, "#EF4444"], [0.5, "#1a1a2e"], [1, "#10B981"]],
+                                    cmid=0,
+                                    line=dict(width=1, color="rgba(255,255,255,0.1)"),
+                                ),
+                                text=_hm_text,
+                                textinfo="text",
+                                textfont=dict(size=11, color="#E0DCF5"),
+                                hovertemplate="<b>%{label}</b><br>Change: %{color:+.2f}%<extra></extra>",
+                            ))
+                            fig_hm.update_layout(
+                                **_CHART_LAYOUT_BASE, height=220,
+                                margin=dict(t=5, b=5, l=5, r=5),
+                            )
+                            st.plotly_chart(fig_hm, use_container_width=True, key="wl_heatmap")
+                    except Exception:
+                        st.caption("Heat map unavailable")
+
+                with wl_intel_tab2:
+                    try:
+                        _corr_data = {}
+                        for _wt in watchlist:
+                            try:
+                                _tk = yf.Ticker(_wt)
+                                _h = _tk.history(period="3mo")
+                                if _h is not None and not _h.empty and len(_h) > 5:
+                                    _corr_data[_wt] = _h["Close"].pct_change().dropna()
+                            except Exception:
+                                pass
+                        if len(_corr_data) >= 2:
+                            _corr_df = pd.DataFrame(_corr_data)
+                            _corr_matrix = _corr_df.corr()
+
+                            fig_corr = go.Figure(go.Heatmap(
+                                z=_corr_matrix.values,
+                                x=_corr_matrix.columns.tolist(),
+                                y=_corr_matrix.index.tolist(),
+                                colorscale=[[0, "#EF4444"], [0.5, "#1a1a2e"], [1, "#10B981"]],
+                                zmin=-1, zmax=1,
+                                text=np.round(_corr_matrix.values, 2),
+                                texttemplate="%{text}",
+                                textfont=dict(size=9, color="#E0DCF5"),
+                                hovertemplate="%{x} vs %{y}: %{z:.2f}<extra></extra>",
+                                colorbar=dict(tickfont=dict(size=8, color="#8A85AD"), thickness=10),
+                            ))
+                            fig_corr.update_layout(
+                                **_CHART_LAYOUT_BASE, height=250,
+                                margin=dict(t=10, b=30, l=60, r=10),
+                                xaxis=dict(tickfont=dict(size=9, color="#8A85AD")),
+                                yaxis=dict(tickfont=dict(size=9, color="#8A85AD"), autorange="reversed"),
+                            )
+                            st.plotly_chart(fig_corr, use_container_width=True, key="wl_correlation")
+                        else:
+                            st.caption("Need 2+ valid tickers for correlation")
+                    except Exception:
+                        st.caption("Correlation unavailable")
+
+    st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
+
+    # ══════════════════════════════════════════════════════
+    # PORTFOLIO SIMULATOR (shown in all modes)
+    # ══════════════════════════════════════════════════════
+    with st.expander("📊 Portfolio Simulator", expanded=False):
+        st.markdown('<div style="font-size:0.68rem; color:#8A85AD; margin-bottom:0.5rem;">Enter up to 5 tickers with weights (must sum to 100%)</div>', unsafe_allow_html=True)
+        _ps_tickers = []
+        _ps_weights = []
+        for _pi in range(5):
+            _pc1, _pc2 = st.columns([2, 1])
+            with _pc1:
+                _pt = st.text_input(f"Ticker {_pi+1}", value="", key=f"ps_ticker_{_pi}", placeholder="e.g. AAPL", label_visibility="collapsed").strip().upper()
+            with _pc2:
+                _pw = st.number_input(f"Wt {_pi+1}", min_value=0.0, max_value=100.0, value=0.0, step=5.0, key=f"ps_weight_{_pi}", label_visibility="collapsed")
+            if _pt and _pw > 0:
+                _ps_tickers.append(_pt)
+                _ps_weights.append(_pw / 100.0)
+
+        if len(_ps_tickers) >= 2 and abs(sum(_ps_weights) - 1.0) < 0.02:
+            try:
+                _ps_data = yf.download(_ps_tickers, period="1y", progress=False)["Close"]
+                if _ps_data is not None and not _ps_data.empty:
+                    _ps_returns = _ps_data.pct_change().dropna()
+                    _w = np.array(_ps_weights)
+
+                    # Individual stats
+                    _ann_ret = _ps_returns.mean() * 252
+                    _ann_vol = _ps_returns.std() * np.sqrt(252)
+
+                    # Portfolio stats
+                    _port_ret = float(np.dot(_w, _ann_ret.values))
+                    _cov_matrix = _ps_returns.cov() * 252
+                    _port_vol = float(np.sqrt(np.dot(_w.T, np.dot(_cov_matrix.values, _w))))
+                    _rf = 0.0425
+                    _sharpe = (_port_ret - _rf) / _port_vol if _port_vol > 0 else 0
+
+                    _sr_color = "#10B981" if _sharpe > 1 else "#F59E0B" if _sharpe > 0.5 else "#EF4444"
+                    st.markdown(
+                        f'<div style="background:rgba(107,92,231,0.06); border-radius:8px; padding:0.6rem; margin:0.3rem 0; font-size:0.72rem;">'
+                        f'<div style="color:#9B8AFF; font-weight:700; margin-bottom:0.3rem;">PORTFOLIO METRICS</div>'
+                        f'<div style="color:#B8B3D7;">Expected Return: <b style="color:#10B981;">{_port_ret*100:.1f}%</b></div>'
+                        f'<div style="color:#B8B3D7;">Volatility: <b style="color:#F59E0B;">{_port_vol*100:.1f}%</b></div>'
+                        f'<div style="color:#B8B3D7;">Sharpe Ratio: <b style="color:{_sr_color};">{_sharpe:.2f}</b></div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                    # Mini scatter: portfolio vs individual stocks
+                    fig_ps = go.Figure()
+                    _colors_ps = ["#E8638B", "#3B82F6", "#F5A623", "#8B5CF6", "#14B8A6"]
+                    for _si, _st in enumerate(_ps_tickers):
+                        fig_ps.add_trace(go.Scatter(
+                            x=[float(_ann_vol.iloc[_si]) * 100], y=[float(_ann_ret.iloc[_si]) * 100],
+                            mode="markers+text", name=_st, text=[_st], textposition="top center",
+                            marker=dict(size=8, color=_colors_ps[_si % 5]),
+                            textfont=dict(size=8, color="#B8B3D7"),
+                        ))
+                    fig_ps.add_trace(go.Scatter(
+                        x=[_port_vol * 100], y=[_port_ret * 100],
+                        mode="markers+text", name="Portfolio", text=["Portfolio"], textposition="top center",
+                        marker=dict(size=14, color="#6B5CE7", symbol="star", line=dict(width=2, color="#fff")),
+                        textfont=dict(size=9, color="#E0DCF5", weight="bold" if hasattr(dict, 'weight') else None),
+                    ))
+                    fig_ps.update_layout(
+                        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                        height=200, margin=dict(t=15, b=25, l=35, r=10), showlegend=False,
+                        xaxis=dict(title="Volatility %", titlefont=dict(size=9, color="#8A85AD"), tickfont=dict(size=8, color="#8A85AD"), gridcolor="rgba(107,92,231,0.08)"),
+                        yaxis=dict(title="Return %", titlefont=dict(size=9, color="#8A85AD"), tickfont=dict(size=8, color="#8A85AD"), gridcolor="rgba(107,92,231,0.08)"),
+                        font=dict(family="Inter"),
+                    )
+                    st.plotly_chart(fig_ps, use_container_width=True, key="portfolio_sim_chart")
+            except Exception as _ps_err:
+                st.caption(f"Could not compute: {str(_ps_err)[:80]}")
+        elif len(_ps_tickers) >= 1 and abs(sum(_ps_weights) - 1.0) >= 0.02:
+            st.caption(f"Weights sum to {sum(_ps_weights)*100:.0f}% — adjust to 100%")
+
     st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
 
     # ══════════════════════════════════════════════════════
@@ -6504,27 +6669,42 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     name="200-day MA", showlegend=True,
                 ))
                 
-                # Detect Golden/Death Cross
+                # Detect Golden/Death Cross with date
                 if not ma_50.dropna().empty and not ma_200.dropna().empty:
-                    recent_50 = ma_50.dropna().iloc[-1]
-                    recent_200 = ma_200.dropna().iloc[-1]
-                    prev_50 = ma_50.dropna().iloc[-2] if len(ma_50.dropna()) > 1 else recent_50
-                    prev_200 = ma_200.dropna().iloc[-2] if len(ma_200.dropna()) > 1 else recent_200
-                    
-                    if prev_50 <= prev_200 and recent_50 > recent_200:
+                    # Find all crossover points
+                    _ma_diff = ma_50 - ma_200
+                    _ma_diff_clean = _ma_diff.dropna()
+                    _cross_type = None
+                    _cross_date = None
+                    if len(_ma_diff_clean) > 1:
+                        for i in range(len(_ma_diff_clean) - 1, 0, -1):
+                            if _ma_diff_clean.iloc[i] > 0 and _ma_diff_clean.iloc[i - 1] <= 0:
+                                _cross_type = "golden"
+                                _cross_date = _ma_diff_clean.index[i]
+                                break
+                            elif _ma_diff_clean.iloc[i] < 0 and _ma_diff_clean.iloc[i - 1] >= 0:
+                                _cross_type = "death"
+                                _cross_date = _ma_diff_clean.index[i]
+                                break
+
+                    if _cross_type == "golden":
+                        _cd_str = _cross_date.strftime("%b %d, %Y") if hasattr(_cross_date, 'strftime') else str(_cross_date)[:10]
                         st.markdown(
-                            '<div style="text-align:center; padding:0.4rem; background:rgba(16,185,129,0.1); '
-                            'border-radius:8px; border:1px solid rgba(16,185,129,0.3); margin-bottom:0.5rem;">'
-                            '<span style="font-size:0.8rem; font-weight:700; color:#10B981;">✨ Golden Cross Detected — Bullish Signal</span>'
-                            '</div>',
+                            f'<div style="text-align:center; padding:0.4rem; background:rgba(16,185,129,0.1); '
+                            f'border-radius:8px; border:1px solid rgba(16,185,129,0.3); margin-bottom:0.5rem;">'
+                            f'<span style="font-size:0.8rem; font-weight:700; color:#10B981;">✨ Golden Cross — Bullish Signal</span>'
+                            f'<span style="font-size:0.7rem; color:#8A85AD; margin-left:0.5rem;">({_cd_str})</span>'
+                            f'</div>',
                             unsafe_allow_html=True,
                         )
-                    elif prev_50 >= prev_200 and recent_50 < recent_200:
+                    elif _cross_type == "death":
+                        _cd_str = _cross_date.strftime("%b %d, %Y") if hasattr(_cross_date, 'strftime') else str(_cross_date)[:10]
                         st.markdown(
-                            '<div style="text-align:center; padding:0.4rem; background:rgba(239,68,68,0.1); '
-                            'border-radius:8px; border:1px solid rgba(239,68,68,0.3); margin-bottom:0.5rem;">'
-                            '<span style="font-size:0.8rem; font-weight:700; color:#EF4444;">💀 Death Cross Detected — Bearish Signal</span>'
-                            '</div>',
+                            f'<div style="text-align:center; padding:0.4rem; background:rgba(239,68,68,0.1); '
+                            f'border-radius:8px; border:1px solid rgba(239,68,68,0.3); margin-bottom:0.5rem;">'
+                            f'<span style="font-size:0.8rem; font-weight:700; color:#EF4444;">💀 Death Cross — Bearish Signal</span>'
+                            f'<span style="font-size:0.7rem; color:#8A85AD; margin-left:0.5rem;">({_cd_str})</span>'
+                            f'</div>',
                             unsafe_allow_html=True,
                         )
         
@@ -6574,6 +6754,43 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         layer="below",
                     )
 
+        # Support/Resistance overlay on price chart
+        show_sr = st.checkbox("Show Support / Resistance", value=False, key="show_sr_price")
+        if show_sr and len(plot_hist) > 30:
+            try:
+                def _find_extrema(arr, order=5):
+                    _mn, _mx = [], []
+                    for i in range(order, len(arr) - order):
+                        if all(arr[i] <= arr[i-j] for j in range(1, order+1)) and all(arr[i] <= arr[i+j] for j in range(1, order+1)):
+                            _mn.append(i)
+                        if all(arr[i] >= arr[i-j] for j in range(1, order+1)) and all(arr[i] >= arr[i+j] for j in range(1, order+1)):
+                            _mx.append(i)
+                    return _mn, _mx
+                _sr_close = plot_hist["Close"]
+                _sr_supports = []
+                _sr_resistances = []
+                for _sr_w in [30, 60, 90]:
+                    if len(_sr_close) > _sr_w:
+                        _sr_seg = _sr_close.iloc[-_sr_w:]
+                        _min_i, _max_i = _find_extrema(_sr_seg.values, order=5)
+                        for _ii in _min_i:
+                            _sr_supports.append(_sr_seg.iloc[_ii])
+                        for _ii in _max_i:
+                            _sr_resistances.append(_sr_seg.iloc[_ii])
+                _sr_cp = _sr_close.iloc[-1]
+                _sr_supports = sorted(set(s for s in _sr_supports if s < _sr_cp))[-3:]
+                _sr_resistances = sorted(set(r for r in _sr_resistances if r > _sr_cp))[:3]
+                for _sv in _sr_supports:
+                    fig.add_hline(y=_sv, line_dash="dot", line_color="rgba(16,185,129,0.4)", line_width=1,
+                                  annotation_text=f"S:{cs}{_sv:,.1f}", annotation_position="bottom left",
+                                  annotation_font=dict(size=7, color="#10B981"))
+                for _rv in _sr_resistances:
+                    fig.add_hline(y=_rv, line_dash="dot", line_color="rgba(239,68,68,0.4)", line_width=1,
+                                  annotation_text=f"R:{cs}{_rv:,.1f}", annotation_position="top left",
+                                  annotation_font=dict(size=7, color="#EF4444"))
+            except Exception:
+                pass
+
         # 52-week high/low reference lines
         if cd.fifty_two_week_high:
             fig.add_hline(y=cd.fifty_two_week_high, line_dash="dash",
@@ -6615,7 +6832,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     
     ta_hist = cd.hist_1y if cd.hist_1y is not None and not cd.hist_1y.empty else hist
     if ta_hist is not None and not ta_hist.empty and len(ta_hist) > 20:
-        ta_tab1, ta_tab2, ta_tab3 = st.tabs(["RSI", "MACD", "Bollinger Bands"])
+        ta_tab1, ta_tab2, ta_tab3, ta_tab4, ta_tab5 = st.tabs(["RSI", "MACD", "Bollinger Bands", "Momentum Score", "Support / Resistance"])
         
         close = ta_hist["Close"]
         
@@ -6764,6 +6981,203 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     unsafe_allow_html=True,
                 )
             st.plotly_chart(fig_bb, use_container_width=True, key="bb_chart")
+
+        # Momentum Score
+        with ta_tab4:
+            with _safe_section("Momentum Score"):
+                # Compute component scores (each 0-100)
+                # RSI component
+                delta_m = close.diff()
+                gain_m = delta_m.where(delta_m > 0, 0).rolling(14).mean()
+                loss_m = (-delta_m.where(delta_m < 0, 0)).rolling(14).mean()
+                rs_m = gain_m / loss_m
+                rsi_m = 100 - (100 / (1 + rs_m))
+                current_rsi_m = rsi_m.dropna().iloc[-1] if not rsi_m.dropna().empty else 50
+                # RSI score: 0=oversold(strong buy), 100=overbought(strong sell), invert so high=bullish
+                rsi_score = max(0, min(100, 100 - current_rsi_m))
+
+                # MACD component
+                ema12_m = close.ewm(span=12, adjust=False).mean()
+                ema26_m = close.ewm(span=26, adjust=False).mean()
+                macd_m = ema12_m - ema26_m
+                signal_m = macd_m.ewm(span=9, adjust=False).mean()
+                macd_diff = macd_m.iloc[-1] - signal_m.iloc[-1]
+                macd_score = max(0, min(100, 50 + macd_diff / (close.iloc[-1] * 0.01) * 25))
+
+                # Price vs moving averages
+                ma50_m = close.rolling(50).mean()
+                ma200_m = close.rolling(200).mean()
+                ma_score = 50.0
+                if not ma50_m.dropna().empty:
+                    above_50 = 25 if close.iloc[-1] > ma50_m.dropna().iloc[-1] else -25
+                else:
+                    above_50 = 0
+                if not ma200_m.dropna().empty:
+                    above_200 = 25 if close.iloc[-1] > ma200_m.dropna().iloc[-1] else -25
+                else:
+                    above_200 = 0
+                ma_score = max(0, min(100, 50 + above_50 + above_200))
+
+                # Volume trend (rising vol = bullish confirmation)
+                vol_score = 50.0
+                if "Volume" in ta_hist.columns and len(ta_hist) > 20:
+                    vol_20 = ta_hist["Volume"].rolling(20).mean()
+                    vol_5 = ta_hist["Volume"].rolling(5).mean()
+                    if not vol_20.dropna().empty and not vol_5.dropna().empty:
+                        vr = vol_5.dropna().iloc[-1] / vol_20.dropna().iloc[-1] if vol_20.dropna().iloc[-1] > 0 else 1
+                        # If price rising + vol rising → bullish
+                        price_rising = close.iloc[-1] > close.iloc[-5] if len(close) > 5 else True
+                        if price_rising:
+                            vol_score = max(0, min(100, 50 + (vr - 1) * 50))
+                        else:
+                            vol_score = max(0, min(100, 50 - (vr - 1) * 50))
+
+                # Composite
+                momentum = rsi_score * 0.25 + macd_score * 0.30 + ma_score * 0.30 + vol_score * 0.15
+                momentum = max(0, min(100, momentum))
+
+                if momentum >= 80:
+                    m_label, m_color = "Strong Buy", "#10B981"
+                elif momentum >= 60:
+                    m_label, m_color = "Buy", "#34D399"
+                elif momentum >= 40:
+                    m_label, m_color = "Neutral", "#F59E0B"
+                elif momentum >= 20:
+                    m_label, m_color = "Sell", "#F87171"
+                else:
+                    m_label, m_color = "Strong Sell", "#EF4444"
+
+                # Gauge chart
+                fig_gauge = go.Figure(go.Indicator(
+                    mode="gauge+number",
+                    value=momentum,
+                    number=dict(font=dict(size=36, color=m_color)),
+                    title=dict(text=m_label, font=dict(size=16, color=m_color)),
+                    gauge=dict(
+                        axis=dict(range=[0, 100], tickwidth=1, tickcolor="#8A85AD",
+                                  tickfont=dict(size=10, color="#8A85AD")),
+                        bar=dict(color=m_color, thickness=0.3),
+                        bgcolor="rgba(0,0,0,0)",
+                        borderwidth=0,
+                        steps=[
+                            dict(range=[0, 20], color="rgba(239,68,68,0.15)"),
+                            dict(range=[20, 40], color="rgba(248,113,113,0.1)"),
+                            dict(range=[40, 60], color="rgba(245,158,11,0.1)"),
+                            dict(range=[60, 80], color="rgba(52,211,153,0.1)"),
+                            dict(range=[80, 100], color="rgba(16,185,129,0.15)"),
+                        ],
+                        threshold=dict(line=dict(color=m_color, width=3), thickness=0.75, value=momentum),
+                    ),
+                ))
+                fig_gauge.update_layout(
+                    **_CHART_LAYOUT_BASE, height=300,
+                    margin=dict(t=40, b=20, l=40, r=40),
+                )
+                st.plotly_chart(fig_gauge, use_container_width=True, key="momentum_gauge")
+
+                # Component breakdown
+                st.markdown(
+                    f'<div style="font-size:0.72rem; color:#8A85AD; text-align:center;">'
+                    f'RSI: {rsi_score:.0f} · MACD: {macd_score:.0f} · MA: {ma_score:.0f} · Volume: {vol_score:.0f}'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+        # Support / Resistance
+        with ta_tab5:
+            with _safe_section("Support / Resistance"):
+                def _local_extrema(arr, order=5):
+                    """Find local min/max indices without scipy."""
+                    mins, maxs = [], []
+                    for i in range(order, len(arr) - order):
+                        if all(arr[i] <= arr[i - j] for j in range(1, order + 1)) and all(arr[i] <= arr[i + j] for j in range(1, order + 1)):
+                            mins.append(i)
+                        if all(arr[i] >= arr[i - j] for j in range(1, order + 1)) and all(arr[i] >= arr[i + j] for j in range(1, order + 1)):
+                            maxs.append(i)
+                    return mins, maxs
+
+                curr_price_sr = close.iloc[-1]
+                supports = []
+                resistances = []
+
+                for window in [30, 60, 90]:
+                    if len(close) > window:
+                        _seg = close.iloc[-window:]
+                        min_idx, max_idx = _local_extrema(_seg.values, order=5)
+                        for idx in min_idx:
+                            supports.append(_seg.iloc[idx])
+                        for idx in max_idx:
+                            resistances.append(_seg.iloc[idx])
+
+                # Deduplicate: cluster nearby levels (within 1.5%)
+                def _cluster_levels(levels, threshold=0.015):
+                    if not levels:
+                        return []
+                    levels = sorted(set(levels))
+                    clustered = [levels[0]]
+                    for lv in levels[1:]:
+                        if abs(lv - clustered[-1]) / clustered[-1] > threshold:
+                            clustered.append(lv)
+                        else:
+                            clustered[-1] = (clustered[-1] + lv) / 2
+                    return clustered
+
+                supports = [s for s in _cluster_levels(supports) if s < curr_price_sr]
+                resistances = [r for r in _cluster_levels(resistances) if r > curr_price_sr]
+
+                # Chart with levels
+                fig_sr = go.Figure()
+                _glow_line_traces(fig_sr, ta_hist.index, close, "#6B5CE7", "Price")
+
+                for s in supports[-5:]:
+                    fig_sr.add_hline(y=s, line_dash="dash", line_color="rgba(16,185,129,0.5)", line_width=1,
+                                     annotation_text=f"S: {cs}{s:,.2f}", annotation_position="bottom right",
+                                     annotation_font=dict(size=8, color="#10B981"))
+                for r in resistances[:5]:
+                    fig_sr.add_hline(y=r, line_dash="dash", line_color="rgba(239,68,68,0.5)", line_width=1,
+                                     annotation_text=f"R: {cs}{r:,.2f}", annotation_position="top right",
+                                     annotation_font=dict(size=8, color="#EF4444"))
+
+                fig_sr.update_layout(
+                    **_CHART_LAYOUT_BASE, height=400,
+                    margin=dict(t=20, b=30, l=50, r=30),
+                    yaxis=dict(tickfont=dict(size=10, color="#8A85AD"), tickprefix=cs,
+                               title=dict(text=f"Price ({cs})", font=dict(size=11, color="#8A85AD"))),
+                    xaxis=dict(showgrid=False, tickfont=dict(size=10, color="#8A85AD")),
+                    showlegend=False,
+                )
+                _apply_space_grid(fig_sr)
+                st.plotly_chart(fig_sr, use_container_width=True, key="sr_chart")
+
+                # Distance summary
+                nearest_support = max(supports) if supports else None
+                nearest_resistance = min(resistances) if resistances else None
+
+                sr_cols = st.columns(2)
+                with sr_cols[0]:
+                    if nearest_support:
+                        dist_s = (curr_price_sr - nearest_support) / curr_price_sr * 100
+                        st.markdown(
+                            f'<div style="text-align:center; padding:0.4rem; background:rgba(16,185,129,0.08); border-radius:8px;">'
+                            f'<div style="font-size:0.7rem; color:#8A85AD;">Nearest Support</div>'
+                            f'<div style="font-size:1.1rem; font-weight:700; color:#10B981;">{cs}{nearest_support:,.2f}</div>'
+                            f'<div style="font-size:0.7rem; color:#10B981;">{dist_s:.1f}% below</div>'
+                            f'</div>', unsafe_allow_html=True,
+                        )
+                    else:
+                        st.info("No support levels detected")
+                with sr_cols[1]:
+                    if nearest_resistance:
+                        dist_r = (nearest_resistance - curr_price_sr) / curr_price_sr * 100
+                        st.markdown(
+                            f'<div style="text-align:center; padding:0.4rem; background:rgba(239,68,68,0.08); border-radius:8px;">'
+                            f'<div style="font-size:0.7rem; color:#8A85AD;">Nearest Resistance</div>'
+                            f'<div style="font-size:1.1rem; font-weight:700; color:#EF4444;">{cs}{nearest_resistance:,.2f}</div>'
+                            f'<div style="font-size:0.7rem; color:#EF4444;">{dist_r:.1f}% above</div>'
+                            f'</div>', unsafe_allow_html=True,
+                        )
+                    else:
+                        st.info("No resistance levels detected")
     else:
         st.info("Insufficient data for technical analysis.")
 
@@ -7976,7 +8390,192 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     st.plotly_chart(fig_div, use_container_width=True, key="dividend_history_chart")
         except Exception:
             pass
-        
+
+        # ── Dividend Deep Dive ──────────────────────────────
+        with _safe_section("Dividend Deep Dive"):
+            try:
+                tk_dd = yf.Ticker(cd.ticker)
+                info_dd = tk_dd.info or {}
+                divs_dd = tk_dd.dividends
+            except Exception:
+                divs_dd = None
+                info_dd = {}
+
+            if divs_dd is not None and len(divs_dd) > 4:
+                st.markdown(
+                    '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
+                    'letter-spacing:0.5px; margin:1.2rem 0 0.5rem;">📈 Dividend Growth Analysis</div>',
+                    unsafe_allow_html=True,
+                )
+
+                # Calculate annual dividends
+                _div_series = divs_dd.copy()
+                _div_series.index = pd.to_datetime(_div_series.index)
+                _annual_divs = _div_series.resample('YE').sum()
+                _annual_divs = _annual_divs[_annual_divs > 0]
+
+                # CAGR calculations
+                def _div_cagr(series, years):
+                    if len(series) < years + 1:
+                        return None
+                    end_val = series.iloc[-1]
+                    start_val = series.iloc[-years - 1]
+                    if start_val <= 0 or end_val <= 0:
+                        return None
+                    return (end_val / start_val) ** (1.0 / years) - 1
+
+                cagr_3 = _div_cagr(_annual_divs, 3)
+                cagr_5 = _div_cagr(_annual_divs, 5)
+                cagr_10 = _div_cagr(_annual_divs, 10)
+
+                cagr_cols = st.columns(3)
+                for i, (label, val) in enumerate([("3Y CAGR", cagr_3), ("5Y CAGR", cagr_5), ("10Y CAGR", cagr_10)]):
+                    with cagr_cols[i]:
+                        if val is not None:
+                            _c = "#10B981" if val > 0.05 else "#F59E0B" if val > 0 else "#EF4444"
+                            st.markdown(
+                                f'<div style="text-align:center; padding:0.6rem; background:rgba(107,92,231,0.05); border-radius:10px;">'
+                                f'<div style="font-size:0.6rem; color:#8A85AD; font-weight:600; text-transform:uppercase;">{label}</div>'
+                                f'<div style="font-size:1.2rem; font-weight:800; color:{_c};">{val*100:.1f}%</div></div>',
+                                unsafe_allow_html=True,
+                            )
+                        else:
+                            st.markdown(
+                                f'<div style="text-align:center; padding:0.6rem; background:rgba(107,92,231,0.05); border-radius:10px;">'
+                                f'<div style="font-size:0.6rem; color:#8A85AD; font-weight:600;">{label}</div>'
+                                f'<div style="font-size:1.2rem; color:#8A85AD;">N/A</div></div>',
+                                unsafe_allow_html=True,
+                            )
+
+                # Payout ratio & FCF coverage trends
+                _payout_ratios = []
+                _fcf_coverage = []
+                try:
+                    _inc_stmt = tk_dd.income_stmt
+                    _cf_stmt = tk_dd.cashflow
+                    if _inc_stmt is not None and _cf_stmt is not None:
+                        for col in _inc_stmt.columns[:5]:
+                            yr = str(col.year) if hasattr(col, 'year') else str(col)[:4]
+                            net_income = _inc_stmt[col].get("Net Income", None) or _inc_stmt[col].get("Net Income Common Stockholders", None)
+                            divs_paid = None
+                            fcf_val = None
+                            for row_name in _cf_stmt.index:
+                                if "dividend" in str(row_name).lower():
+                                    divs_paid = _cf_stmt[col].get(row_name, None)
+                                if "free cash flow" in str(row_name).lower():
+                                    fcf_val = _cf_stmt[col].get(row_name, None)
+                            if divs_paid is not None and net_income and net_income != 0:
+                                _payout_ratios.append({"Year": yr, "Payout Ratio": abs(float(divs_paid)) / abs(float(net_income)) * 100})
+                            if divs_paid is not None and fcf_val and fcf_val != 0:
+                                _fcf_coverage.append({"Year": yr, "FCF Coverage": abs(float(fcf_val)) / abs(float(divs_paid))})
+                except Exception:
+                    pass
+
+                if _payout_ratios or _fcf_coverage:
+                    pr_cols = st.columns(2)
+                    if _payout_ratios:
+                        with pr_cols[0]:
+                            _pr_df = pd.DataFrame(_payout_ratios[::-1])
+                            fig_pr = go.Figure(go.Bar(x=_pr_df["Year"], y=_pr_df["Payout Ratio"],
+                                marker_color=["#EF4444" if v > 80 else "#F59E0B" if v > 60 else "#10B981" for v in _pr_df["Payout Ratio"]]))
+                            fig_pr.update_layout(**_CHART_LAYOUT_BASE, height=220, margin=dict(t=25, b=25, l=40, r=15),
+                                title=dict(text="Payout Ratio %", font=dict(size=11, color="#9B8AFF")),
+                                yaxis=dict(ticksuffix="%", tickfont=dict(size=9, color="#8A85AD")),
+                                xaxis=dict(tickfont=dict(size=9, color="#8A85AD")), showlegend=False)
+                            _apply_space_grid(fig_pr)
+                            st.plotly_chart(fig_pr, use_container_width=True, key="div_payout_ratio_chart")
+                    if _fcf_coverage:
+                        with pr_cols[1]:
+                            _fc_df = pd.DataFrame(_fcf_coverage[::-1])
+                            fig_fc = go.Figure(go.Bar(x=_fc_df["Year"], y=_fc_df["FCF Coverage"],
+                                marker_color=["#10B981" if v > 2 else "#F59E0B" if v > 1 else "#EF4444" for v in _fc_df["FCF Coverage"]]))
+                            fig_fc.update_layout(**_CHART_LAYOUT_BASE, height=220, margin=dict(t=25, b=25, l=40, r=15),
+                                title=dict(text="FCF Coverage (x)", font=dict(size=11, color="#9B8AFF")),
+                                yaxis=dict(ticksuffix="x", tickfont=dict(size=9, color="#8A85AD")),
+                                xaxis=dict(tickfont=dict(size=9, color="#8A85AD")), showlegend=False)
+                            _apply_space_grid(fig_fc)
+                            st.plotly_chart(fig_fc, use_container_width=True, key="div_fcf_coverage_chart")
+
+                # ── Dividend Discount Model (DDM) ──
+                st.markdown(
+                    '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
+                    'letter-spacing:0.5px; margin:1.2rem 0 0.5rem;">🧮 Dividend Discount Model (Gordon Growth)</div>',
+                    unsafe_allow_html=True,
+                )
+                _current_div = info_dd.get("dividendRate", 0) or 0
+                _growth_default = cagr_5 if cagr_5 and cagr_5 > 0 else 0.03
+                _price_now = cd.current_price or info_dd.get("currentPrice", 0) or 0
+
+                ddm_c1, ddm_c2 = st.columns(2)
+                with ddm_c1:
+                    ddm_req_return = st.slider("Required Return (%)", 5.0, 20.0, 10.0, 0.5, key="ddm_req_return") / 100
+                with ddm_c2:
+                    ddm_growth = st.slider("Dividend Growth (%)", 0.0, 15.0, min(float(_growth_default * 100), 14.0), 0.5, key="ddm_growth") / 100
+
+                if _current_div > 0 and ddm_req_return > ddm_growth:
+                    d1 = _current_div * (1 + ddm_growth)
+                    ddm_value = d1 / (ddm_req_return - ddm_growth)
+                    _updown = ((ddm_value / _price_now) - 1) * 100 if _price_now > 0 else 0
+                    _ud_color = "#10B981" if _updown > 0 else "#EF4444"
+
+                    ddm_m1, ddm_m2, ddm_m3 = st.columns(3)
+                    with ddm_m1:
+                        st.markdown(f'<div style="text-align:center; padding:0.6rem; background:rgba(107,92,231,0.05); border-radius:10px;">'
+                            f'<div style="font-size:0.6rem; color:#8A85AD; font-weight:600;">DDM INTRINSIC VALUE</div>'
+                            f'<div style="font-size:1.3rem; font-weight:800; color:#6B5CE7;">{cs}{ddm_value:.2f}</div></div>', unsafe_allow_html=True)
+                    with ddm_m2:
+                        st.markdown(f'<div style="text-align:center; padding:0.6rem; background:rgba(107,92,231,0.05); border-radius:10px;">'
+                            f'<div style="font-size:0.6rem; color:#8A85AD; font-weight:600;">CURRENT PRICE</div>'
+                            f'<div style="font-size:1.3rem; font-weight:800; color:#E0DCF5;">{cs}{_price_now:.2f}</div></div>', unsafe_allow_html=True)
+                    with ddm_m3:
+                        st.markdown(f'<div style="text-align:center; padding:0.6rem; background:rgba(107,92,231,0.05); border-radius:10px;">'
+                            f'<div style="font-size:0.6rem; color:#8A85AD; font-weight:600;">UPSIDE / DOWNSIDE</div>'
+                            f'<div style="font-size:1.3rem; font-weight:800; color:{_ud_color};">{_updown:+.1f}%</div></div>', unsafe_allow_html=True)
+
+                    # Sensitivity table
+                    st.markdown('<div style="font-size:0.72rem; font-weight:700; color:#8A85AD; margin:0.8rem 0 0.3rem;">Sensitivity: DDM Value by Required Return vs Growth Rate</div>', unsafe_allow_html=True)
+                    _rr_range = [0.06, 0.08, 0.10, 0.12, 0.14, 0.16]
+                    _gr_range = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06]
+                    sens_data = {}
+                    for gr in _gr_range:
+                        row = {}
+                        for rr in _rr_range:
+                            if rr > gr:
+                                row[f"{rr*100:.0f}%"] = f"{cs}{_current_div * (1+gr) / (rr - gr):.1f}"
+                            else:
+                                row[f"{rr*100:.0f}%"] = "∞"
+                        sens_data[f"{gr*100:.0f}%"] = row
+                    sens_df = pd.DataFrame(sens_data).T
+                    sens_df.index.name = "Growth \\ Req Return"
+                    st.dataframe(sens_df, use_container_width=True)
+                elif _current_div == 0:
+                    st.info("Company does not currently pay dividends — DDM not applicable.")
+
+                # ── Yield Comparison ──
+                st.markdown(
+                    '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
+                    'letter-spacing:0.5px; margin:1.2rem 0 0.5rem;">📊 Yield Comparison</div>',
+                    unsafe_allow_html=True,
+                )
+                dy_val = cd.dividend_yield * 100 if cd.dividend_yield and cd.dividend_yield < 0.2 else (cd.dividend_yield or 0)
+                _yield_data = {
+                    f"{cd.ticker}": dy_val,
+                    "10Y Treasury": 4.25,
+                    "S&P 500 Avg": 1.3,
+                    "Sector Avg": dy_val * 0.85,  # approximate
+                }
+                fig_yc = go.Figure(go.Bar(
+                    x=list(_yield_data.keys()), y=list(_yield_data.values()),
+                    marker_color=["#6B5CE7", "#3B82F6", "#F59E0B", "#8B5CF6"],
+                    text=[f"{v:.2f}%" for v in _yield_data.values()],
+                    textposition="outside", textfont=dict(size=10, color="#B8B3D7"),
+                ))
+                fig_yc.update_layout(**_CHART_LAYOUT_BASE, height=250, margin=dict(t=20, b=30, l=40, r=20),
+                    yaxis=dict(ticksuffix="%", tickfont=dict(size=9, color="#8A85AD")),
+                    xaxis=dict(tickfont=dict(size=10, color="#8A85AD")), showlegend=False)
+                _apply_space_grid(fig_yc)
+                st.plotly_chart(fig_yc, use_container_width=True, key="div_yield_comparison")
+
         _divider()
 
     # ══════════════════════════════════════════════════════
@@ -8881,6 +9480,93 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         st.info("No recent news available.")
 
     # ══════════════════════════════════════════════════════
+    # 13b. KEY EVENTS TIMELINE
+    # ══════════════════════════════════════════════════════
+    with _safe_section("Key Events Timeline"):
+        _section("📅 Key Events Timeline")
+        try:
+            _tk_events = yf.Ticker(cd.ticker)
+            _timeline_events = []
+
+            # Earnings dates
+            try:
+                _earn_cal = _tk_events.earnings_dates
+                if _earn_cal is not None and not _earn_cal.empty:
+                    for _ed_idx, _ed_row in _earn_cal.head(5).iterrows():
+                        _ed_date = _ed_idx
+                        if hasattr(_ed_date, 'strftime'):
+                            _ed_label = "Earnings"
+                            _ed_color = "#6B5CE7"
+                            _is_future = _ed_date > pd.Timestamp.now(tz=_ed_date.tzinfo) if _ed_date.tzinfo else _ed_date > pd.Timestamp.now()
+                            if _is_future:
+                                _ed_label = "📢 Next Earnings"
+                                _ed_color = "#F59E0B"
+                            _timeline_events.append(dict(date=_ed_date, label=_ed_label, color=_ed_color))
+            except Exception:
+                pass
+
+            # Dividend dates
+            try:
+                _divs = _tk_events.dividends
+                if _divs is not None and not _divs.empty:
+                    for _dv_date in _divs.index[-4:]:
+                        _timeline_events.append(dict(date=_dv_date, label="💰 Ex-Dividend", color="#10B981"))
+            except Exception:
+                pass
+
+            # 52-week high/low dates
+            try:
+                _hist_1y = _tk_events.history(period="1y")
+                if _hist_1y is not None and not _hist_1y.empty:
+                    _52h_date = _hist_1y["Close"].idxmax()
+                    _52l_date = _hist_1y["Close"].idxmin()
+                    _timeline_events.append(dict(date=_52h_date, label=f"🔺 52w High ({cs}{_hist_1y['Close'].max():,.2f})", color="#10B981"))
+                    _timeline_events.append(dict(date=_52l_date, label=f"🔻 52w Low ({cs}{_hist_1y['Close'].min():,.2f})", color="#EF4444"))
+            except Exception:
+                pass
+
+            if _timeline_events:
+                _timeline_events.sort(key=lambda x: x["date"])
+                _tl_dates = [e["date"] for e in _timeline_events]
+                _tl_labels = [e["label"] for e in _timeline_events]
+                _tl_colors = [e["color"] for e in _timeline_events]
+
+                fig_tl = go.Figure()
+                # Timeline as scatter with text
+                fig_tl.add_trace(go.Scatter(
+                    x=_tl_dates,
+                    y=[0] * len(_tl_dates),
+                    mode="markers+text",
+                    marker=dict(size=12, color=_tl_colors, symbol="diamond",
+                                line=dict(width=1, color="rgba(255,255,255,0.2)")),
+                    text=_tl_labels,
+                    textposition="top center",
+                    textfont=dict(size=9, color="#E0DCF5"),
+                    hovertemplate="%{text}<br>%{x|%b %d, %Y}<extra></extra>",
+                ))
+                # Horizontal line
+                fig_tl.add_shape(type="line", x0=min(_tl_dates), x1=max(_tl_dates), y0=0, y1=0,
+                                 line=dict(color="rgba(138,133,173,0.3)", width=2))
+                # Today marker
+                fig_tl.add_vline(x=pd.Timestamp.now(), line_dash="dash", line_color="rgba(245,158,11,0.5)",
+                                 annotation_text="Today", annotation_font=dict(size=8, color="#F59E0B"))
+
+                fig_tl.update_layout(
+                    **_CHART_LAYOUT_BASE, height=200,
+                    margin=dict(t=40, b=20, l=30, r=30),
+                    yaxis=dict(visible=False, range=[-1, 2]),
+                    xaxis=dict(showgrid=False, tickfont=dict(size=9, color="#8A85AD")),
+                    showlegend=False,
+                )
+                st.plotly_chart(fig_tl, use_container_width=True, key="events_timeline")
+            else:
+                st.info("No event data available.")
+        except Exception as _tl_err:
+            st.info("Could not load event timeline.")
+
+    _divider()
+
+    # ══════════════════════════════════════════════════════
     # 14a. EARNINGS SURPRISE CHART (Alpha Vantage)
     # ══════════════════════════════════════════════════════
     if getattr(cd, "earnings_history", None) and len(cd.earnings_history) > 0:
@@ -9012,6 +9698,123 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             f'<tbody>{rows_html}</tbody></table>'.replace("$", "&#36;"),
             unsafe_allow_html=True,
         )
+
+        # ── Insider Deep Dive ──────────────────────────────
+        with _safe_section("Insider Deep Dive"):
+            _ins_txns = av_insiders
+
+            # Parse transactions with dates and values
+            _parsed_ins = []
+            for t in _ins_txns:
+                _dt = t.get("date", "")
+                _val = t.get("value") or 0
+                _shares = t.get("shares") or 0
+                _typ = t.get("type", "")
+                _insider = t.get("insider", "")
+                try:
+                    _pdt = pd.to_datetime(_dt)
+                except Exception:
+                    continue
+                _parsed_ins.append({"date": _pdt, "type": _typ, "value": float(_val), "shares": float(_shares), "insider": _insider})
+
+            if _parsed_ins:
+                _ins_df = pd.DataFrame(_parsed_ins)
+                _ins_df = _ins_df.sort_values("date")
+
+                # Timeline chart
+                st.markdown(
+                    '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
+                    'letter-spacing:0.5px; margin:1rem 0 0.5rem;">📅 Insider Transaction Timeline</div>',
+                    unsafe_allow_html=True,
+                )
+                _buys_df = _ins_df[_ins_df["type"] == "A"]
+                _sells_df = _ins_df[_ins_df["type"] == "D"]
+
+                fig_ins = go.Figure()
+                if len(_buys_df) > 0:
+                    _buy_sizes = np.clip(_buys_df["value"] / (_buys_df["value"].max() or 1) * 30 + 5, 5, 40)
+                    fig_ins.add_trace(go.Scatter(
+                        x=_buys_df["date"], y=_buys_df["value"],
+                        mode="markers", name="Buys",
+                        marker=dict(color="#10B981", size=_buy_sizes, opacity=0.7, line=dict(width=1, color="#0D9668")),
+                        text=[f"{r['insider']}<br>{cs}{r['value']:,.0f}" for _, r in _buys_df.iterrows()],
+                        hoverinfo="text+x",
+                    ))
+                if len(_sells_df) > 0:
+                    _sell_sizes = np.clip(_sells_df["value"] / (_sells_df["value"].max() or 1) * 30 + 5, 5, 40)
+                    fig_ins.add_trace(go.Scatter(
+                        x=_sells_df["date"], y=_sells_df["value"],
+                        mode="markers", name="Sells",
+                        marker=dict(color="#EF4444", size=_sell_sizes, opacity=0.7, line=dict(width=1, color="#DC2626")),
+                        text=[f"{r['insider']}<br>{cs}{r['value']:,.0f}" for _, r in _sells_df.iterrows()],
+                        hoverinfo="text+x",
+                    ))
+
+                # Rolling 3-month net sentiment
+                _ins_df["net_value"] = _ins_df.apply(lambda r: r["value"] if r["type"] == "A" else -r["value"], axis=1)
+                _ins_df = _ins_df.set_index("date")
+                _rolling_net = _ins_df["net_value"].resample("ME").sum().rolling(3, min_periods=1).sum()
+                if len(_rolling_net) > 1:
+                    fig_ins.add_trace(go.Scatter(
+                        x=_rolling_net.index, y=_rolling_net.values,
+                        mode="lines", name="3M Net Sentiment",
+                        line=dict(color="#F5A623", width=2, dash="dash"),
+                        yaxis="y2",
+                    ))
+                    fig_ins.update_layout(yaxis2=dict(title="Net Sentiment", overlaying="y", side="right",
+                        tickfont=dict(size=9, color="#F5A623"), showgrid=False))
+
+                fig_ins.update_layout(**_CHART_LAYOUT_BASE, height=300, margin=dict(t=20, b=30, l=50, r=60),
+                    yaxis=dict(title="Transaction Value", tickprefix=cs, tickfont=dict(size=9, color="#8A85AD")),
+                    xaxis=dict(tickfont=dict(size=9, color="#8A85AD")), showlegend=True,
+                    legend=dict(font=dict(size=10, color="#B8B3D7"), orientation="h", yanchor="bottom", y=1.02))
+                _apply_space_grid(fig_ins)
+                st.plotly_chart(fig_ins, use_container_width=True, key="insider_timeline_chart")
+
+                # Ownership summary
+                st.markdown(
+                    '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
+                    'letter-spacing:0.5px; margin:1rem 0 0.5rem;">📊 Insider Ownership Summary</div>',
+                    unsafe_allow_html=True,
+                )
+                _ins_df_reset = _ins_df.reset_index()
+                _now = pd.Timestamp.now()
+                def _net_over_months(df, months):
+                    cutoff = _now - pd.DateOffset(months=months)
+                    subset = df[df["date"] >= cutoff]
+                    buys = subset[subset["type"] == "A"]["value"].sum()
+                    sells = subset[subset["type"] == "D"]["value"].sum()
+                    return buys - sells
+
+                _net3 = _net_over_months(_ins_df_reset, 3)
+                _net6 = _net_over_months(_ins_df_reset, 6)
+                _net12 = _net_over_months(_ins_df_reset, 12)
+
+                # Largest transaction
+                _largest_idx = _ins_df_reset["value"].idxmax()
+                _largest = _ins_df_reset.loc[_largest_idx] if _largest_idx is not None else None
+
+                ins_s1, ins_s2, ins_s3 = st.columns(3)
+                for col, (label, val) in zip([ins_s1, ins_s2, ins_s3],
+                    [("Net 3M", _net3), ("Net 6M", _net6), ("Net 12M", _net12)]):
+                    with col:
+                        _c = "#10B981" if val > 0 else "#EF4444" if val < 0 else "#8A85AD"
+                        _sign = "+" if val > 0 else ""
+                        st.markdown(
+                            f'<div style="text-align:center; padding:0.6rem; background:rgba(107,92,231,0.05); border-radius:10px;">'
+                            f'<div style="font-size:0.6rem; color:#8A85AD; font-weight:600;">{label}</div>'
+                            f'<div style="font-size:1.1rem; font-weight:800; color:{_c};">{_sign}{cs}{abs(val):,.0f}</div></div>',
+                            unsafe_allow_html=True,
+                        )
+
+                if _largest is not None and _largest["value"] > 0:
+                    _lt = "Buy" if _largest.get("type") == "A" else "Sell"
+                    st.markdown(
+                        f'<div style="margin-top:0.5rem; padding:0.5rem; background:rgba(107,92,231,0.04); border-radius:8px; font-size:0.78rem; color:#B8B3D7;">'
+                        f'<b>Largest Transaction:</b> {_largest.get("insider", "N/A")} — {_lt} — '
+                        f'{cs}{_largest["value"]:,.0f} on {str(_largest["date"])[:10]}</div>',
+                        unsafe_allow_html=True,
+                    )
 
     # ══════════════════════════════════════════════════════
     # 15. INSIGHTS — 7 Rich Tabs
@@ -12862,6 +13665,75 @@ elif analysis_mode == "Quick Compare" and compare_btn and compare_tickers:
                     f'<div style="text-align:center; margin-top:0.8rem;">{dim_winners_html}</div>',
                     unsafe_allow_html=True,
                 )
+
+        # ── Comparison Summary Cards ──────────────────────
+        with _safe_section("Comparison Summary Cards"):
+            _section("Comparison Summary Cards", "📋")
+            # Determine metrics for strength/weakness analysis
+            _comp_metrics = {}
+            for c in companies:
+                _comp_metrics[c.ticker] = {
+                    "pe": c.pe_ratio or 999,
+                    "revenue_growth": c.revenue_growth or 0,
+                    "profit_margin": c.profit_margin or 0,
+                    "roe": c.roe or 0,
+                    "dividend_yield": c.dividend_yield or 0,
+                    "price": c.current_price or 0,
+                    "market_cap": c.market_cap or 0,
+                }
+
+            # For each metric, rank companies
+            metric_labels = {
+                "pe": ("Lowest P/E", True),  # lower is better
+                "revenue_growth": ("Highest Growth", False),
+                "profit_margin": ("Best Margins", False),
+                "roe": ("Best ROE", False),
+                "dividend_yield": ("Best Yield", False),
+            }
+
+            _card_cols = st.columns(min(len(companies), 5))
+            for i, c in enumerate(companies[:5]):
+                with _card_cols[i]:
+                    _m = _comp_metrics[c.ticker]
+                    # Find strength (where this company ranks #1)
+                    _strength = "N/A"
+                    _weakness = "N/A"
+                    for mk, (mlabel, lower_better) in metric_labels.items():
+                        vals = [(t, _comp_metrics[t][mk]) for t in _comp_metrics]
+                        vals.sort(key=lambda x: x[1], reverse=not lower_better)
+                        if vals[0][0] == c.ticker:
+                            _strength = mlabel
+                        if vals[-1][0] == c.ticker:
+                            _weakness = mlabel.replace("Lowest", "Highest").replace("Highest", "Lowest").replace("Best", "Weakest")
+
+                    # Verdict
+                    if _m["pe"] < 15 and _m["pe"] > 0:
+                        _verdict = "💰 Best value play"
+                    elif _m["revenue_growth"] > 0.15:
+                        _verdict = "🚀 Growth leader"
+                    elif _m["profit_margin"] > 0.20:
+                        _verdict = "✨ Highest quality"
+                    elif _m["dividend_yield"] > 0.03:
+                        _verdict = "💵 Income favorite"
+                    else:
+                        _verdict = "📊 Balanced profile"
+
+                    _mc_str = f"${_m['market_cap']/1e9:.1f}B" if _m['market_cap'] >= 1e9 else f"${_m['market_cap']/1e6:.0f}M" if _m['market_cap'] >= 1e6 else "N/A"
+                    _border_c = ["#6B5CE7", "#E8638B", "#10B981", "#F5A623", "#3B82F6"][i % 5]
+                    st.markdown(
+                        f'<div style="padding:0.8rem; background:rgba(255,255,255,0.03); border-radius:10px; '
+                        f'border-left:3px solid {_border_c}; margin-bottom:0.5rem;">'
+                        f'<div style="font-size:1rem; font-weight:800; color:#E0DCF5;">{c.ticker}</div>'
+                        f'<div style="font-size:0.72rem; color:#8A85AD;">{c.company_name or c.ticker}</div>'
+                        f'<div style="font-size:0.85rem; color:#B8B3D7; margin:0.3rem 0;">${_m["price"]:,.2f} · {_mc_str}</div>'
+                        f'<div style="font-size:0.7rem; margin:0.2rem 0;">'
+                        f'<span style="color:#10B981;">💪 {_strength}</span></div>'
+                        f'<div style="font-size:0.7rem; margin:0.2rem 0;">'
+                        f'<span style="color:#F59E0B;">⚠️ {_weakness}</span></div>'
+                        f'<div style="font-size:0.75rem; font-weight:700; color:{_border_c}; margin-top:0.4rem;">{_verdict}</div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
 
 elif analysis_mode == "VMS Screener" and vms_screen_btn:
     # ══════════════════════════════════════════════════════
