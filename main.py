@@ -1192,7 +1192,7 @@ def _calculate_dcf(cd, growth_rate: float = 0.05, terminal_growth: float = 0.025
 def _build_dcf_chart(dcf_result: dict, currency_symbol: str = "$", key: str = "dcf_chart"):
     """Build a visualization for DCF results."""
     if "error" in dcf_result:
-        st.warning(dcf_result["error"])
+        st.warning(f"⚠️ {dcf_result['error']} — Try adjusting growth assumptions or use a company with positive free cash flow.")
         return
     
     years = list(range(1, dcf_result["projection_years"] + 1))
@@ -5317,7 +5317,8 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         _add_to_search_history(ticker_input)
     except Exception as e:
         _scanner_slot.empty()
-        st.error(f"Failed to fetch data for **{ticker_input}**: {e}")
+        st.error(f"😕 Failed to fetch data for **{ticker_input}**: {e}")
+        st.info("💡 **Try these fixes:** Check the ticker symbol is correct (e.g., AAPL, MSFT) · Verify your internet connection · Try again in a few seconds", icon="🔧")
         st.stop()
 
     try:
@@ -9099,7 +9100,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         )
 
 elif analysis_mode == "Company Profile" and generate_btn and not ticker_input:
-    st.warning("Please enter a ticker symbol in the sidebar.")
+    st.warning("⚠️ Please enter a ticker symbol in the sidebar (e.g., AAPL, MSFT, GOOGL).")
 
 elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
     # ══════════════════════════════════════════════════════
@@ -9113,7 +9114,7 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
     def update_progress(pct, msg):
         progress_placeholder.progress(pct, text=msg)
     
-    with st.spinner(f"Running comps analysis for {comps_ticker_input}..."):
+    with st.spinner(f"🔭 Scanning the universe for {comps_ticker_input}... Finding comparable companies"):
         comps_analysis = run_comps_analysis(
             ticker=comps_ticker_input,
             max_peers=max_peers,
@@ -9125,9 +9126,10 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
     status_placeholder.empty()
     
     if not comps_analysis.target_comps or not comps_analysis.target_comps.valid:
-        st.error(f"Could not fetch data for {comps_ticker_input}. Please check the ticker and try again.")
+        st.error(f"😕 Could not fetch data for **{comps_ticker_input}**. Please check the ticker symbol and try again.")
+        st.info("💡 Make sure the ticker exists on Yahoo Finance (e.g., AAPL, CRM, SHOP.TO)", icon="🔧")
     elif not comps_analysis.peers:
-        st.warning(f"No comparable companies found for {comps_ticker_input}.")
+        st.warning(f"🔍 No comparable companies found for **{comps_ticker_input}**. Try a larger-cap company or increase the number of peers in settings.")
     else:
         tc = comps_analysis.target_comps
         
@@ -9598,7 +9600,7 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
                     )
 
 elif analysis_mode == "Comps Analysis" and comps_btn and not comps_ticker_input:
-    st.warning("Please enter a ticker symbol in the sidebar.")
+    st.warning("⚠️ Please enter a ticker symbol in the sidebar to run comparable company analysis.")
 
 elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and target_input:
     # ══════════════════════════════════════════════════════
@@ -9616,7 +9618,8 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         acq_cd = fetch_company_data(acquirer_input)
     except Exception as e:
         mission.empty()
-        st.error(f"Failed to fetch data for **{acquirer_input}**: {e}")
+        st.error(f"😕 Failed to fetch data for acquirer **{acquirer_input}**: {e}")
+        st.info("💡 Check the ticker symbol and your internet connection. Try a different acquirer.", icon="🔧")
         st.stop()
 
     # Ensure acquirer has shares_outstanding (calculate from market_cap/price if needed)
@@ -9628,7 +9631,8 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
             acq_cd.shares_outstanding = acq_cd.enterprise_value / acq_cd.current_price
     if not acq_cd.shares_outstanding:
         mission.empty()
-        st.error(f"Unable to determine shares outstanding for **{acquirer_input}**. Market cap: {acq_cd.market_cap}, Price: {acq_cd.current_price}")
+        st.error(f"😕 Unable to determine shares outstanding for **{acquirer_input}**. This company may not have sufficient financial data for merger analysis.")
+        st.info("💡 Try a publicly traded company with available market cap data.", icon="🔧")
         st.stop()
 
     # Phase 1 → fetch target (with rate limit delay)
@@ -9638,7 +9642,8 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         tgt_cd = fetch_company_data(target_input)
     except Exception as e:
         mission.empty()
-        st.error(f"Failed to fetch data for **{target_input}**: {e}")
+        st.error(f"😕 Failed to fetch data for target **{target_input}**: {e}")
+        st.info("💡 Check the ticker symbol and your internet connection. Try a different target.", icon="🔧")
         st.stop()
 
     # Ensure target has shares_outstanding (calculate from market_cap/price if needed)
@@ -9649,7 +9654,8 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
             tgt_cd.shares_outstanding = tgt_cd.enterprise_value / tgt_cd.current_price
     if not tgt_cd.shares_outstanding:
         mission.empty()
-        st.error(f"Unable to determine shares outstanding for **{target_input}**. Market cap: {tgt_cd.market_cap}, Price: {tgt_cd.current_price}")
+        st.error(f"😕 Unable to determine shares outstanding for **{target_input}**. This company may not have sufficient financial data for merger analysis.")
+        st.info("💡 Try a publicly traded company with available market cap data.", icon="🔧")
         st.stop()
 
     # Phase 2 → fetch peers
@@ -9665,7 +9671,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         pro_forma = calculate_pro_forma(acq_cd, tgt_cd, merger_assumptions)
     except Exception as e:
         mission.empty()
-        st.error(f"Failed to calculate pro forma: {e}")
+        st.error(f"😕 Failed to calculate pro forma: {e}. Try different companies or check that both have complete financial data.")
         import traceback
         st.code(traceback.format_exc())
         st.stop()
@@ -10924,7 +10930,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         )
 
 elif analysis_mode == "Merger Analysis" and merger_btn and (not acquirer_input or not target_input):
-    st.warning("Please enter both Acquirer and Target tickers in the sidebar.")
+    st.warning("⚠️ Please enter both **Acquirer** and **Target** ticker symbols in the sidebar to run merger analysis.")
 
 # ══════════════════════════════════════════════════════════════
 # DCF VALUATION MODE
@@ -10941,11 +10947,12 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
         unsafe_allow_html=True,
     )
     
-    with st.spinner(f"Fetching data for {dcf_ticker_input}..."):
+    with st.spinner(f"🔭 Scanning the universe for {dcf_ticker_input}... Building DCF model"):
         try:
             dcf_cd = fetch_company_data(dcf_ticker_input)
         except Exception as e:
-            st.error(f"Failed to fetch data for {dcf_ticker_input}: {e}")
+            st.error(f"😕 Failed to fetch data for **{dcf_ticker_input}**: {e}")
+            st.info("💡 Check the ticker symbol is correct and try again. DCF works best with companies that have positive free cash flow.", icon="🔧")
             st.stop()
     
     cs = dcf_cd.currency_symbol
@@ -10971,7 +10978,8 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
     )
     
     if "error" in dcf_result:
-        st.error(dcf_result["error"])
+        st.error(f"😕 {dcf_result['error']}")
+        st.info("💡 DCF requires positive free cash flow data. Try a profitable company or adjust growth assumptions.", icon="🔧")
     else:
         # DCF Results Summary
         _section("DCF Valuation Results", "💰")
@@ -11656,7 +11664,8 @@ elif analysis_mode == "Quick Compare" and compare_btn and compare_tickers:
         companies = _fetch_comparison_data(compare_tickers[:10])  # Max 10
     
     if not companies:
-        st.error("Could not fetch data for any of the specified tickers.")
+        st.error("😕 Could not fetch data for any of the specified tickers. Please verify the ticker symbols and your internet connection.")
+        st.info("💡 Try common tickers like AAPL, MSFT, GOOGL or use one of the preset comparisons.", icon="🔧")
     else:
         st.success(f"✅ Loaded {len(companies)} companies: {', '.join([c.ticker for c in companies])}")
         
@@ -12097,7 +12106,7 @@ elif analysis_mode == "VMS Screener" and vms_screen_btn:
                     st.success(f"Added {n_pass} companies to watchlist!")
                     st.rerun()
         else:
-            st.warning("Could not fetch data for VMS universe. Please try again.")
+            st.warning("😕 Could not fetch data for VMS universe. Please check your internet connection and try again in a few moments.")
 
 elif analysis_mode == "VMS Screener" and not vms_screen_btn:
     # VMS Screener splash/landing
@@ -12209,6 +12218,7 @@ else:
             '<span class="feature-pill">Terminal Value</span>'
             '<span class="feature-pill">Sensitivity Analysis</span>'
             '<span class="feature-pill">WACC Modeling</span>'
+            '<span class="feature-pill">Monte Carlo</span>'
             '</div>'
             '<div class="splash-stats">'
             '<div class="splash-stat"><div class="splash-stat-value">5-10</div><div class="splash-stat-label">Projection Years</div></div>'
@@ -12354,6 +12364,7 @@ else:
             '<span class="feature-pill">Accretion/Dilution</span>'
             '<span class="feature-pill">Football Field</span>'
             '<span class="feature-pill">AI Insights</span>'
+            '<span class="feature-pill">Risk Analysis</span>'
             '<span class="feature-pill">Deal Book PPTX</span>'
             '</div>'
             '<div class="splash-stats">'
@@ -12428,10 +12439,12 @@ else:
             '<span class="feature-pill">Wikipedia M&amp;A</span>'
             '<span class="feature-pill">Peer Analysis</span>'
             '<span class="feature-pill">AI Powered</span>'
+            '<span class="feature-pill">Monte Carlo</span>'
+            '<span class="feature-pill">Risk Analysis</span>'
             '<span class="feature-pill">Global Exchanges</span>'
             '</div>'
             '<div class="splash-stats">'
-            '<div class="splash-stat"><div class="splash-stat-value">100+</div><div class="splash-stat-label">Data Points</div></div>'
+            '<div class="splash-stat"><div class="splash-stat-value">150+</div><div class="splash-stat-label">Data Points</div></div>'
             '<div class="splash-stat"><div class="splash-stat-value">8</div><div class="splash-stat-label">PPTX Slides</div></div>'
             '<div class="splash-stat"><div class="splash-stat-value">20+</div><div class="splash-stat-label">Exchanges</div></div>'
             '</div>'
@@ -12446,7 +12459,7 @@ else:
             '<div class="space-section-title">How It Works</div>'
             '<div class="step-grid">'
             '<div class="step-card"><div class="step-num">1</div><div class="step-label">Enter Ticker</div><div class="step-detail">Any global exchange &mdash; AAPL, RY.TO, NVDA.L</div></div>'
-            '<div class="step-card"><div class="step-num">2</div><div class="step-label">Generate Profile</div><div class="step-detail">100+ data points pulled in real-time</div></div>'
+            '<div class="step-card"><div class="step-num">2</div><div class="step-label">Generate Profile</div><div class="step-detail">150+ data points pulled in real-time</div></div>'
             '<div class="step-card"><div class="step-num">3</div><div class="step-label">Explore Dashboard</div><div class="step-detail">Charts, peer comparison &amp; insights</div></div>'
             '<div class="step-card"><div class="step-num">4</div><div class="step-label">Download PPTX</div><div class="step-detail">8-slide IB-grade PowerPoint</div></div>'
             '</div>'
