@@ -6,7 +6,7 @@ Generates an 8-slide investment-banker-grade PowerPoint tear sheet.
 
 Run:  streamlit run main.py
 
-v5.1 - Full Feature Suite:
+v5.8 - Full Feature Suite:
 - Watchlist with session persistence & notes
 - Excel/CSV export for all financial data
 - DCF Valuation with sensitivity analysis
@@ -4966,6 +4966,17 @@ with st.sidebar:
 
     st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
 
+    # What's New expander
+    with st.expander("🆕 What's New in v5.8"):
+        st.markdown(
+            "- 🔍 **VMS Screener** — Acquisition attractiveness scoring & Rule of 40 analysis\n"
+            "- 📊 **Options P/L Simulator** — Visual payoff diagrams for calls & puts\n"
+            "- 🔄 **Sector Rotation Tracker** — ETF performance heatmap & momentum signals\n"
+            "- ⚡ **Enhanced Comps** — Expanded peer benchmarking with correlation matrix",
+        )
+
+    st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
+
     # Mode Toggle - Enhanced with colored indicators and hover effects
     _mode_colors = {
         "📊 Company Profile": "#6B5CE7",
@@ -6224,7 +6235,7 @@ with st.sidebar:
         '<div style="text-align:center; padding: 0.5rem 0;">'
         '<div style="font-size:0.55rem; font-weight:800; background:linear-gradient(135deg, #6B5CE7, #E8638B); '
         '-webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:2px; margin-bottom:0.3rem;">'
-        'ORBITAL v5.1</div>'
+        'ORBITAL v5.8</div>'
         '<div style="font-size:0.55rem; color:#4B5563; letter-spacing:0.5px; line-height:1.8;">'
         'DATA: YAHOO FINANCE • CHARTS: PLOTLY<br>'
         'AI: OPENAI (OPT.) • LOGOS: CLEARBIT'
@@ -6232,7 +6243,7 @@ with st.sidebar:
         '<div style="margin-top:0.5rem; padding:0.3rem 0.5rem; background:rgba(107,92,231,0.08); '
         'border:1px solid rgba(107,92,231,0.15); border-radius:6px; display:inline-block;">'
         '<span style="font-size:0.5rem; color:#8A85AD; letter-spacing:0.5px;">'
-        'ProfileBuilder v5.2 • 16,689 lines • 150+ data points</span>'
+        'ProfileBuilder v5.8 • 16,689 lines • 150+ data points</span>'
         '</div>'
         '<div style="margin-top:0.4rem;">'
         '<a href="https://github.com/rajkcho/profilebuilder" target="_blank" '
@@ -19148,7 +19159,10 @@ st.markdown(
     '<a href="#">Documentation</a>'
     '<a href="#">API</a>'
     '</div>'
-    '<div class="orbital-footer-version">v5.2 · Built with Streamlit · Data from Yahoo Finance & Alpha Vantage</div>'
+    '<div class="orbital-footer-version">v5.8 · Built with Streamlit · Data from Yahoo Finance & Alpha Vantage</div>'
+    '<div style="font-size:0.6rem; color:#6B6588; margin-top:0.5rem; max-width:600px; margin-left:auto; margin-right:auto;">'
+    'This tool is for educational and research purposes only. Not financial advice. Data sourced from Yahoo Finance.'
+    '</div>'
     '</div>',
     unsafe_allow_html=True,
 )
