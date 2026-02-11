@@ -3575,7 +3575,7 @@ header {{ visibility: hidden; }}
 
 /* ── PRINT STYLES ──────────────────────────────────── */
 @media print {{
-    .stSidebar, .stToolbar, .orbital-footer, header, #MainMenu {{ display: none !important; }}
+    .stSidebar, .stToolbar, header, #MainMenu {{ display: none !important; }}
     .main .block-container {{ padding: 0 !important; max-width: 100% !important; }}
     * {{ color: #333 !important; background: white !important; }}
 }}
