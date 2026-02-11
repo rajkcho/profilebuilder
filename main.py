@@ -479,7 +479,7 @@ def _render_metric_with_sparkline(label: str, value: str, sparkline_data: list =
         delta_html = f'<span style="color:{d_color}; font-size:0.75rem; margin-left:0.5rem;">{delta}</span>'
     
     st.markdown(
-        f'<div style="background:rgba(255,255,255,0.04); border:1px solid rgba(37,99,235,0.15); '
+        f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(37,99,235,0.15); '
         f'border-radius:12px; padding:1rem; position:relative; overflow:hidden;">'
         f'<div style="font-size:0.7rem; font-weight:600; color:#9CA3AF; text-transform:uppercase; '
         f'letter-spacing:0.5px; margin-bottom:0.3rem;">{label}</div>'
@@ -3137,18 +3137,18 @@ section[data-testid="stSidebar"] .stSlider label p {{
 
 /* ── COMPANY HEADER CARD ─────────────────────────────────── */
 .company-card {{
-    background: linear-gradient(135deg, #050816 0%, #0C0F1A 50%, #151933 100%);
-    border-radius: 20px;
-    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    background: rgba(17, 24, 39, 0.7);
+    border-radius: 12px;
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
     padding: 1.8rem 2rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s ease;
     margin-bottom: 1.2rem;
-    border-left: 4px solid;
-    border-image: linear-gradient(180deg, #2563EB, #10B981) 1;
-    box-shadow: 0 4px 30px rgba(11,14,26,0.3);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-left: 3px solid #2563EB;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
     position: relative;
     overflow: hidden;
-    animation: cardReveal 0.6s ease-out both;
+    animation: cardReveal 0.4s ease-out both;
 }}
 .company-card::before {{
     content: '';
@@ -3941,12 +3941,12 @@ st.markdown(f"""
     gap: 1rem; margin-top: 0.5rem;
 }}
 .feature-card {{
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 18px; padding: 1.5rem 1.2rem; text-align: center;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-    animation: fadeInScale 0.6s ease-out both;
+    background: rgba(17, 24, 39, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px; padding: 1.5rem 1.2rem; text-align: center;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    animation: fadeInScale 0.4s ease-out both;
     position: relative; overflow: hidden;
 }}
 .feature-card:nth-child(1) {{ animation-delay: 0.05s; }}
@@ -7287,7 +7287,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 if iv:
                     _iv_color = "#10B981" if iv['upside_pct'] > 0 else "#EF4444"
                     st.markdown(
-                        f'<div style="background:rgba(255,255,255,0.04); border:1px solid rgba(37,99,235,0.15); '
+                        f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(37,99,235,0.15); '
                         f'border-radius:12px; padding:1rem; margin-top:0.5rem;">'
                         f'<div style="font-size:0.7rem; color:#9CA3AF; text-transform:uppercase;">DCF Implied Price</div>'
                         f'<div style="font-size:1.5rem; font-weight:800; color:#F9FAFB;">{cs}{iv["intrinsic_value_per_share"]:.2f}</div>'
@@ -7297,7 +7297,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     )
                 else:
                     st.markdown(
-                        '<div style="background:rgba(255,255,255,0.04); border:1px solid rgba(37,99,235,0.15); '
+                        '<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(37,99,235,0.15); '
                         'border-radius:12px; padding:1rem; margin-top:0.5rem;">'
                         '<div style="font-size:0.7rem; color:#9CA3AF;">DCF: Insufficient data</div></div>',
                         unsafe_allow_html=True,
@@ -7311,7 +7311,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 _apt_upside = ((_apt['mean'] / cd.current_price) - 1) * 100 if cd.current_price else 0
                 _apt_color = "#10B981" if _apt_upside > 0 else "#EF4444"
                 st.markdown(
-                    f'<div style="background:rgba(255,255,255,0.04); border:1px solid rgba(37,99,235,0.15); '
+                    f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(37,99,235,0.15); '
                     f'border-radius:12px; padding:1rem; margin-top:0.5rem;">'
                     f'<div style="font-size:0.7rem; color:#9CA3AF; text-transform:uppercase;">Analyst Consensus</div>'
                     f'<div style="font-size:1.5rem; font-weight:800; color:#F9FAFB;">{cs}{_apt["mean"]:.2f}</div>'
@@ -7574,7 +7574,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                             f'<div style="position:absolute; left:{_vd_pos:.0f}%; top:-3px; width:3px; height:14px; '
                             f'background:#fff; border-radius:2px; transform:translateX(-50%);"></div></div></div>', unsafe_allow_html=True)
             with _vd_cols[3]:
-                st.markdown(f'<div style="background:rgba(255,255,255,0.04); border:2px solid {_vd_vcolor}40; border-radius:12px; padding:0.7rem; text-align:center;">'
+                st.markdown(f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:2px solid {_vd_vcolor}40; border-radius:12px; padding:0.7rem; text-align:center;">'
                             f'<div style="font-size:0.55rem; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.5px;">Verdict</div>'
                             f'<div style="font-size:1.1rem; font-weight:800; color:{_vd_vcolor}; margin-top:0.2rem;">{_vd_verdict}</div>'
                             f'<div style="font-size:0.6rem; color:#9CA3AF;">DCF + Comps + Range</div></div>', unsafe_allow_html=True)
@@ -15641,7 +15641,7 @@ Write in this format:
                     f'<div style="background:rgba(138,133,173,0.08); border-radius:10px; padding:0.5rem 1rem; text-align:center;">'
                     f'<div style="font-size:0.6rem; color:#9CA3AF;">S&P 500</div>'
                     f'<div style="font-size:1rem; font-weight:700; color:{"#10B981" if _sp_ret > 0 else "#EF4444"};">{_sp_ret:+.1f}%</div></div>'
-                    f'<div style="background:rgba(255,255,255,0.04); border-radius:10px; padding:0.5rem 1rem; text-align:center;">'
+                    f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border-radius:10px; padding:0.5rem 1rem; text-align:center;">'
                     f'<div style="font-size:0.6rem; color:#9CA3AF;">Alpha (1Y)</div>'
                     f'<div style="font-size:1rem; font-weight:700; color:{_alpha_color};">{_alpha:+.1f}%</div></div></div>',
                     unsafe_allow_html=True,
@@ -16361,7 +16361,7 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
                                 _pic_mcap_str = f"${_pic_peer.market_cap/1e6:.0f}M"
 
                         st.markdown(
-                            f'<div style="background:rgba(255,255,255,0.04); border:1px solid rgba(37,99,235,0.15); '
+                            f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(37,99,235,0.15); '
                             f'border-radius:14px; padding:1.2rem; margin-bottom:0.8rem; position:relative; overflow:hidden;">'
                             f'<div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:0.6rem;">'
                             f'<div style="width:38px; height:38px; border-radius:10px; background:linear-gradient(135deg, #2563EB, #10B981); '
@@ -17555,7 +17555,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         with fmix_c3:
             fm_stock = 100 - fm_cash - fm_debt
             st.markdown(
-                f'<div style="text-align:center; padding:1.5rem; background:rgba(255,255,255,0.04); border-radius:10px;">'
+                f'<div style="text-align:center; padding:1.5rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border-radius:10px;">'
                 f'<div style="font-size:0.65rem; font-weight:600; color:#9CA3AF; text-transform:uppercase;">Stock (remainder)</div>'
                 f'<div style="font-size:2rem; font-weight:800; color:#2563EB;">{fm_stock}%</div></div>',
                 unsafe_allow_html=True,
@@ -17929,15 +17929,15 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
 
     _mhtml(
         f'<div style="display:flex; gap:1rem; margin-top:0.5rem;">'
-        f'<div style="flex:1; text-align:center; padding:0.6rem; background:rgba(255,255,255,0.04); border-radius:10px; border-left:3px solid {lev_c};">'
+        f'<div style="flex:1; text-align:center; padding:0.6rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border-radius:10px; border-left:3px solid {lev_c};">'
         f'<div style="font-size:0.65rem; font-weight:600; color:#9CA3AF; text-transform:uppercase;">Leverage</div>'
         f'<div style="font-size:1.1rem; font-weight:700; color:{lev_c};">'
         f'{"Conservative" if (pro_forma.pf_leverage_ratio or 0) < 2 else "Moderate" if (pro_forma.pf_leverage_ratio or 0) < 4 else "Aggressive"}</div></div>'
-        f'<div style="flex:1; text-align:center; padding:0.6rem; background:rgba(255,255,255,0.04); border-radius:10px; border-left:3px solid {cov_c};">'
+        f'<div style="flex:1; text-align:center; padding:0.6rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border-radius:10px; border-left:3px solid {cov_c};">'
         f'<div style="font-size:0.65rem; font-weight:600; color:#9CA3AF; text-transform:uppercase;">Coverage</div>'
         f'<div style="font-size:1.1rem; font-weight:700; color:{cov_c};">'
         f'{"Strong" if (pro_forma.pf_interest_coverage or 0) > 5 else "Adequate" if (pro_forma.pf_interest_coverage or 0) > 2.5 else "Tight"}</div></div>'
-        f'<div style="flex:1; text-align:center; padding:0.6rem; background:rgba(255,255,255,0.04); border-radius:10px;">'
+        f'<div style="flex:1; text-align:center; padding:0.6rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border-radius:10px;">'
         f'<div style="font-size:0.65rem; font-weight:600; color:#9CA3AF; text-transform:uppercase;">Goodwill</div>'
         f'<div style="font-size:1.1rem; font-weight:700; color:#F9FAFB;">{format_number(pro_forma.goodwill, currency_symbol=acq_cs)}</div></div>'
         f'</div>'
@@ -17987,7 +17987,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
                 with syn_cols[i]:
                     pct_color = "#EF4444" if s["pct"] < 50 else "#F5A623" if s["pct"] < 100 else "#10B981"
                     st.markdown(
-                        f'<div style="text-align:center; padding:0.8rem; background:rgba(255,255,255,0.04); border-radius:10px;">'
+                        f'<div style="text-align:center; padding:0.8rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border-radius:10px;">'
                         f'<div style="font-size:0.65rem; font-weight:600; color:#9CA3AF; text-transform:uppercase;">Year {s["year"]}</div>'
                         f'<div style="font-size:1.5rem; font-weight:800; color:{pct_color};">{s["pct"]}%</div>'
                         f'<div style="font-size:0.8rem; color:#D1D5DB;">{format_number(s["amount"], currency_symbol=acq_cs)}</div>'
@@ -18066,7 +18066,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
             achievable = be_syn <= pro_forma.total_synergies if be_syn else True
             be_color = "#10B981" if achievable else "#EF4444"
             st.markdown(
-                f'<div style="text-align:center; padding:0.8rem; background:rgba(255,255,255,0.04); border-radius:10px;">'
+                f'<div style="text-align:center; padding:0.8rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border-radius:10px;">'
                 f'<div style="font-size:0.65rem; font-weight:600; color:#9CA3AF; text-transform:uppercase;">Break-Even Synergies</div>'
                 f'<div style="font-size:1.3rem; font-weight:800; color:{be_color};">{format_number(be_syn, currency_symbol=acq_cs)}</div>'
                 f'<div style="font-size:0.75rem; color:#9CA3AF;">{be_pct:.1f}% of target revenue</div>'
@@ -18076,7 +18076,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
             )
         with be_cols[1]:
             st.markdown(
-                f'<div style="text-align:center; padding:0.8rem; background:rgba(255,255,255,0.04); border-radius:10px;">'
+                f'<div style="text-align:center; padding:0.8rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border-radius:10px;">'
                 f'<div style="font-size:0.65rem; font-weight:600; color:#9CA3AF; text-transform:uppercase;">Synergy Cushion</div>'
                 f'<div style="font-size:1.3rem; font-weight:800; color:{"#10B981" if achievable else "#EF4444"};">'
                 f'{format_number(pro_forma.total_synergies - be_syn, currency_symbol=acq_cs)}</div>'
@@ -18090,7 +18090,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
                 irr_color = "#10B981" if deal_irr > 0.15 else "#F5A623" if deal_irr > 0.08 else "#EF4444"
                 irr_label = "Attractive" if deal_irr > 0.15 else "Acceptable" if deal_irr > 0.08 else "Below Hurdle"
                 st.markdown(
-                    f'<div style="text-align:center; padding:0.8rem; background:rgba(255,255,255,0.04); border-radius:10px;">'
+                    f'<div style="text-align:center; padding:0.8rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border-radius:10px;">'
                     f'<div style="font-size:0.65rem; font-weight:600; color:#9CA3AF; text-transform:uppercase;">Est. Deal IRR (5yr)</div>'
                     f'<div style="font-size:1.3rem; font-weight:800; color:{irr_color};">{deal_irr:.1%}</div>'
                     f'<div style="font-size:0.75rem; color:{irr_color};">{irr_label}</div>'
@@ -18099,7 +18099,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
                 )
             else:
                 st.markdown(
-                    f'<div style="text-align:center; padding:0.8rem; background:rgba(255,255,255,0.04); border-radius:10px;">'
+                    f'<div style="text-align:center; padding:0.8rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border-radius:10px;">'
                     f'<div style="font-size:0.65rem; font-weight:600; color:#9CA3AF;">Est. Deal IRR</div>'
                     f'<div style="font-size:1.1rem; color:#9CA3AF;">N/A</div></div>',
                     unsafe_allow_html=True,
@@ -19245,7 +19245,7 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
                             upside = res["upside_pct"]
                             color = "#10B981" if upside > 0 else "#EF4444"
                             st.markdown(
-                                f'<div style="text-align:center; padding:0.8rem; background:rgba(255,255,255,0.04); '
+                                f'<div style="text-align:center; padding:0.8rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
                                 f'border-radius:10px; border-top:3px solid {color};">'
                                 f'<div style="font-size:0.7rem; font-weight:700; color:#9CA3AF;">{name}</div>'
                                 f'<div style="font-size:1.5rem; font-weight:800; color:{color};">{cs}{price:,.2f}</div>'
@@ -19987,7 +19987,7 @@ elif analysis_mode == "Quick Compare" and compare_btn and compare_tickers:
                         # Find which dimension this company leads in
                         best_dim = max(company_scores[ticker].items(), key=lambda x: x[1])
                         st.markdown(
-                            f'<div style="text-align:center; padding:0.8rem; background:rgba(255,255,255,0.04); '
+                            f'<div style="text-align:center; padding:0.8rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
                             f'border-radius:10px; border-top:3px solid {border_c};">'
                             f'<div style="font-size:1.2rem;">{medal}</div>'
                             f'<div style="font-size:1rem; font-weight:800; color:#F9FAFB;">{ticker}</div>'
