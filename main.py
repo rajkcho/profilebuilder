@@ -15652,7 +15652,172 @@ Write in this format:
             st.info(f"S&P 500 comparison unavailable: {_sp_e}")
 
 elif analysis_mode == "Company Profile" and generate_btn and not ticker_input:
-    st.warning("⚠️ Please enter a ticker symbol in the sidebar (e.g., AAPL, MSFT, GOOGL).")
+    # ══════════════════════════════════════════════════════
+    # LANDING PAGE - Professional splash when no ticker entered
+    # ══════════════════════════════════════════════════════
+    
+    # Clean Orbital Logo (no spinning rings)
+    st.markdown(
+        '<div style="text-align:center; margin:3rem 0 2rem;">'
+        '<div style="font-size:3rem; font-weight:900; letter-spacing:4px; color:#F9FAFB; '
+        'text-shadow:0 0 20px rgba(37,99,235,0.6), 0 0 40px rgba(37,99,235,0.3);">ORBITAL</div>'
+        '<div style="font-size:1.1rem; color:#9CA3AF; margin-top:0.75rem; font-weight:500;">M&A Intelligence Platform</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    
+    # Prominent ticker search reminder
+    st.markdown(
+        '<div style="text-align:center; margin:2rem auto; max-width:600px;">'
+        '<div style="background:rgba(37,99,235,0.08); border:2px solid rgba(37,99,235,0.3); '
+        'border-radius:12px; padding:2rem;">'
+        '<div style="font-size:1rem; color:#60A5FA; margin-bottom:0.5rem;">👈 Enter a ticker symbol in the sidebar to begin</div>'
+        '<div style="font-size:0.85rem; color:#9CA3AF;">Examples: AAPL, MSFT, GOOGL, TSLA</div>'
+        '</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    
+    # Market Pulse - clean pill format
+    st.markdown('<div style="text-align:center; font-size:1.25rem; font-weight:700; color:#F9FAFB; margin:3rem 0 1.5rem; '
+               'letter-spacing:-0.02em;">Market Pulse</div>', unsafe_allow_html=True)
+    
+    try:
+        import yfinance as yf
+        market_indices = {
+            "S&P 500": "^GSPC",
+            "NASDAQ": "^IXIC",
+            "DOW": "^DJI",
+            "TSX": "^GSPTSE",
+            "VIX": "^VIX",
+        }
+        
+        market_data = {}
+        for name, symbol in market_indices.items():
+            try:
+                ticker = yf.Ticker(symbol)
+                info = ticker.info or {}
+                price = info.get("regularMarketPrice") or info.get("currentPrice", 0)
+                change = info.get("regularMarketChangePercent", 0)
+                market_data[name] = {"price": price, "change": change}
+            except Exception:
+                market_data[name] = {"price": 0, "change": 0}
+        
+        # Display market pills in a clean row
+        pills_html = '<div style="display:flex; gap:1rem; justify-content:center; flex-wrap:wrap; margin-bottom:3rem;">'
+        for name, data in market_data.items():
+            price = data["price"]
+            change = data["change"]
+            color = "#10B981" if change >= 0 else "#EF4444"
+            arrow = "↑" if change >= 0 else "↓"
+            pills_html += (
+                f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+                f'border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:0.75rem 1.25rem; '
+                f'min-width:140px;">'
+                f'<div style="font-size:0.7rem; color:#9CA3AF; font-weight:600; text-transform:uppercase; '
+                f'margin-bottom:0.25rem;">{name}</div>'
+                f'<div style="font-size:1.1rem; font-weight:700; color:#F9FAFB;">{price:,.2f}</div>'
+                f'<div style="font-size:0.8rem; color:{color}; font-weight:600;">{arrow} {abs(change):.2f}%</div>'
+                f'</div>'
+            )
+        pills_html += '</div>'
+        st.markdown(pills_html, unsafe_allow_html=True)
+    except Exception:
+        pass
+    
+    # Quick Actions Grid
+    st.markdown('<div style="text-align:center; font-size:1.25rem; font-weight:700; color:#F9FAFB; margin:3rem 0 1.5rem; '
+               'letter-spacing:-0.02em;">Quick Actions</div>', unsafe_allow_html=True)
+    
+    qa_col1, qa_col2, qa_col3, qa_col4 = st.columns(4)
+    
+    with qa_col1:
+        st.markdown(
+            '<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+            'border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1.5rem; '
+            'text-align:center; transition:all 0.2s ease; height:180px; display:flex; flex-direction:column; justify-content:center;">'
+            '<div style="font-size:2.5rem; margin-bottom:0.75rem;">🔍</div>'
+            '<div style="font-size:1rem; font-weight:700; color:#F9FAFB; margin-bottom:0.5rem;">Company Profile</div>'
+            '<div style="font-size:0.75rem; color:#9CA3AF;">Deep dive into any public company</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+    
+    with qa_col2:
+        st.markdown(
+            '<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+            'border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1.5rem; '
+            'text-align:center; transition:all 0.2s ease; height:180px; display:flex; flex-direction:column; justify-content:center;">'
+            '<div style="font-size:2.5rem; margin-bottom:0.75rem;">📈</div>'
+            '<div style="font-size:1rem; font-weight:700; color:#F9FAFB; margin-bottom:0.5rem;">Comps Analysis</div>'
+            '<div style="font-size:0.75rem; color:#9CA3AF;">Compare with industry peers</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+    
+    with qa_col3:
+        st.markdown(
+            '<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+            'border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1.5rem; '
+            'text-align:center; transition:all 0.2s ease; height:180px; display:flex; flex-direction:column; justify-content:center;">'
+            '<div style="font-size:2.5rem; margin-bottom:0.75rem;">💹</div>'
+            '<div style="font-size:1rem; font-weight:700; color:#F9FAFB; margin-bottom:0.5rem;">DCF Model</div>'
+            '<div style="font-size:0.75rem; color:#9CA3AF;">Intrinsic value analysis</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+    
+    with qa_col4:
+        st.markdown(
+            '<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+            'border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1.5rem; '
+            'text-align:center; transition:all 0.2s ease; height:180px; display:flex; flex-direction:column; justify-content:center;">'
+            '<div style="font-size:2.5rem; margin-bottom:0.75rem;">🤝</div>'
+            '<div style="font-size:1rem; font-weight:700; color:#F9FAFB; margin-bottom:0.5rem;">M&A Simulator</div>'
+            '<div style="font-size:0.75rem; color:#9CA3AF;">Model merger scenarios</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+    
+    # Top Movers section (if we can fetch data)
+    st.markdown('<div style="text-align:center; font-size:1.25rem; font-weight:700; color:#F9FAFB; margin:3rem 0 1.5rem; '
+               'letter-spacing:-0.02em;">Top Movers</div>', unsafe_allow_html=True)
+    
+    try:
+        # Sample top gainers and losers
+        movers_col1, movers_col2 = st.columns(2)
+        
+        with movers_col1:
+            st.markdown(
+                '<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+                'border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1.5rem;">'
+                '<div style="font-size:0.9rem; font-weight:700; color:#10B981; margin-bottom:1rem; '
+                'text-transform:uppercase; letter-spacing:0.05em;">Gainers</div>'
+                '<div style="font-size:0.75rem; color:#9CA3AF;">Market data updates in real-time</div>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+        
+        with movers_col2:
+            st.markdown(
+                '<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+                'border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1.5rem;">'
+                '<div style="font-size:0.9rem; font-weight:700; color:#EF4444; margin-bottom:1rem; '
+                'text-transform:uppercase; letter-spacing:0.05em;">Losers</div>'
+                '<div style="font-size:0.75rem; color:#9CA3AF;">Market data updates in real-time</div>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+    except Exception:
+        pass
+    
+    # Clean, minimal footer
+    st.markdown(
+        '<div style="text-align:center; margin-top:4rem; padding:2rem 0; border-top:1px solid rgba(255,255,255,0.06);">'
+        '<div style="font-size:0.75rem; color:#6B7280;">Powered by live market data · Built for M&A professionals</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
 elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
     # ══════════════════════════════════════════════════════
