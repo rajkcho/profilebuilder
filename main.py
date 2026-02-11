@@ -6,7 +6,7 @@ Generates an 8-slide investment-banker-grade PowerPoint tear sheet.
 
 Run:  streamlit run main.py
 
-v6.5 - Full Feature Suite:
+v7.1 - Content Quality & UX Polish:
 - Watchlist with session persistence & notes
 - Excel/CSV export for all financial data
 - DCF Valuation with sensitivity analysis
@@ -504,15 +504,15 @@ def _render_movers_cards(movers: dict):
     
     with col1:
         st.markdown(
-            '<div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.2); '
-            'border-radius:12px; padding:1rem;">'
+            '<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+            'border:1px solid rgba(16,185,129,0.2); border-radius:12px; padding:1.25rem;">'
             '<div style="font-size:0.75rem; font-weight:700; color:#10B981; text-transform:uppercase; '
             'letter-spacing:1px; margin-bottom:0.8rem;">🚀 Top Gainers</div>',
             unsafe_allow_html=True,
         )
         for stock in movers.get("gainers", [])[:5]:
             st.markdown(
-                f'<div style="display:flex; justify-content:space-between; padding:0.3rem 0; '
+                f'<div style="display:flex; justify-content:space-between; padding:0.4rem 0; '
                 f'border-bottom:1px solid rgba(255,255,255,0.05);">'
                 f'<span style="color:#F9FAFB; font-weight:600;">{stock["ticker"]}</span>'
                 f'<span style="color:#10B981; font-weight:700;">+{stock["change_pct"]:.2f}%</span>'
@@ -523,15 +523,15 @@ def _render_movers_cards(movers: dict):
     
     with col2:
         st.markdown(
-            '<div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); '
-            'border-radius:12px; padding:1rem;">'
+            '<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+            'border:1px solid rgba(239,68,68,0.2); border-radius:12px; padding:1.25rem;">'
             '<div style="font-size:0.75rem; font-weight:700; color:#EF4444; text-transform:uppercase; '
             'letter-spacing:1px; margin-bottom:0.8rem;">📉 Top Losers</div>',
             unsafe_allow_html=True,
         )
         for stock in movers.get("losers", [])[:5]:
             st.markdown(
-                f'<div style="display:flex; justify-content:space-between; padding:0.3rem 0; '
+                f'<div style="display:flex; justify-content:space-between; padding:0.4rem 0; '
                 f'border-bottom:1px solid rgba(255,255,255,0.05);">'
                 f'<span style="color:#F9FAFB; font-weight:600;">{stock["ticker"]}</span>'
                 f'<span style="color:#EF4444; font-weight:700;">{stock["change_pct"]:.2f}%</span>'
@@ -604,8 +604,8 @@ def _render_earnings_calendar(earnings: list):
         return
     
     st.markdown(
-        '<div style="background:rgba(37,99,235,0.05); border:1px solid rgba(37,99,235,0.15); '
-        'border-radius:16px; padding:1.5rem; margin-top:1rem;">'
+        '<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+        'border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1.25rem; margin-top:1rem;">'
         '<div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">'
         '<span style="font-size:1.2rem;">📅</span>'
         '<span style="font-size:0.8rem; font-weight:700; color:#60A5FA; text-transform:uppercase; '
@@ -694,8 +694,8 @@ def _render_news_feed(news: list):
         return
     
     st.markdown(
-        '<div style="background:rgba(37,99,235,0.05); border:1px solid rgba(37,99,235,0.15); '
-        'border-radius:16px; padding:1.5rem; margin-top:1rem;">'
+        '<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+        'border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1.25rem; margin-top:1rem;">'
         '<div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">'
         '<span style="font-size:1.2rem;">📰</span>'
         '<span style="font-size:0.8rem; font-weight:700; color:#60A5FA; text-transform:uppercase; '
@@ -818,8 +818,8 @@ def _render_sentiment_gauge(sentiment: dict):
     angle = (score / 100) * 180 - 90  # -90 to 90 degrees
     
     gauge_svg = f'''
-    <div style="background:rgba(37,99,235,0.05); border:1px solid rgba(37,99,235,0.15);
-        border-radius:16px; padding:1.5rem; margin-top:1rem; text-align:center;">
+    <div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06);
+        border-radius:12px; padding:1.25rem; margin-top:1rem; text-align:center;">
         <div style="display:flex; align-items:center; justify-content:center; gap:0.5rem; margin-bottom:1rem;">
             <span style="font-size:1.2rem;">🎯</span>
             <span style="font-size:0.8rem; font-weight:700; color:#60A5FA; text-transform:uppercase;
@@ -885,8 +885,8 @@ def _render_sector_heatmap(sectors: list):
         return
     
     st.markdown(
-        '<div style="background:rgba(37,99,235,0.05); border:1px solid rgba(37,99,235,0.15); '
-        'border-radius:16px; padding:1.5rem; margin-top:1rem;">'
+        '<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+        'border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1.25rem; margin-top:1rem;">'
         '<div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">'
         '<span style="font-size:1.2rem;">🗺️</span>'
         '<span style="font-size:0.8rem; font-weight:700; color:#60A5FA; text-transform:uppercase; '
@@ -3541,21 +3541,21 @@ header {{ visibility: hidden; }}
 /* ── CUSTOM FOOTER (minimal, clean) ────────────────────── */
 .orbital-footer {{
     margin-top: 4rem;
-    padding: 1.5rem 1rem;
+    padding: 2rem 1rem 1rem;
     text-align: center;
     border-top: 1px solid rgba(255,255,255,0.06);
 }}
 .orbital-footer-brand {{
-    font-size: 0.9rem;
+    font-size: 1rem;
     font-weight: 700;
     color: #60A5FA;
-    letter-spacing: 1px;
+    letter-spacing: 2px;
 }}
 .orbital-footer-links {{
-    margin-top: 0.5rem;
+    margin-top: 0.8rem;
     display: flex;
     justify-content: center;
-    gap: 1.5rem;
+    gap: 1.2rem;
 }}
 .orbital-footer-links a {{
     color: #6B7280;
@@ -3565,7 +3565,7 @@ header {{ visibility: hidden; }}
     transition: color 0.2s;
 }}
 .orbital-footer-links a:hover {{
-    color: #9CA3AF;
+    color: #60A5FA;
 }}
 .orbital-footer-version {{
     font-size: 0.65rem;
@@ -5627,7 +5627,7 @@ with st.sidebar:
     st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
 
     # What's New expander
-    with st.expander("🆕 What's New in v6.5"):
+    with st.expander("🆕 What's New in v7.1"):
         st.markdown(
             "- 🔍 **VMS Screener** — Acquisition attractiveness scoring & Rule of 40 analysis\n"
             "- 📊 **Options P/L Simulator** — Visual payoff diagrams for calls & puts\n"
@@ -7004,7 +7004,7 @@ with st.sidebar:
         '<div style="text-align:center; padding: 0.5rem 0;">'
         '<div style="font-size:0.55rem; font-weight:800; background:linear-gradient(135deg, #2563EB, #10B981); '
         '-webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:2px; margin-bottom:0.3rem;">'
-        'ORBITAL v6.5</div>'
+        'ORBITAL v7.1</div>'
         '<div style="font-size:0.55rem; color:#4B5563; letter-spacing:0.5px; line-height:1.8;">'
         'DATA: YAHOO FINANCE • CHARTS: PLOTLY<br>'
         'AI: OPENAI (OPT.) • LOGOS: CLEARBIT'
@@ -7012,7 +7012,7 @@ with st.sidebar:
         '<div style="margin-top:0.5rem; padding:0.3rem 0.5rem; background:rgba(37,99,235,0.08); '
         'border:1px solid rgba(37,99,235,0.15); border-radius:6px; display:inline-block;">'
         '<span style="font-size:0.5rem; color:#9CA3AF; letter-spacing:0.5px;">'
-        'ProfileBuilder v6.5 • 16,689 lines • 150+ data points</span>'
+        'ProfileBuilder v7.1 • Professional-grade content quality</span>'
         '</div>'
         '<div style="margin-top:0.4rem;">'
         '<a href="https://github.com/rajkcho/profilebuilder" target="_blank" '
@@ -7994,28 +7994,28 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 if _vd_dcf and _vd_dcf_upside is not None:
                     _vd_arr = "▲" if _vd_dcf_upside > 0 else "▼"
                     _vd_dc = "#10B981" if _vd_dcf_upside > 0 else "#EF4444"
-                    st.markdown(f'<div style="background:rgba(37,99,235,0.06); border:1px solid rgba(37,99,235,0.15); border-radius:12px; padding:0.7rem; text-align:center;">'
+                    st.markdown(f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1rem; text-align:center;">'
                                 f'<div style="font-size:0.55rem; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.5px;">Price vs DCF</div>'
                                 f'<div style="font-size:1.1rem; font-weight:700; color:#F9FAFB;">{cs}{_vd_dcf:,.2f}</div>'
                                 f'<div style="font-size:0.75rem; font-weight:700; color:{_vd_dc};">{_vd_arr} {_vd_dcf_upside:+.1f}%</div></div>', unsafe_allow_html=True)
                 else:
-                    st.markdown(f'<div style="background:rgba(37,99,235,0.06); border:1px solid rgba(37,99,235,0.15); border-radius:12px; padding:0.7rem; text-align:center;">'
+                    st.markdown(f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1rem; text-align:center;">'
                                 f'<div style="font-size:0.55rem; color:#9CA3AF; text-transform:uppercase;">Price vs DCF</div>'
                                 f'<div style="font-size:0.9rem; color:#6B7280;">N/A</div></div>', unsafe_allow_html=True)
             with _vd_cols[1]:
                 if _vd_comps_median and _vd_comps_prem is not None:
                     _vd_cp_label = "Premium" if _vd_comps_prem > 0 else "Discount"
                     _vd_cp_c = "#EF4444" if _vd_comps_prem > 10 else "#10B981" if _vd_comps_prem < -10 else "#F5A623"
-                    st.markdown(f'<div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.15); border-radius:12px; padding:0.7rem; text-align:center;">'
+                    st.markdown(f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1rem; text-align:center;">'
                                 f'<div style="font-size:0.55rem; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.5px;">vs Comps Median</div>'
                                 f'<div style="font-size:1.1rem; font-weight:700; color:#F9FAFB;">{cs}{_vd_comps_median:,.2f}</div>'
                                 f'<div style="font-size:0.75rem; font-weight:700; color:{_vd_cp_c};">{_vd_comps_prem:+.1f}% {_vd_cp_label}</div></div>', unsafe_allow_html=True)
                 else:
-                    st.markdown(f'<div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.15); border-radius:12px; padding:0.7rem; text-align:center;">'
+                    st.markdown(f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1rem; text-align:center;">'
                                 f'<div style="font-size:0.55rem; color:#9CA3AF; text-transform:uppercase;">vs Comps Median</div>'
                                 f'<div style="font-size:0.9rem; color:#6B7280;">N/A</div></div>', unsafe_allow_html=True)
             with _vd_cols[2]:
-                st.markdown(f'<div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.15); border-radius:12px; padding:0.7rem; text-align:center;">'
+                st.markdown(f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1rem; text-align:center;">'
                             f'<div style="font-size:0.55rem; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.5px;">52-Week Range</div>'
                             f'<div style="font-size:0.7rem; color:#9CA3AF; margin:0.3rem 0;">{cs}{_vd_52l:,.2f} — {cs}{_vd_52h:,.2f}</div>'
                             f'<div style="background:rgba(255,255,255,0.08); border-radius:6px; height:8px; position:relative; overflow:hidden;">'
@@ -21444,13 +21444,12 @@ else:
 st.markdown(
     '<div class="orbital-footer">'
     '<div class="orbital-footer-brand">ORBITAL</div>'
-    '<div style="font-size:0.7rem; color:#9CA3AF; margin-top:0.2rem;">M&A Intelligence Platform</div>'
+    '<div class="orbital-footer-version" style="font-size:0.75rem; color:#60A5FA; font-weight:600; margin-top:0.5rem;">v7.1</div>'
+    '<div style="font-size:0.65rem; color:#6B7280; margin-top:0.3rem;">Built with Streamlit · Data from Yahoo Finance</div>'
     '<div class="orbital-footer-links">'
     '<a href="https://github.com/rajkcho/profilebuilder" target="_blank">GitHub</a>'
-    '<a href="#">Documentation</a>'
-    '<a href="#">API</a>'
+    '<a href="#">Docs</a>'
     '</div>'
-    '<div class="orbital-footer-version">v6.0 · Built with Streamlit · Data from Yahoo Finance & Alpha Vantage</div>'
     '<div style="font-size:0.6rem; color:#6B7280; margin-top:0.5rem; max-width:600px; margin-left:auto; margin-right:auto;">'
     'This tool is for educational and research purposes only. Not financial advice. Data sourced from Yahoo Finance.'
     '</div>'
