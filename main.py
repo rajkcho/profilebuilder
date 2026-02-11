@@ -3428,11 +3428,11 @@ header {{ visibility: hidden; }}
 
 /* ── MERGER CHART WRAPPER ──────────────────────────────── */
 .merger-chart-wrapper {{
-    background: linear-gradient(135deg, rgba(37,99,235,0.06), rgba(16,185,129,0.03));
-    border: 1px solid rgba(37,99,235,0.18);
-    border-radius: 24px; padding: 2rem; margin: 1rem 0 1.5rem 0;
-    animation: bounceIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both,
-               chartGlow 4s ease-in-out 1s infinite;
+    background: rgba(17, 24, 39, 0.7);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px; padding: 2rem; margin: 1rem 0 1.5rem 0;
+    animation: fadeInUp 0.4s ease-out both;
 }}
 
 /* ── PRECEDENT & INSIDER TABLES ────────────────────────── */
@@ -3478,12 +3478,12 @@ header {{ visibility: hidden; }}
 
 /* ── PROFILE CHART WRAPPER ───────────────────────────── */
 .profile-chart-wrapper {{
-    background: linear-gradient(135deg, rgba(37,99,235,0.05), rgba(6,182,212,0.03));
-    border: 1px solid rgba(37,99,235,0.15);
-    border-radius: 24px; padding: 2rem; margin: 1rem 0 1.5rem 0;
+    background: rgba(17, 24, 39, 0.7);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px; padding: 2rem; margin: 1rem 0 1.5rem 0;
     position: relative; overflow: hidden;
-    animation: chartBounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both,
-               chartGlow 4s ease-in-out 1s infinite;
+    animation: fadeInUp 0.4s ease-out both;
 }}
 .profile-chart-wrapper::before {{
     content: '';
