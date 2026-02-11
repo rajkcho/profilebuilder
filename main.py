@@ -3799,6 +3799,7 @@ st.markdown(f"""
     font-size: 1.2rem; color: #D1D5DB; margin-top: 0.8rem;
     font-weight: 300; animation: fadeInUp 0.8s ease-out;
     letter-spacing: 0.5px;
+    text-shadow: 0 0 15px rgba(37,99,235,0.15);
 }}
 .splash-stats {{
     display: flex; justify-content: center; gap: 3rem; margin-top: 2.5rem;
@@ -3808,6 +3809,7 @@ st.markdown(f"""
     font-size: 1.8rem; font-weight: 800; color: #fff;
     animation: gentlePulse 3s ease-in-out infinite;
     position: relative;
+    text-shadow: 0 0 20px rgba(37,99,235,0.4), 0 0 40px rgba(37,99,235,0.2);
 }}
 .splash-stat {{
     position: relative;
