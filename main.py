@@ -801,7 +801,7 @@ def _calculate_market_sentiment() -> dict:
         elif score >= 40:
             return {"score": round(score), "label": "Neutral", "color": "#F59E0B"}
         elif score >= 20:
-            return {"score": round(score), "label": "Fear", "color": "#F97316"}
+            return {"score": round(score), "label": "Fear", "color": "#F59E0B"}
         else:
             return {"score": round(score), "label": "Extreme Fear", "color": "#EF4444"}
     except Exception:
@@ -830,7 +830,7 @@ def _render_sentiment_gauge(sentiment: dict):
             <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="12" stroke-linecap="round"/>
             <!-- Colored segments -->
             <path d="M 20 100 A 80 80 0 0 1 52 40" fill="none" stroke="#EF4444" stroke-width="12" stroke-linecap="round" opacity="0.6"/>
-            <path d="M 52 40 A 80 80 0 0 1 100 20" fill="none" stroke="#F97316" stroke-width="12" stroke-linecap="round" opacity="0.6"/>
+            <path d="M 52 40 A 80 80 0 0 1 100 20" fill="none" stroke="#F59E0B" stroke-width="12" stroke-linecap="round" opacity="0.6"/>
             <path d="M 100 20 A 80 80 0 0 1 148 40" fill="none" stroke="#F59E0B" stroke-width="12" stroke-linecap="round" opacity="0.6"/>
             <path d="M 148 40 A 80 80 0 0 1 180 100" fill="none" stroke="#10B981" stroke-width="12" stroke-linecap="round" opacity="0.6"/>
             <!-- Needle -->
@@ -917,7 +917,7 @@ def _render_sector_heatmap(sectors: list):
         st.markdown(
             f'<div style="background:{bg}; border-radius:10px; padding:0.7rem 0.5rem; text-align:center; '
             f'border:1px solid rgba(255,255,255,0.05);">'
-            f'<div style="font-size:0.65rem; color:#C4BFE0; font-weight:600; white-space:nowrap; '
+            f'<div style="font-size:0.65rem; color:#9CA3AF; font-weight:600; white-space:nowrap; '
             f'overflow:hidden; text-overflow:ellipsis;">{sector["name"]}</div>'
             f'<div style="font-size:0.95rem; font-weight:800; color:{color}; margin-top:0.2rem;">'
             f'{arrow} {pct:+.2f}%</div>'
@@ -1484,11 +1484,11 @@ def _build_dcf_sensitivity(cd, base_dcf: dict, key: str = "dcf_sensitivity"):
     fig.add_shape(
         type="rect",
         x0=base_j - 0.5, x1=base_j + 0.5, y0=base_i - 0.5, y1=base_i + 0.5,
-        line=dict(color="#FFD700", width=3), xref="x", yref="y",
+        line=dict(color="#F5A623", width=3), xref="x", yref="y",
     )
     fig.add_annotation(
         x=base_j, y=base_i, text="★", showarrow=False,
-        font=dict(size=16, color="#FFD700"), yshift=12,
+        font=dict(size=16, color="#F5A623"), yshift=12,
     )
 
     # Current price reference
@@ -2687,7 +2687,7 @@ footer {{ visibility: hidden; }}
 }}
 .orbital-tagline {{
     font-size: 1rem;
-    color: #A8A3C7;
+    color: #6B7280;
     font-weight: 500;
     margin-top: -0.3rem;
     letter-spacing: 0.5px;
@@ -2809,7 +2809,7 @@ footer {{ visibility: hidden; }}
 .pf-table th:first-child {{ border-radius: 12px 0 0 0; }}
 .pf-table th:last-child {{ border-radius: 0 12px 0 0; background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(37,99,235,0.12)); }}
 .pf-table td {{
-    padding: 0.7rem 1rem; font-size: 0.85rem; color: #C8C3E3;
+    padding: 0.7rem 1rem; font-size: 0.85rem; color: #9CA3AF;
     border-bottom: 1px solid rgba(255,255,255,0.05);
     animation: pfRowReveal 0.4s ease-out both;
 }}
@@ -2912,7 +2912,7 @@ section[data-testid="stSidebar"] > div:first-child {{
     padding: 1rem 1.5rem !important;
 }}
 section[data-testid="stSidebar"] * {{
-    color: #C8C3E3 !important;
+    color: #9CA3AF !important;
 }}
 /* Hide default radio labels */
 section[data-testid="stSidebar"] .stRadio > label {{
@@ -3152,7 +3152,7 @@ section[data-testid="stSidebar"] hr {{
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1.8px;
-    color: #A8A3C7 !important;
+    color: #6B7280 !important;
     animation: slideInLeft 0.4s ease-out both;
 }}
 .sb-section-icon {{
@@ -3232,7 +3232,7 @@ section[data-testid="stSidebar"] .stSlider label p {{
 .hero-accent {{ color: #60A5FA; }}
 .hero-sub {{
     font-size: 1rem;
-    color: #A8A3C7;
+    color: #6B7280;
     margin-top: 0.3rem;
     font-weight: 400;
     position: relative; z-index: 1;
@@ -3298,7 +3298,7 @@ section[data-testid="stSidebar"] .stSlider label p {{
 }}
 .company-meta {{
     font-size: 0.85rem;
-    color: #A8A3C7;
+    color: #6B7280;
     margin-top: 0.25rem;
 }}
 .company-meta span {{ color: #60A5FA; font-weight: 600; }}
@@ -3459,7 +3459,7 @@ div[data-testid="stMetric"] div[data-testid="stMetricValue"] {{
     font-size: 0.72rem; font-weight: 600; letter-spacing: 0.5px;
 }}
 .pill-purple {{ background: rgba(37,99,235,0.12); color: #2563EB; }}
-.pill-dark {{ background: rgba(26,29,46,0.08); color: #1A1D2E; }}
+.pill-dark {{ background: rgba(31,41,55,0.08); color: #1F2937; }}
 .pill-green {{ background: rgba(16,185,129,0.12); color: #10B981; }}
 
 /* ── PLOTLY CHARTS ──────────────────────────────────────── */
@@ -3616,7 +3616,7 @@ header {{ visibility: hidden; }}
     border-bottom: 2px solid rgba(37,99,235,0.3);
 }}
 .precedent-table td, .insider-table td {{
-    padding: 0.55rem 0.8rem; font-size: 0.8rem; color: #C8C3E3;
+    padding: 0.55rem 0.8rem; font-size: 0.8rem; color: #9CA3AF;
     border-bottom: 1px solid rgba(255,255,255,0.05);
     transition: background 0.2s ease;
 }}
@@ -3739,7 +3739,7 @@ header {{ visibility: hidden; }}
 /* Cyan accent overrides for scanner */
 .scanner-control .phase-indicator-active {{
     border-color: rgba(6,182,212,0.5);
-    color: #06B6D4;
+    color: #60A5FA;
 }}
 .scanner-control .phase-indicator-active::after {{
     border-top-color: #60A5FA;
@@ -3750,7 +3750,7 @@ header {{ visibility: hidden; }}
     animation: scannerPhasePulse 2s ease-in-out infinite;
 }}
 .scanner-control .mission-progress-fill {{
-    background: linear-gradient(90deg, #06B6D4, #60A5FA, #2563EB, #06B6D4);
+    background: linear-gradient(90deg, #60A5FA, #60A5FA, #2563EB, #60A5FA);
     background-size: 200% 100%;
 }}
 .scanner-control .mission-progress-fill::after {{
@@ -3767,7 +3767,7 @@ header {{ visibility: hidden; }}
 .scanner-ticker span {{
     font-size: 1rem;
     font-weight: 800;
-    color: #06B6D4;
+    color: #60A5FA;
     letter-spacing: 3px;
     text-shadow: 0 0 15px rgba(6,182,212,0.4);
 }}
@@ -4074,7 +4074,7 @@ st.markdown(f"""
     pointer-events: none;
 }}
 .splash-stat-label {{
-    font-size: 0.7rem; color: #A8A3C7; text-transform: uppercase;
+    font-size: 0.7rem; color: #6B7280; text-transform: uppercase;
     letter-spacing: 1px; font-weight: 500;
 }}
 .pill-row {{
@@ -6988,7 +6988,7 @@ with st.sidebar:
                 unsafe_allow_html=True,
             )
         st.markdown(
-            '<div style="font-size:0.6rem; color:#6B6B80; margin-top:0.5rem; line-height:1.5;">'
+            '<div style="font-size:0.6rem; color:#6B7280; margin-top:0.5rem; line-height:1.5;">'
             '💡 <b>Quick Actions:</b><br>'
             '• Use sidebar radio buttons to switch modes<br>'
             '• Click any watchlist ticker to load it<br>'
@@ -7672,7 +7672,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     with _fresh_col1:
         st.markdown(
             f'<div style="text-align:right; padding:0.3rem 1rem; margin-bottom:-0.5rem;">'
-            f'<span style="font-size:0.6rem; color:#5A567A;">🔄 Data as of {_fetch_timestamp}</span>'
+            f'<span style="font-size:0.6rem; color:#6B7280;">🔄 Data as of {_fetch_timestamp}</span>'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -7794,7 +7794,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             pass
 
         st.markdown(
-            f'<div style="text-align:center; font-size:0.6rem; color:#5A567A; margin-top:0.5rem;">'
+            f'<div style="text-align:center; font-size:0.6rem; color:#6B7280; margin-top:0.5rem;">'
             f'Executive Dashboard — {cd.ticker} — {_fetch_timestamp}</div>',
             unsafe_allow_html=True,
         )
@@ -8001,7 +8001,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 else:
                     st.markdown(f'<div style="background:rgba(37,99,235,0.06); border:1px solid rgba(37,99,235,0.15); border-radius:12px; padding:0.7rem; text-align:center;">'
                                 f'<div style="font-size:0.55rem; color:#9CA3AF; text-transform:uppercase;">Price vs DCF</div>'
-                                f'<div style="font-size:0.9rem; color:#5A567A;">N/A</div></div>', unsafe_allow_html=True)
+                                f'<div style="font-size:0.9rem; color:#6B7280;">N/A</div></div>', unsafe_allow_html=True)
             with _vd_cols[1]:
                 if _vd_comps_median and _vd_comps_prem is not None:
                     _vd_cp_label = "Premium" if _vd_comps_prem > 0 else "Discount"
@@ -8013,7 +8013,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 else:
                     st.markdown(f'<div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.15); border-radius:12px; padding:0.7rem; text-align:center;">'
                                 f'<div style="font-size:0.55rem; color:#9CA3AF; text-transform:uppercase;">vs Comps Median</div>'
-                                f'<div style="font-size:0.9rem; color:#5A567A;">N/A</div></div>', unsafe_allow_html=True)
+                                f'<div style="font-size:0.9rem; color:#6B7280;">N/A</div></div>', unsafe_allow_html=True)
             with _vd_cols[2]:
                 st.markdown(f'<div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.15); border-radius:12px; padding:0.7rem; text-align:center;">'
                             f'<div style="font-size:0.55rem; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.5px;">52-Week Range</div>'
@@ -8043,7 +8043,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         f'<div style="display:flex; align-items:baseline; gap:1rem; margin-top:0.8rem; position:relative;">'
         f'<p class="price-tag {chg_class}">{cs}{getattr(cd, "current_price", 0):,.2f}</p>'
         f'<span class="price-change {chg_badge}">{arrow} {_cd_price_change:+.2f} ({_cd_price_change_pct:+.2f}%)</span>'
-        f'<span style="font-size:0.75rem; color:#A8A3C7; margin-left:0.5rem;">{cd.currency_code}</span>'
+        f'<span style="font-size:0.75rem; color:#6B7280; margin-left:0.5rem;">{cd.currency_code}</span>'
         f'</div>'
         f'</div>',
         unsafe_allow_html=True,
@@ -8488,7 +8488,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             mom_color = "#10B981"
         elif _cd_price_change_pct > -2:
             mom_str = "Bearish"
-            mom_color = "#F97316"
+            mom_color = "#F59E0B"
         else:
             mom_str = "Strong Bearish"
             mom_color = "#EF4444"
@@ -9092,7 +9092,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         polar=dict(
                             bgcolor="rgba(0,0,0,0)",
                             radialaxis=dict(visible=True, range=[0, 100], showticklabels=True,
-                                           tickfont=dict(size=8, color="#6B6B80"),
+                                           tickfont=dict(size=8, color="#6B7280"),
                                            gridcolor="rgba(255,255,255,0.06)"),
                             angularaxis=dict(tickfont=dict(size=10, color="#D1D5DB"),
                                             gridcolor="rgba(255,255,255,0.06)"),
@@ -9114,7 +9114,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         f'<div style="width:{_md_bar_w}%; height:100%; background:{_md_color}; border-radius:6px;"></div></div>'
                         f'<div style="width:35px; font-size:0.72rem; color:{_md_color}; font-weight:600; text-align:right;">{_md_score}</div>'
                         f'</div>'
-                        f'<div style="font-size:0.65rem; color:#6B6B80; margin-left:120px; padding-left:0.5rem; margin-bottom:0.3rem;">'
+                        f'<div style="font-size:0.65rem; color:#6B7280; margin-left:120px; padding-left:0.5rem; margin-bottom:0.3rem;">'
                         f'{_moat_details[_md_name]}</div>',
                         unsafe_allow_html=True,
                     )
@@ -9398,7 +9398,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     polar=dict(
                         bgcolor="rgba(0,0,0,0)",
                         radialaxis=dict(visible=True, range=[0, 5], showticklabels=True,
-                                       tickfont=dict(size=8, color="#6B6B80"),
+                                       tickfont=dict(size=8, color="#6B7280"),
                                        gridcolor="rgba(255,255,255,0.06)"),
                         angularaxis=dict(tickfont=dict(size=10, color="#D1D5DB"),
                                         gridcolor="rgba(255,255,255,0.06)"),
@@ -9533,7 +9533,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         pass
 
                     st.markdown(
-                        '<div style="font-size:0.65rem; color:#6B6B80; margin-top:0.3rem; line-height:1.5;">'
+                        '<div style="font-size:0.65rem; color:#6B7280; margin-top:0.3rem; line-height:1.5;">'
                         '💡 Bull/Bear cases use ±10% revenue, ±200bps margin, ±2x multiple from current levels. '
                         'Your scenario reflects the slider adjustments above.'
                         '</div>',
@@ -9648,7 +9648,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                                 f'<div style="font-size:0.68rem; color:#9CA3AF; margin-top:0.1rem;">{_bf_desc}</div></div>'
                             )
                         if not _bull_items:
-                            _bull_items = '<div style="font-size:0.72rem; color:#6B6B80; padding:0.5rem 0;">No strong bull factors identified</div>'
+                            _bull_items = '<div style="font-size:0.72rem; color:#6B7280; padding:0.5rem 0;">No strong bull factors identified</div>'
                         st.markdown(
                             f'<div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.2); '
                             f'border-radius:12px; padding:0.8rem 1rem; height:100%;">'
@@ -9665,7 +9665,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                                 f'<div style="font-size:0.68rem; color:#9CA3AF; margin-top:0.1rem;">{_br_desc}</div></div>'
                             )
                         if not _bear_items:
-                            _bear_items = '<div style="font-size:0.72rem; color:#6B6B80; padding:0.5rem 0;">No strong bear factors identified</div>'
+                            _bear_items = '<div style="font-size:0.72rem; color:#6B7280; padding:0.5rem 0;">No strong bear factors identified</div>'
                         st.markdown(
                             f'<div style="background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.2); '
                             f'border-radius:12px; padding:0.8rem 1rem; height:100%;">'
@@ -11336,7 +11336,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             rank_html += '</div>'
             st.markdown(rank_html, unsafe_allow_html=True)
             st.markdown(
-                '<div style="font-size:0.6rem; color:#5A567A; margin-top:0.3rem;">Higher = better ranking among peers</div>',
+                '<div style="font-size:0.6rem; color:#6B7280; margin-top:0.3rem;">Higher = better ranking among peers</div>',
                 unsafe_allow_html=True,
             )
         except Exception:
@@ -12060,7 +12060,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     st.plotly_chart(fig_eva, use_container_width=True, key="eva_trend_chart")
 
             st.markdown(
-                '<div style="font-size:0.6rem; color:#5A567A; text-align:center; margin-top:0.3rem;">'
+                '<div style="font-size:0.6rem; color:#6B7280; text-align:center; margin-top:0.3rem;">'
                 'EVA = NOPAT - (Invested Capital × WACC) · MVA = Market Cap - Book Equity · '
                 'WACC estimated using CAPM with β and assumed cost of debt</div>',
                 unsafe_allow_html=True,
@@ -12828,7 +12828,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     f'<span style="font-size:2rem; font-weight:800; color:{pcr_color};">{pcr:.2f}</span>'
                     f'<span style="font-size:0.8rem; color:{pcr_color}; margin-left:0.5rem; font-weight:700;">{pcr_label}</span></div>'
                     f'<div style="font-size:0.65rem; color:#9CA3AF; margin-top:0.2rem;">{pcr_zone_desc}</div>'
-                    f'<div style="font-size:0.6rem; color:#5A567A; margin-top:0.3rem;">Expiry: {nearest_exp}</div>'
+                    f'<div style="font-size:0.6rem; color:#6B7280; margin-top:0.3rem;">Expiry: {nearest_exp}</div>'
                     f'</div>',
                     unsafe_allow_html=True,
                 )
@@ -14293,7 +14293,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     f'<div style="font-size:1.4rem;">{icon}</div>'
                     f'<div style="font-size:0.65rem; color:#9CA3AF; font-weight:600; text-transform:uppercase;">{label}</div>'
                     f'<div style="color:#9CA3AF; font-size:0.8rem;">No Data</div>'
-                    f'<div style="font-size:0.55rem; color:#5A567A;">Sector avg: {bench}</div>'
+                    f'<div style="font-size:0.55rem; color:#6B7280;">Sector avg: {bench}</div>'
                     f'</div>'
                 )
             pct = min(score / max_val * 100, 100)
@@ -14332,7 +14332,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 f'<div style="text-align:center; margin:0.8rem 0; padding:0.5rem; background:rgba(37,99,235,0.04); border-radius:8px;">'
                 f'<span style="font-size:0.75rem; color:#9CA3AF;">ESG Risk Level: </span>'
                 f'<span style="font-size:0.85rem; font-weight:700; color:{_esg_rc};">{_esg_rl}</span>'
-                f'<span style="font-size:0.65rem; color:#5A567A;"> · Lower scores = lower risk (Sustainalytics)</span>'
+                f'<span style="font-size:0.65rem; color:#6B7280;"> · Lower scores = lower risk (Sustainalytics)</span>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -14517,7 +14517,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             _pos_words = {"surge", "jump", "rally", "gain", "rise", "beat", "upgrade", "bullish", "record", "growth", "profit", "soar"}
             _neg_words = {"fall", "drop", "crash", "decline", "loss", "miss", "downgrade", "bearish", "cut", "warning", "plunge", "slump"}
             _sentiment_color = "#9CA3AF"  # neutral
-            _dot_color = "#5A567A"
+            _dot_color = "#6B7280"
             if any(w in _title_lower for w in _pos_words):
                 _sentiment_color = "#10B981"
                 _dot_color = "#10B981"
@@ -16486,7 +16486,7 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
                 f'<div style="background:rgba(255,255,255,0.03); border-radius:12px; padding:1rem;">'
                 f'<div style="font-size:0.8rem; color:#9CA3AF;">EV/EBITDA vs Median</div>'
                 f'<div style="font-size:1.3rem; font-weight:700; color:{diff_color};">{diff_text}</div>'
-                f'<div style="font-size:0.7rem; color:#6B6B80;">Target: {format_mult(target_val)} · Median: {format_mult(median_val)}</div>'
+                f'<div style="font-size:0.7rem; color:#6B7280;">Target: {format_mult(target_val)} · Median: {format_mult(median_val)}</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -16505,7 +16505,7 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
                 f'<div style="background:rgba(255,255,255,0.03); border-radius:12px; padding:1rem;">'
                 f'<div style="font-size:0.8rem; color:#9CA3AF;">EV/Revenue vs Median</div>'
                 f'<div style="font-size:1.3rem; font-weight:700; color:{diff_color};">{diff_text}</div>'
-                f'<div style="font-size:0.7rem; color:#6B6B80;">Target: {format_mult(target_val)} · Median: {format_mult(median_val)}</div>'
+                f'<div style="font-size:0.7rem; color:#6B7280;">Target: {format_mult(target_val)} · Median: {format_mult(median_val)}</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -16524,7 +16524,7 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
                 f'<div style="background:rgba(255,255,255,0.03); border-radius:12px; padding:1rem;">'
                 f'<div style="font-size:0.8rem; color:#9CA3AF;">P/E vs Median</div>'
                 f'<div style="font-size:1.3rem; font-weight:700; color:{diff_color};">{diff_text}</div>'
-                f'<div style="font-size:0.7rem; color:#6B6B80;">Target: {format_mult(target_val)} · Median: {format_mult(median_val)}</div>'
+                f'<div style="font-size:0.7rem; color:#6B7280;">Target: {format_mult(target_val)} · Median: {format_mult(median_val)}</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -16752,7 +16752,7 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
         )
         
         st.markdown(
-            '<div style="font-size:0.7rem; color:#6B6B80; margin-top:0.5rem;">'
+            '<div style="font-size:0.7rem; color:#6B7280; margin-top:0.5rem;">'
             'Note: Peers selected based on sector, industry, and market cap proximity. '
             'Multiples based on LTM financials from Yahoo Finance.</div>',
             unsafe_allow_html=True,
@@ -16975,9 +16975,9 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
                     fig_rvm.add_trace(go.Scatter(
                         x=_tgt["ev_ebitda"], y=_tgt["rev_growth"],
                         mode="markers+text", text=_tgt["ticker"],
-                        textposition="top center", textfont=dict(size=10, color="#FFD700", family="Inter"),
+                        textposition="top center", textfont=dict(size=10, color="#F5A623", family="Inter"),
                         marker=dict(size=_tgt["bubble_size"] * 1.3, color="rgba(16,185,129,0.8)",
-                                    line=dict(color="#FFD700", width=2), symbol="star"),
+                                    line=dict(color="#F5A623", width=2), symbol="star"),
                         name=tc.ticker, hovertemplate="%{text}<br>EV/EBITDA: %{x:.1f}x<br>Rev Growth: %{y:.1f}%<extra></extra>",
                     ))
 
@@ -17014,7 +17014,7 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
                 st.plotly_chart(fig_rvm, use_container_width=True, key="comps_relative_value_map")
 
                 st.markdown(
-                    '<div style="font-size:0.7rem; color:#6B6B80; margin-top:0.3rem;">'
+                    '<div style="font-size:0.7rem; color:#6B7280; margin-top:0.3rem;">'
                     'Bubble size = Market Cap. Star = Target company. Dashed lines = Peer medians.</div>',
                     unsafe_allow_html=True,
                 )
@@ -17201,7 +17201,7 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
                     st.plotly_chart(fig_ff2, use_container_width=True, key="comps_implied_price_ff")
 
                     st.markdown(
-                        '<div style="font-size:0.7rem; color:#6B6B80; margin-top:0.3rem;">'
+                        '<div style="font-size:0.7rem; color:#6B7280; margin-top:0.3rem;">'
                         'Range = 25th–75th percentile of peer multiples applied to target financials. '
                         'Diamond = peer median implied price.</div>',
                         unsafe_allow_html=True,
@@ -19062,7 +19062,7 @@ Generated by Orbital M&A Intelligence Platform</p>
                 f'<div style="font-size:0.65rem; color:#9CA3AF;">EPS Impact</div>'
                 f'<div style="font-size:1.1rem; font-weight:700; color:{"#10B981" if getattr(pro_forma, "eps_accretion_pct", 0) >= 0 else "#EF4444"};">'
                 f'{_eps_accretion}</div></div></div>'
-                f'<div style="font-size:0.7rem; color:#6B6B80; text-align:center;">Full deal book available for download below ↓</div>'
+                f'<div style="font-size:0.7rem; color:#6B7280; text-align:center;">Full deal book available for download below ↓</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
