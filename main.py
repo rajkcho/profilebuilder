@@ -1886,7 +1886,7 @@ st.set_page_config(
     page_title="Orbital — M&A Intelligence",
     page_icon="https://img.icons8.com/fluency/48/combo-chart.png",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 # ── Generate star box-shadow strings (deterministic seed) ──────
@@ -4947,7 +4947,128 @@ def _render_company_card(ticker: str, role: str = "") -> None:
     )
 
 
-# ── Sidebar ──────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════
+# HIDE SIDEBAR & TICKER AUTOCOMPLETE
+# ══════════════════════════════════════════════════════════════
+st.markdown("""
+<style>
+[data-testid="stSidebar"] {
+    display: none !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def get_ticker_list():
+    """Get a list of common tickers for autocomplete."""
+    tickers = {
+        "AAPL": "Apple Inc.",
+        "MSFT": "Microsoft Corporation",
+        "GOOGL": "Alphabet Inc.",
+        "AMZN": "Amazon.com Inc.",
+        "META": "Meta Platforms Inc.",
+        "NVDA": "NVIDIA Corporation",
+        "TSLA": "Tesla Inc.",
+        "JPM": "JPMorgan Chase & Co.",
+        "V": "Visa Inc.",
+        "JNJ": "Johnson & Johnson",
+        "WMT": "Walmart Inc.",
+        "PG": "Procter & Gamble Co.",
+        "MA": "Mastercard Inc.",
+        "UNH": "UnitedHealth Group Inc.",
+        "HD": "The Home Depot Inc.",
+        "DIS": "The Walt Disney Co.",
+        "NFLX": "Netflix Inc.",
+        "ADBE": "Adobe Inc.",
+        "CRM": "Salesforce Inc.",
+        "INTC": "Intel Corporation",
+        "AMD": "Advanced Micro Devices",
+        "CSCO": "Cisco Systems Inc.",
+        "ORCL": "Oracle Corporation",
+        "IBM": "IBM Corporation",
+        "QCOM": "Qualcomm Inc.",
+        "TXN": "Texas Instruments",
+        "AVGO": "Broadcom Inc.",
+        "NOW": "ServiceNow Inc.",
+        "SHOP": "Shopify Inc.",
+        "SNOW": "Snowflake Inc.",
+        "PLTR": "Palantir Technologies",
+        "BA": "Boeing Co.",
+        "GS": "Goldman Sachs Group",
+        "MS": "Morgan Stanley",
+        "BLK": "BlackRock Inc.",
+        "C": "Citigroup Inc.",
+        "BAC": "Bank of America Corp.",
+        "WFC": "Wells Fargo & Co.",
+        "PFE": "Pfizer Inc.",
+        "ABBV": "AbbVie Inc.",
+        "MRK": "Merck & Co. Inc.",
+        "LLY": "Eli Lilly and Co.",
+        "TMO": "Thermo Fisher Scientific",
+        "ABT": "Abbott Laboratories",
+        "KO": "Coca-Cola Co.",
+        "PEP": "PepsiCo Inc.",
+        "COST": "Costco Wholesale Corp.",
+        "NKE": "Nike Inc.",
+        "MCD": "McDonald's Corp.",
+        "SBUX": "Starbucks Corp.",
+        "CAT": "Caterpillar Inc.",
+        "DE": "Deere & Company",
+        "GE": "GE Aerospace",
+        "XOM": "Exxon Mobil Corp.",
+        "CVX": "Chevron Corporation",
+        # Canadian
+        "RY.TO": "Royal Bank of Canada",
+        "TD.TO": "Toronto-Dominion Bank",
+        "BNS.TO": "Bank of Nova Scotia",
+        "BMO.TO": "Bank of Montreal",
+        "CM.TO": "CIBC",
+        "SHOP.TO": "Shopify Inc. (TSX)",
+        "ENB.TO": "Enbridge Inc.",
+        "CNR.TO": "Canadian National Railway",
+        "CP.TO": "Canadian Pacific Kansas City",
+        "SU.TO": "Suncor Energy",
+        "CSU.TO": "Constellation Software",
+        "MFC.TO": "Manulife Financial",
+        "SLF.TO": "Sun Life Financial",
+        "T.TO": "TELUS Corp.",
+        "BCE.TO": "BCE Inc.",
+        "OTEX.TO": "Open Text Corp.",
+        "DSG.TO": "Descartes Systems",
+        # Constellation family
+        "DSGX": "Descartes Systems (US)",
+        "TYL": "Tyler Technologies",
+        "SSNC": "SS&C Technologies",
+        "BSY": "Bentley Systems",
+        "GWRE": "Guidewire Software",
+        "PCTY": "Paylocity",
+        "PAYC": "Paycom Software",
+        "CSGP": "CoStar Group",
+        "APPF": "AppFolio Inc.",
+    }
+    return tickers
+
+def ticker_autocomplete(label="Search ticker or company", key="ticker_search"):
+    """Yahoo Finance-style ticker search with autocomplete."""
+    tickers = get_ticker_list()
+    
+    # Create search options: "AAPL — Apple Inc."
+    options = [""] + [f"{t} — {n}" for t, n in sorted(tickers.items())]
+    
+    selected = st.selectbox(
+        label,
+        options=options,
+        key=key,
+        placeholder="Type ticker or company name...",
+        label_visibility="collapsed",
+    )
+    
+    if selected and " — " in selected:
+        return selected.split(" — ")[0].strip()
+    return selected.strip().upper() if selected else ""
+
+
+# ── Sidebar (LEGACY - will be replaced with tabs) ────────────
 with st.sidebar:
     # Animated Orbital Logo
     st.markdown(
@@ -6363,6 +6484,421 @@ with st.sidebar:
         '</div>',
         unsafe_allow_html=True,
     )
+
+
+# ══════════════════════════════════════════════════════════════
+# NEW TAB-BASED NAVIGATION (v6.6)
+# ══════════════════════════════════════════════════════════════
+
+# Show Orbital logo at the top
+st.markdown(
+    '<div style="text-align:center; padding: 2rem 0 1.5rem 0;">'
+    '<div class="orbital-logo" style="margin:0 auto;">'
+    '<span class="orbital-text">ORBITAL</span>'
+    '<div class="orbital-ring orbital-ring-1"></div>'
+    '<div class="orbital-ring orbital-ring-2"></div>'
+    '<div class="orbital-ring orbital-ring-3"></div>'
+    '<div class="orbital-particle orbital-particle-1"></div>'
+    '<div class="orbital-particle orbital-particle-2"></div>'
+    '<div class="orbital-particle orbital-particle-3"></div>'
+    '</div>'
+    '<div style="font-size:0.8rem; color:#9CA3AF; margin-top:1rem; letter-spacing:2px; text-transform:uppercase;">M&A Intelligence Platform</div>'
+    '</div>',
+    unsafe_allow_html=True,
+)
+
+# Create tabs for different analysis modes
+tab_labels = [
+    "📊 Profile",
+    "📈 Comps",
+    "💹 DCF",
+    "⚖️ Compare",
+    "🤝 M&A",
+    "📋 DD",
+    "🔗 Synergy",
+    "📅 Integration",
+    "💼 Deal Structure",
+    "📊 Fairness",
+    "🔍 VMS",
+    "📊 Options",
+    "🔄 Sectors"
+]
+
+tabs = st.tabs(tab_labels)
+
+# Initialize all variables with defaults to prevent NameErrors
+ticker_input = ""
+generate_btn = False
+comps_ticker_input = ""
+comps_btn = False
+max_peers = 10
+include_saas = False
+dcf_ticker_input = ""
+dcf_btn = False
+dcf_growth_rate = 0.08
+dcf_terminal_growth = 0.025
+dcf_years = 5
+dcf_auto_wacc = False
+dcf_discount_rate = 0.10
+compare_input = ""
+compare_tickers = []
+compare_btn = False
+acquirer_input = ""
+target_input = ""
+offer_premium = 30
+pct_cash = 50
+pct_stock = 50
+merger_btn = False
+cost_syn = 10
+rev_syn = 2
+txn_fees = 2.0
+adv_cost_of_debt = 5.0
+adv_tax_rate = 25
+dd_ticker = ""
+dd_btn = False
+syn_acquirer = ""
+syn_target = ""
+syn_btn = False
+int_acquirer = ""
+int_target = ""
+int_btn = False
+ds_acquirer = ""
+ds_target = ""
+ds_equity_val = 10000
+ds_btn = False
+fo_ticker = ""
+fo_offer_price = 50.0
+fo_btn = False
+vms_target_profile = "Custom"
+vms_rev_min = 1
+vms_rev_max = 500
+vms_ebitda_min = 0
+vms_growth_min = 0
+vms_rule40_min = -50
+vms_industries = []
+vms_geographies = []
+vms_screen_btn = False
+options_pl_ticker = ""
+options_pl_btn = False
+sector_rotation_btn = False
+analysis_mode = "Company Profile"  # Default
+
+# ─── TAB 0: Company Profile ───────────────────────────────────
+with tabs[0]:
+    st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        ticker_input = ticker_autocomplete("Search ticker or company", key="profile_ticker_auto")
+    with col2:
+        generate_btn = st.button("🚀 Generate Profile", type="primary", use_container_width=True)
+    
+    # Allow manual ticker entry as fallback
+    if not ticker_input:
+        manual_ticker = st.text_input("Or enter ticker manually", placeholder="e.g., AAPL", label_visibility="collapsed", key="profile_ticker_manual")
+        ticker_input = manual_ticker.strip().upper() if manual_ticker else ""
+    
+    st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
+    
+    if generate_btn or ticker_input:
+        analysis_mode = "Company Profile"
+
+# ─── TAB 1: Comps Analysis ────────────────────────────────────
+with tabs[1]:
+    st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+        comps_ticker_input = ticker_autocomplete("Target company", key="comps_ticker_auto")
+    with col2:
+        max_peers = st.number_input("# Peers", 5, 20, 10, 1, label_visibility="collapsed")
+    with col3:
+        comps_btn = st.button("📈 Analyze", type="primary", use_container_width=True)
+    
+    if not comps_ticker_input:
+        manual_comps = st.text_input("Or enter ticker manually", placeholder="e.g., AAPL", label_visibility="collapsed", key="comps_ticker_manual")
+        comps_ticker_input = manual_comps.strip().upper() if manual_comps else ""
+    
+    include_saas = st.checkbox("Include SaaS/Software peers", value=False)
+    
+    st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
+    
+    if comps_btn or comps_ticker_input:
+        analysis_mode = "Comps Analysis"
+
+# ─── TAB 2: DCF Valuation ─────────────────────────────────────
+with tabs[2]:
+    st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        dcf_ticker_input = ticker_autocomplete("Company to value", key="dcf_ticker_auto")
+    with col2:
+        dcf_btn = st.button("💹 Calculate DCF", type="primary", use_container_width=True)
+    
+    if not dcf_ticker_input:
+        manual_dcf = st.text_input("Or enter ticker manually", placeholder="e.g., AAPL", label_visibility="collapsed", key="dcf_ticker_manual")
+        dcf_ticker_input = manual_dcf.strip().upper() if manual_dcf else ""
+    
+    st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
+    
+    # DCF assumptions in columns
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        dcf_growth_rate = st.slider("FCF Growth (%)", 0, 30, 8, 1) / 100
+    with col2:
+        dcf_terminal_growth = st.slider("Terminal Growth (%)", 0.0, 4.0, 2.5, 0.5) / 100
+    with col3:
+        dcf_years = st.slider("Projection Years", 3, 10, 5, 1)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        dcf_auto_wacc = st.checkbox("🤖 Auto-Calculate WACC", value=False)
+    with col2:
+        if not dcf_auto_wacc:
+            dcf_discount_rate = st.slider("Discount Rate (%)", 5.0, 20.0, 10.0, 0.5) / 100
+        else:
+            dcf_discount_rate = 0.10  # Will be calculated if auto
+    
+    if dcf_btn or dcf_ticker_input:
+        analysis_mode = "DCF Valuation"
+
+# ─── TAB 3: Quick Compare ─────────────────────────────────────
+with tabs[3]:
+    st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
+    
+    compare_input = st.text_area(
+        "Enter tickers (comma-separated)",
+        placeholder="AAPL, MSFT, GOOGL, META",
+        height=80,
+        label_visibility="collapsed",
+        key="compare_input"
+    )
+    
+    compare_tickers = [t.strip().upper() for t in compare_input.split(",") if t.strip()]
+    
+    if compare_tickers:
+        st.markdown(
+            f'<div style="font-size:0.75rem; color:#60A5FA; margin:0.5rem 0;">'
+            f'📊 Comparing {len(compare_tickers)} companies: {", ".join(compare_tickers[:5])}'
+            f'{"..." if len(compare_tickers) > 5 else ""}'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    
+    compare_btn = st.button("⚖️ Compare", type="primary", use_container_width=True)
+    
+    if compare_btn or compare_tickers:
+        analysis_mode = "Quick Compare"
+
+# ─── TAB 4: Merger Analysis ───────────────────────────────────
+with tabs[4]:
+    st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([2, 2, 1])
+    with col1:
+        acquirer_input = ticker_autocomplete("Acquirer", key="acquirer_auto")
+        if not acquirer_input:
+            acquirer_input = st.text_input("Or manual", placeholder="e.g., MSFT", label_visibility="collapsed", key="acquirer_manual").strip().upper()
+    with col2:
+        target_input = ticker_autocomplete("Target", key="target_auto")
+        if not target_input:
+            target_input = st.text_input("Or manual", placeholder="e.g., ATVI", label_visibility="collapsed", key="target_manual").strip().upper()
+    with col3:
+        offer_premium = st.slider("Premium %", 0, 100, 30, 5)
+    
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        pct_cash = st.slider("Cash %", 0, 100, 50, 5)
+        pct_stock = 100 - pct_cash
+    with col2:
+        merger_btn = st.button("🤝 Analyze Deal", type="primary", use_container_width=True)
+    
+    # Additional merger params in expander
+    with st.expander("⚙️ Advanced Settings"):
+        cost_syn = st.slider("Cost Synergies (% of Target SG&A)", 0, 30, 10, 1)
+        rev_syn = st.slider("Revenue Synergies (% of Target Rev)", 0, 10, 2, 1)
+        txn_fees = st.slider("Transaction Fees (%)", 0.5, 5.0, 2.0, 0.5)
+        adv_cost_of_debt = st.slider("Cost of Debt (%)", 2.0, 10.0, 5.0, 0.5)
+        adv_tax_rate = st.slider("Tax Rate (%)", 10, 40, 25, 1)
+    
+    # Set defaults if not in expander
+    if 'cost_syn' not in locals():
+        cost_syn, rev_syn, txn_fees, adv_cost_of_debt, adv_tax_rate = 10, 2, 2.0, 5.0, 25
+    
+    merger_assumptions = MergerAssumptions(
+        offer_premium_pct=offer_premium,
+        pct_cash=pct_cash,
+        pct_stock=pct_stock,
+        cost_synergies_pct=cost_syn,
+        revenue_synergies_pct=rev_syn,
+        transaction_fees_pct=txn_fees,
+        tax_rate=adv_tax_rate,
+        cost_of_debt=adv_cost_of_debt,
+    )
+    
+    if merger_btn or (acquirer_input and target_input):
+        analysis_mode = "Merger Analysis"
+
+# ─── TAB 5: Due Diligence ─────────────────────────────────────
+with tabs[5]:
+    st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        dd_ticker = ticker_autocomplete("Target company", key="dd_ticker_auto")
+        if not dd_ticker:
+            dd_ticker = st.text_input("Or manual", placeholder="e.g., AAPL", label_visibility="collapsed", key="dd_ticker_manual").strip().upper()
+    with col2:
+        dd_btn = st.button("📋 Start DD", type="primary", use_container_width=True)
+    
+    if dd_btn or dd_ticker:
+        analysis_mode = "Due Diligence"
+
+# ─── TAB 6: Synergy Model ─────────────────────────────────────
+with tabs[6]:
+    st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([2, 2, 1])
+    with col1:
+        syn_acquirer = ticker_autocomplete("Acquirer", key="syn_acquirer_auto")
+        if not syn_acquirer:
+            syn_acquirer = st.text_input("Or manual", placeholder="e.g., MSFT", label_visibility="collapsed", key="syn_acquirer_manual").strip().upper()
+    with col2:
+        syn_target = ticker_autocomplete("Target", key="syn_target_auto")
+        if not syn_target:
+            syn_target = st.text_input("Or manual", placeholder="e.g., ATVI", label_visibility="collapsed", key="syn_target_manual").strip().upper()
+    with col3:
+        syn_btn = st.button("🔗 Model", type="primary", use_container_width=True)
+    
+    if syn_btn or (syn_acquirer and syn_target):
+        analysis_mode = "Synergy Model"
+
+# ─── TAB 7: Integration Plan ──────────────────────────────────
+with tabs[7]:
+    st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([2, 2, 1])
+    with col1:
+        int_acquirer = ticker_autocomplete("Acquirer", key="int_acquirer_auto")
+        if not int_acquirer:
+            int_acquirer = st.text_input("Or manual", placeholder="e.g., MSFT", label_visibility="collapsed", key="int_acquirer_manual").strip().upper()
+    with col2:
+        int_target = ticker_autocomplete("Target", key="int_target_auto")
+        if not int_target:
+            int_target = st.text_input("Or manual", placeholder="e.g., ATVI", label_visibility="collapsed", key="int_target_manual").strip().upper()
+    with col3:
+        int_btn = st.button("📅 Plan", type="primary", use_container_width=True)
+    
+    if int_btn or (int_acquirer and int_target):
+        analysis_mode = "Integration Plan"
+
+# ─── TAB 8: Deal Structure ────────────────────────────────────
+with tabs[8]:
+    st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([2, 2])
+    with col1:
+        ds_acquirer = ticker_autocomplete("Acquirer", key="ds_acquirer_auto")
+        if not ds_acquirer:
+            ds_acquirer = st.text_input("Or manual", placeholder="e.g., GOOGL", label_visibility="collapsed", key="ds_acquirer_manual").strip().upper()
+    with col2:
+        ds_target = ticker_autocomplete("Target", key="ds_target_auto")
+        if not ds_target:
+            ds_target = st.text_input("Or manual", placeholder="e.g., WDAY", label_visibility="collapsed", key="ds_target_manual").strip().upper()
+    
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        ds_equity_val = st.number_input("Target Equity Value ($M)", min_value=0, value=10000, step=1000)
+    with col2:
+        ds_btn = st.button("💼 Optimize", type="primary", use_container_width=True)
+    
+    if ds_btn or (ds_acquirer and ds_target):
+        analysis_mode = "Deal Structure"
+
+# ─── TAB 9: Fairness Opinion ──────────────────────────────────
+with tabs[9]:
+    st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+        fo_ticker = ticker_autocomplete("Target", key="fo_ticker_auto")
+        if not fo_ticker:
+            fo_ticker = st.text_input("Or manual", placeholder="e.g., TWTR", label_visibility="collapsed", key="fo_ticker_manual").strip().upper()
+    with col2:
+        fo_offer_price = st.number_input("Offer Price ($)", min_value=0.0, value=50.0, step=1.0)
+    with col3:
+        fo_btn = st.button("📊 Opinion", type="primary", use_container_width=True)
+    
+    if fo_btn or fo_ticker:
+        analysis_mode = "Fairness Opinion"
+
+# ─── TAB 10: VMS Screener ─────────────────────────────────────
+with tabs[10]:
+    st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
+    
+    vms_target_profile = st.selectbox(
+        "Target Profile",
+        ["Custom", "Classic CSU Target", "Growth VMS", "Turnaround Opportunity", "Cash Cow"],
+        key="vms_target_profile_sel",
+    )
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        vms_rev_min = st.slider("Min Revenue ($M)", 1, 500, 5, 1)
+    with col2:
+        vms_rev_max = st.slider("Max Revenue ($M)", 1, 500, 50, 1)
+    with col3:
+        vms_ebitda_min = st.slider("Min EBITDA Margin (%)", 0, 50, 15, 1)
+    
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        vms_growth_min = st.slider("Min Revenue Growth (%)", -20, 50, 0, 1)
+        vms_rule40_min = st.slider("Min Rule of 40", -50, 80, -50, 1)
+    with col2:
+        vms_screen_btn = st.button("🔍 Screen", type="primary", use_container_width=True)
+    
+    vms_industries = []
+    vms_geographies = []
+    
+    if vms_screen_btn:
+        analysis_mode = "VMS Screener"
+
+# ─── TAB 11: Options P/L ──────────────────────────────────────
+with tabs[11]:
+    st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        options_pl_ticker = ticker_autocomplete("Stock", key="options_ticker_auto")
+        if not options_pl_ticker:
+            options_pl_ticker = st.text_input("Or manual", placeholder="e.g., AAPL", label_visibility="collapsed", key="options_ticker_manual").strip().upper()
+    with col2:
+        options_pl_btn = st.button("📊 Analyze Options", type="primary", use_container_width=True)
+    
+    if options_pl_btn or options_pl_ticker:
+        analysis_mode = "Options P/L"
+
+# ─── TAB 12: Sector Rotation ──────────────────────────────────
+with tabs[12]:
+    st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
+    
+    st.markdown(
+        '<div style="font-size:0.85rem; color:#D1D5DB; margin-bottom:1rem;">'
+        'Analyze sector momentum and rotation patterns across S&P 500 sectors.'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    sector_rotation_btn = st.button("🔄 Run Sector Analysis", type="primary", use_container_width=True)
+    
+    if sector_rotation_btn:
+        analysis_mode = "Sector Rotation"
+
+
+# ══════════════════════════════════════════════════════════════
+# END OF TAB DEFINITIONS
+# ══════════════════════════════════════════════════════════════
+
 
 # ── Options P/L Page ─────────────────────────────────────────
 def render_options_pl_page(ticker):
