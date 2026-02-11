@@ -3716,6 +3716,53 @@ header {{ visibility: hidden; }}
 }}
 .scanner-dots span:nth-child(2) {{ animation-delay: 0.3s; }}
 .scanner-dots span:nth-child(3) {{ animation-delay: 0.6s; }}
+
+/* ── RESPONSIVE DESIGN ───────────────────────────────────── */
+@media (max-width: 768px) {{
+    .splash-hero {{
+        padding: 3rem 1.5rem 3rem;
+        min-height: 70vh;
+    }}
+    .splash-title {{
+        font-size: 2rem !important;
+    }}
+    .splash-subtitle {{
+        font-size: 1rem !important;
+    }}
+    .orbital-logo-lg {{
+        width: 140px;
+        height: 140px;
+    }}
+    .orbital-logo-lg .orbital-text {{
+        font-size: 1.3rem;
+    }}
+    .splash-stats {{
+        flex-direction: column;
+        gap: 1rem;
+    }}
+    .step-grid {{
+        flex-direction: column;
+    }}
+    .feature-grid {{
+        grid-template-columns: repeat(2, 1fr);
+    }}
+    .pill-row {{
+        gap: 0.5rem;
+    }}
+    .feature-pill {{
+        font-size: 0.7rem;
+        padding: 0.35rem 0.9rem;
+    }}
+}}
+
+@media (max-width: 480px) {{
+    .feature-grid {{
+        grid-template-columns: 1fr;
+    }}
+    .section-header h3 {{
+        font-size: 1.1rem;
+    }}
+}}
 </style>
 """, unsafe_allow_html=True)
 
