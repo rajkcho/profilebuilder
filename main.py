@@ -4406,6 +4406,64 @@ def _render_profile_scanner(ticker: str, current_phase: int, total_phases: int =
 
 
 # ── HELPER: Section header with accent bar ──────────────────
+def _render_modern_splash(title, subtitle, stats=None, pills=None):
+    """Render a consistent modern splash page for analysis modes."""
+    st.markdown(
+        '<div class="splash-hero">'
+        '<div class="star-layer-1">&#8203;</div>'
+        '<div class="star-layer-2">&#8203;</div>'
+        '<div class="star-layer-3">&#8203;</div>'
+        '<div class="nebula-overlay">&#8203;</div>'
+        '<div class="orb orb-1">&#8203;</div>'
+        '<div class="orb orb-2">&#8203;</div>'
+        '<div class="orb orb-3">&#8203;</div>'
+        '<div class="shooting-star shooting-star-1">&#8203;</div>'
+        '<div class="shooting-star shooting-star-2">&#8203;</div>'
+        '<div class="noise-overlay">&#8203;</div>'
+        '<div class="title-glow">&#8203;</div>'
+        '<div class="splash-content">'
+        '<div class="orbital-logo orbital-logo-lg">'
+        '<span class="orbital-text">ORBITAL</span>'
+        '<div class="orbital-ring orbital-ring-1"></div>'
+        '<div class="orbital-ring orbital-ring-2"></div>'
+        '<div class="orbital-ring orbital-ring-3"></div>'
+        '<div class="orbital-particle orbital-particle-1"></div>'
+        '<div class="orbital-particle orbital-particle-2"></div>'
+        '<div class="orbital-particle orbital-particle-3"></div>'
+        '</div>'
+        f'<h1 class="splash-title" style="font-size:3rem; font-weight:900; color:#fff; margin:2rem 0 0.8rem; letter-spacing:-1.5px;">'
+        f'{title}'
+        f'</h1>'
+        f'<p class="splash-subtitle" style="font-size:1.15rem; margin-top:0.5rem; max-width:700px; margin-left:auto; margin-right:auto; line-height:1.6;">'
+        f'{subtitle}'
+        f'</p>',
+        unsafe_allow_html=True,
+    )
+    
+    # Pills
+    if pills:
+        pills_html = '<div class="pill-row" style="margin-top:2rem;">'
+        for pill in pills:
+            pills_html += f'<span class="feature-pill">{pill}</span>'
+        pills_html += '</div>'
+        st.markdown(pills_html, unsafe_allow_html=True)
+    
+    # Stats
+    if stats:
+        stats_html = '<div class="splash-stats" style="margin-top:3rem;">'
+        for stat in stats:
+            stats_html += (
+                '<div class="splash-stat">'
+                f'<div class="splash-stat-value">{stat["value"]}</div>'
+                f'<div class="splash-stat-label">{stat["label"]}</div>'
+                '</div>'
+            )
+        stats_html += '</div>'
+        st.markdown(stats_html, unsafe_allow_html=True)
+    
+    st.markdown('</div></div>', unsafe_allow_html=True)
+
+
 def _section(title, icon=""):
     st.markdown(
         f'<div class="section-header">'
