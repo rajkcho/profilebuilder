@@ -10947,16 +10947,16 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             _sha_cols = st.columns(4)
             with _sha_cols[0]:
                 _v = f"{_sha_inst_pct*100:.1f}%" if _sha_inst_pct else "N/A"
-                st.markdown(f'<div style="background:rgba(37,99,235,0.06); border:1px solid rgba(37,99,235,0.15); border-radius:12px; padding:0.8rem; text-align:center;"><div style="font-size:0.6rem; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.5px;">Institutional</div><div style="font-size:1.2rem; font-weight:700; color:#2563EB;">{_v}</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1rem; text-align:center;"><div style="font-size:0.6rem; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.5px;">Institutional</div><div style="font-size:1.2rem; font-weight:700; color:#2563EB;">{_v}</div></div>', unsafe_allow_html=True)
             with _sha_cols[1]:
                 _v = f"{_sha_insider_pct*100:.1f}%" if _sha_insider_pct else "N/A"
-                st.markdown(f'<div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.15); border-radius:12px; padding:0.8rem; text-align:center;"><div style="font-size:0.6rem; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.5px;">Insider Ownership</div><div style="font-size:1.2rem; font-weight:700; color:#10B981;">{_v}</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1rem; text-align:center;"><div style="font-size:0.6rem; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.5px;">Insider Ownership</div><div style="font-size:1.2rem; font-weight:700; color:#10B981;">{_v}</div></div>', unsafe_allow_html=True)
             with _sha_cols[2]:
                 _v = f"{_sha_short_pct*100:.1f}%" if _sha_short_pct else "N/A"
-                st.markdown(f'<div style="background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.15); border-radius:12px; padding:0.8rem; text-align:center;"><div style="font-size:0.6rem; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.5px;">Float Short %</div><div style="font-size:1.2rem; font-weight:700; color:{_sha_short_interp[2]};">{_v}</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1rem; text-align:center;"><div style="font-size:0.6rem; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.5px;">Float Short %</div><div style="font-size:1.2rem; font-weight:700; color:{_sha_short_interp[2]};">{_v}</div></div>', unsafe_allow_html=True)
             with _sha_cols[3]:
                 _v = f"{_sha_short_ratio:.1f} days" if _sha_short_ratio else "N/A"
-                st.markdown(f'<div style="background:rgba(245,166,35,0.06); border:1px solid rgba(245,166,35,0.15); border-radius:12px; padding:0.8rem; text-align:center;"><div style="font-size:0.6rem; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.5px;">Days to Cover</div><div style="font-size:1.2rem; font-weight:700; color:#F5A623;">{_v}</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1rem; text-align:center;"><div style="font-size:0.6rem; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.5px;">Days to Cover</div><div style="font-size:1.2rem; font-weight:700; color:#F5A623;">{_v}</div></div>', unsafe_allow_html=True)
 
             # Short interest interpretation bar
             st.markdown(
@@ -12935,8 +12935,8 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 )
             except Exception:
                 st.markdown(
-                    '<div style="text-align:center; padding:0.8rem; background:rgba(37,99,235,0.05); '
-                    'border-radius:12px;"><div style="color:#9CA3AF;">Payout N/A</div></div>',
+                    '<div style="text-align:center; padding:1rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+                    'border:1px solid rgba(255,255,255,0.06); border-radius:12px;"><div style="color:#9CA3AF;">Payout N/A</div></div>',
                     unsafe_allow_html=True,
                 )
         
@@ -12954,8 +12954,8 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 )
             except Exception:
                 st.markdown(
-                    '<div style="text-align:center; padding:0.8rem; background:rgba(37,99,235,0.05); '
-                    'border-radius:12px;"><div style="color:#9CA3AF;">Annual Dividend N/A</div></div>',
+                    '<div style="text-align:center; padding:1rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+                    'border:1px solid rgba(255,255,255,0.06); border-radius:12px;"><div style="color:#9CA3AF;">Annual Dividend N/A</div></div>',
                     unsafe_allow_html=True,
                 )
         
@@ -12979,8 +12979,8 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 )
             except Exception:
                 st.markdown(
-                    '<div style="text-align:center; padding:0.8rem; background:rgba(37,99,235,0.05); '
-                    'border-radius:12px;"><div style="color:#9CA3AF;">Date N/A</div></div>',
+                    '<div style="text-align:center; padding:1rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+                    'border:1px solid rgba(255,255,255,0.06); border-radius:12px;"><div style="color:#9CA3AF;">Date N/A</div></div>',
                     unsafe_allow_html=True,
                 )
         
