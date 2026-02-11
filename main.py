@@ -4059,8 +4059,8 @@ st.markdown(f"""
     pointer-events: none;
 }}
 .step-card:hover {{
-    border-color: rgba(37,99,235,0.4); transform: translateY(-6px) scale(1.02);
-    box-shadow: 0 12px 36px rgba(37,99,235,0.25), 0 0 0 1px rgba(37,99,235,0.1);
+    border-color: rgba(37,99,235,0.45); transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 16px 48px rgba(37,99,235,0.3), 0 0 0 1px rgba(37,99,235,0.15), 0 8px 16px rgba(0,0,0,0.15);
 }}
 .step-card:hover::before {{ opacity: 1; }}
 .step-num {{
@@ -4122,8 +4122,8 @@ st.markdown(f"""
     pointer-events: none;
 }}
 .feature-card:hover {{
-    border-color: rgba(37,99,235,0.3); transform: translateY(-6px) scale(1.03);
-    box-shadow: 0 12px 32px rgba(37,99,235,0.25), 0 0 0 1px rgba(37,99,235,0.1);
+    border-color: rgba(37,99,235,0.35); transform: translateY(-8px) scale(1.03);
+    box-shadow: 0 16px 40px rgba(37,99,235,0.28), 0 0 0 1px rgba(37,99,235,0.12), 0 8px 16px rgba(0,0,0,0.12);
 }}
 .feature-card:hover::before {{ opacity: 1; }}
 .feature-icon {{ 
