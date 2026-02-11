@@ -19123,19 +19123,62 @@ def render_due_diligence_page(ticker):
             
             st.markdown('</div>', unsafe_allow_html=True)
     
-    # Summary metrics
+    # Summary metrics with export
     st.markdown('<div style="margin-top:2rem;"></div>', unsafe_allow_html=True)
     
     total_items = sum(len(items) for items in dd_categories.values())
-    st.markdown(
-        f'<div style="background:rgba(16, 185, 129, 0.1); border:1px solid rgba(16, 185, 129, 0.3); '
-        f'border-radius:12px; padding:1.5rem; text-align:center;">'
-        f'<div style="font-size:0.875rem; color:#9CA3AF; margin-bottom:0.5rem;">Total DD Items</div>'
-        f'<div style="font-size:2rem; font-weight:700; color:#10B981;">{total_items}</div>'
-        f'<div style="font-size:0.75rem; color:#9CA3AF; margin-top:0.5rem;">Across {len(dd_categories)} categories</div>'
-        f'</div>',
-        unsafe_allow_html=True
-    )
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown(
+            f'<div style="background:rgba(16, 185, 129, 0.1); border:1px solid rgba(16, 185, 129, 0.3); '
+            f'border-radius:12px; padding:1.5rem; text-align:center;">'
+            f'<div style="font-size:0.875rem; color:#9CA3AF; margin-bottom:0.5rem;">Total DD Items</div>'
+            f'<div style="font-size:2rem; font-weight:700; color:#10B981;">{total_items}</div>'
+            f'<div style="font-size:0.75rem; color:#9CA3AF; margin-top:0.5rem;">Across {len(dd_categories)} categories</div>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
+    
+    with col2:
+        st.markdown(
+            f'<div style="background:rgba(37, 99, 235, 0.1); border:1px solid rgba(37, 99, 235, 0.3); '
+            f'border-radius:12px; padding:1.5rem; text-align:center;">'
+            f'<div style="font-size:0.875rem; color:#9CA3AF; margin-bottom:0.5rem;">DD Score</div>'
+            f'<div style="font-size:2rem; font-weight:700; color:#2563EB;">0%</div>'
+            f'<div style="font-size:0.75rem; color:#9CA3AF; margin-top:0.5rem;">Complete when all items checked</div>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
+    
+    # Export button
+    st.markdown('<div style="margin-top:1.5rem;"></div>', unsafe_allow_html=True)
+    if st.button("📥 Export DD Checklist to CSV", use_container_width=True):
+        import pandas as pd
+        import io
+        
+        # Create export data
+        export_data = []
+        for category, items in dd_categories.items():
+            for item in items:
+                export_data.append({
+                    "Category": category,
+                    "Item": item,
+                    "Status": "Not Started",
+                    "Owner": "",
+                    "Notes": ""
+                })
+        
+        df = pd.DataFrame(export_data)
+        csv = df.to_csv(index=False)
+        
+        st.download_button(
+            label="⬇ Download CSV",
+            data=csv,
+            file_name=f"DD_Checklist_{ticker}_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
 
 
 def render_synergy_model_page(acquirer, target):
@@ -19253,6 +19296,59 @@ def render_synergy_model_page(acquirer, target):
         )
         
         st.plotly_chart(fig, use_container_width=True)
+        
+        # Sensitivity Analysis
+        st.markdown('<div style="margin-top:2rem;"></div>', unsafe_allow_html=True)
+        st.markdown("### Sensitivity Analysis")
+        st.markdown('<div style="font-size:0.875rem; color:#9CA3AF; margin-bottom:1rem;">Total synergies at different assumption levels</div>', unsafe_allow_html=True)
+        
+        # Create sensitivity table
+        import pandas as pd
+        cost_scenarios = [10, 15, 20, 25]
+        rev_scenarios = [1, 3, 5, 7]
+        
+        sensitivity_data = []
+        for cost_pct in cost_scenarios:
+            row = []
+            for rev_pct in rev_scenarios:
+                cost_syn = tgt_opex * (cost_pct / 100)
+                rev_syn = (tgt_rev * (rev_pct / 100)) * (rev_syn_margin / 100)
+                total = cost_syn + rev_syn
+                row.append(f"${total:.2f}B")
+            sensitivity_data.append(row)
+        
+        sens_df = pd.DataFrame(
+            sensitivity_data,
+            columns=[f"Rev: {r}%" for r in rev_scenarios],
+            index=[f"Cost: {c}%" for c in cost_scenarios]
+        )
+        
+        st.dataframe(sens_df, use_container_width=True)
+        
+        # NPV calculation
+        st.markdown('<div style="margin-top:2rem;"></div>', unsafe_allow_html=True)
+        st.markdown("### Net Present Value of Synergies")
+        
+        discount_rate = st.slider("Discount Rate (%)", 5.0, 15.0, 10.0, 0.5)
+        
+        # Calculate NPV (simplified - assume linear ramp-up)
+        total_years = max(cost_syn_years, rev_syn_years)
+        npv = 0
+        for year in range(1, total_years + 1):
+            cost_syn_year = cost_syn_annual * min(year / cost_syn_years, 1.0)
+            rev_syn_year = rev_syn_annual * min(year / rev_syn_years, 1.0)
+            yearly_syn = cost_syn_year + rev_syn_year
+            npv += yearly_syn / ((1 + discount_rate/100) ** year)
+        
+        st.markdown(
+            f'<div style="background:rgba(16, 185, 129, 0.1); border:1px solid rgba(16, 185, 129, 0.3); '
+            f'border-radius:12px; padding:1.5rem; text-align:center;">'
+            f'<div style="font-size:0.875rem; color:#9CA3AF; margin-bottom:0.5rem;">NPV of Synergies ({total_years} years @ {discount_rate:.1f}%)</div>'
+            f'<div style="font-size:2rem; font-weight:700; color:#10B981;">${npv:.2f}B</div>'
+            f'<div style="font-size:0.75rem; color:#9CA3AF; margin-top:0.5rem;">Discounted cash flow value</div>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
         
     except Exception as e:
         st.error(f"Error loading synergy model: {e}")
