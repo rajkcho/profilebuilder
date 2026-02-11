@@ -3779,7 +3779,7 @@ header {{ visibility: hidden; }}
     display: inline-block;
     width: 4px; height: 4px;
     border-radius: 50%;
-    background: #06B6D4;
+    background: #60A5FA;
     margin: 0 2px;
     animation: gentlePulse 1.5s ease-in-out infinite;
 }}
@@ -7888,10 +7888,10 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 _sc_badges.append(f'<span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.65rem; font-weight:600; background:rgba(37,99,235,0.1); color:#60A5FA; letter-spacing:0.3px;">🏭 {cd.industry}</span>')
             _sc_country = getattr(cd, 'country', '') or ''
             if _sc_country:
-                _sc_badges.append(f'<span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.65rem; font-weight:600; background:rgba(16,185,129,0.1); color:#34D399; letter-spacing:0.3px;">🌍 {_sc_country}</span>')
+                _sc_badges.append(f'<span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.65rem; font-weight:600; background:rgba(16,185,129,0.1); color:#10B981; letter-spacing:0.3px;">🌍 {_sc_country}</span>')
             _sc_emp = getattr(cd, 'full_time_employees', None)
             if _sc_emp:
-                _sc_badges.append(f'<span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.65rem; font-weight:600; background:rgba(245,166,35,0.1); color:#F7C574; letter-spacing:0.3px;">👥 {_sc_emp:,} employees</span>')
+                _sc_badges.append(f'<span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.65rem; font-weight:600; background:rgba(96,165,250,0.1); color:#60A5FA; letter-spacing:0.3px;">👥 {_sc_emp:,} employees</span>')
             _sc_badges_html = ' '.join(_sc_badges)
 
             # Extra details (CEO, website, founded)
@@ -8075,8 +8075,8 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     .qf-pill-industry:hover { background: rgba(16,185,129,0.2); border-color: rgba(16,185,129,0.3); }
     .qf-pill-exchange { background: rgba(16,185,129,0.15); color: #10B981; }
     .qf-pill-exchange:hover { background: rgba(16,185,129,0.2); border-color: rgba(16,185,129,0.3); }
-    .qf-pill-country { background: rgba(245,158,11,0.15); color: #F59E0B; }
-    .qf-pill-country:hover { background: rgba(245,158,11,0.2); border-color: rgba(245,158,11,0.3); }
+    .qf-pill-country { background: rgba(96,165,250,0.15); color: #60A5FA; }
+    .qf-pill-country:hover { background: rgba(96,165,250,0.2); border-color: rgba(96,165,250,0.3); }
     </style>
     """, unsafe_allow_html=True)
     
@@ -8182,14 +8182,14 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         _pc_markers = ""
         if _pc_sma50_pct is not None:
             _pc_markers += (f'<div style="position:absolute; left:{_pc_sma50_pct}%; top:-2px; width:2px; height:18px; '
-                           f'background:#F59E0B; border-radius:1px;" title="50-day SMA"></div>'
+                           f'background:#10B981; border-radius:1px;" title="50-day SMA"></div>'
                            f'<div style="position:absolute; left:{_pc_sma50_pct}%; top:18px; font-size:0.5rem; '
-                           f'color:#F59E0B; transform:translateX(-50%);">50d</div>')
+                           f'color:#10B981; transform:translateX(-50%);">50d</div>')
         if _pc_sma200_pct is not None:
             _pc_markers += (f'<div style="position:absolute; left:{_pc_sma200_pct}%; top:-2px; width:2px; height:18px; '
-                           f'background:#3B82F6; border-radius:1px;" title="200-day SMA"></div>'
+                           f'background:#2563EB; border-radius:1px;" title="200-day SMA"></div>'
                            f'<div style="position:absolute; left:{_pc_sma200_pct}%; top:18px; font-size:0.5rem; '
-                           f'color:#3B82F6; transform:translateX(-50%);">200d</div>')
+                           f'color:#2563EB; transform:translateX(-50%);">200d</div>')
         st.markdown(
             f'<div style="background:rgba(255,255,255,0.03); border:1px solid rgba(37,99,235,0.1); '
             f'border-radius:10px; padding:0.6rem 1rem 1.2rem 1rem; margin-bottom:0.8rem;">'
@@ -14531,7 +14531,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             _tl_html += (
                 f'<div style="position:relative; margin-bottom:1rem; padding:0.5rem 0;">'
                 f'<div style="position:absolute; left:-2.45rem; top:0.6rem; width:10px; height:10px; '
-                f'border-radius:50%; background:{_dot_color}; border:2px solid #1A1730;"></div>'
+                f'border-radius:50%; background:{_dot_color}; border:2px solid #111827;"></div>'
                 f'<div style="font-size:0.6rem; color:#9CA3AF; margin-bottom:0.2rem;">{_news_date}</div>'
                 f'{_title_html}'
                 f'<div style="font-size:0.65rem; color:#9CA3AF; margin-top:0.2rem;">{_favicon}{publisher}</div>'
@@ -16041,7 +16041,7 @@ Write in this format:
                 # HTML summary
                 _qa_html_content = (
                     f"<html><head><title>{cd.name} ({cd.ticker}) Analysis</title>"
-                    f"<style>body{{font-family:Arial,sans-serif;background:#0F0E1A;color:#F9FAFB;padding:2rem;}}"
+                    f"<style>body{{font-family:Arial,sans-serif;background:#0C0F1A;color:#F9FAFB;padding:2rem;}}"
                     f"h1{{color:#2563EB;}}h2{{color:#60A5FA;}}table{{border-collapse:collapse;width:100%;}}"
                     f"td,th{{border:1px solid #333;padding:8px;text-align:right;}}th{{background:#111827;}}</style></head><body>"
                     f"<h1>{cd.name} ({cd.ticker})</h1>"
@@ -18963,7 +18963,7 @@ h2 {{ color: #2563EB; margin-top: 2rem; font-size: 1.3rem; border-bottom: 1px so
 .section {{ margin: 1.5rem 0; }}
 table {{ width: 100%; border-collapse: collapse; margin: 1rem 0; }}
 th, td {{ padding: 0.6rem 1rem; text-align: left; border-bottom: 1px solid #e9ecef; }}
-th {{ background: #f8f9fa; font-weight: 600; color: #495057; font-size: 0.85rem; }}
+th {{ background: #F3F4F6; font-weight: 600; color: #374151; font-size: 0.85rem; }}
 ul {{ padding-left: 1.5rem; }}
 li {{ margin-bottom: 0.4rem; }}
 .footer {{ text-align: center; color: #adb5bd; font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #e9ecef; }}
