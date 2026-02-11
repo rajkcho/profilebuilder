@@ -17049,7 +17049,17 @@ Be specific with numbers. Keep it concise."""
                 st.markdown(st.session_state[_peer_key])
 
 elif analysis_mode == "Comps Analysis" and comps_btn and not comps_ticker_input:
-    st.warning("⚠️ Please enter a ticker symbol in the sidebar to run comparable company analysis.")
+    _render_modern_splash(
+        "Comparable Company Analysis",
+        "Benchmark companies against sector peers using key valuation multiples and financial metrics. "
+        "Identify relative value opportunities and industry positioning.",
+        stats=[
+            {"value": "20+", "label": "Peer Companies"},
+            {"value": "15+", "label": "Metrics Compared"},
+            {"value": "Live", "label": "Market Data"}
+        ],
+        pills=["📊 Valuation Multiples", "📈 Growth Metrics", "💰 Profitability", "🎯 Radar Charts"]
+    )
 
 elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and target_input:
     # ══════════════════════════════════════════════════════
