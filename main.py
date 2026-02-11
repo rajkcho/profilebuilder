@@ -2531,7 +2531,7 @@ footer {{ visibility: hidden; }}
     50%      {{ transform: rotate(15deg); }}
 }}
 @keyframes scannerLock {{
-    0%   {{ transform: scale(1); filter: drop-shadow(0 0 12px rgba(6,182,212,0.5)); }}
+    0%   {{ transform: scale(1); filter: drop-shadow(0 0 12px rgba(96,165,250,0.5)); }}
     50%  {{ transform: scale(1.15); filter: drop-shadow(0 0 25px rgba(16,185,129,0.7)); }}
     100% {{ transform: scale(1); filter: drop-shadow(0 0 15px rgba(16,185,129,0.5)); }}
 }}
@@ -2545,8 +2545,8 @@ footer {{ visibility: hidden; }}
     100% {{ transform: translate(-50%, -50%) scale(2); opacity: 0; }}
 }}
 @keyframes scannerPhasePulse {{
-    0%, 100% {{ box-shadow: 0 0 8px rgba(6,182,212,0.2); }}
-    50%      {{ box-shadow: 0 0 20px rgba(6,182,212,0.5), 0 0 40px rgba(6,182,212,0.15); }}
+    0%, 100% {{ box-shadow: 0 0 8px rgba(96,165,250,0.2); }}
+    50%      {{ box-shadow: 0 0 20px rgba(96,165,250,0.5), 0 0 40px rgba(96,165,250,0.15); }}
 }}
 
 /* ── ORBITAL LOGO ANIMATIONS ───────────────────────────── */
@@ -3659,7 +3659,7 @@ header {{ visibility: hidden; }}
     content: '';
     position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
     background: radial-gradient(circle at 30% 40%, rgba(37,99,235,0.03) 0%, transparent 50%),
-                radial-gradient(circle at 70% 60%, rgba(6,182,212,0.02) 0%, transparent 50%);
+                radial-gradient(circle at 70% 60%, rgba(96,165,250,0.02) 0%, transparent 50%);
     pointer-events: none;
     animation: nebulaPulse 20s ease-in-out infinite;
 }}
@@ -3673,14 +3673,14 @@ header {{ visibility: hidden; }}
     position: relative;
     overflow: hidden;
     animation: fadeInScale 0.5s ease-out both;
-    border: 1px solid rgba(6,182,212,0.2);
+    border: 1px solid rgba(96,165,250,0.2);
 }}
 .scanner-control::before {{
     content: '';
     position: absolute; top: 0; left: 0; right: 0; bottom: 0;
     background:
-        radial-gradient(ellipse at 25% 30%, rgba(6,182,212,0.08) 0%, transparent 55%),
-        radial-gradient(ellipse at 75% 70%, rgba(59,130,246,0.05) 0%, transparent 55%);
+        radial-gradient(ellipse at 25% 30%, rgba(96,165,250,0.08) 0%, transparent 55%),
+        radial-gradient(ellipse at 75% 70%, rgba(96,165,250,0.05) 0%, transparent 55%);
     pointer-events: none;
 }}
 .scanner-control::after {{
@@ -3704,7 +3704,7 @@ header {{ visibility: hidden; }}
 }}
 .scanner-dish {{
     font-size: 3.5rem;
-    filter: drop-shadow(0 0 12px rgba(6,182,212,0.5));
+    filter: drop-shadow(0 0 12px rgba(96,165,250,0.5));
     position: relative;
     z-index: 2;
 }}
@@ -3716,7 +3716,7 @@ header {{ visibility: hidden; }}
 }}
 .scanner-beam {{
     width: 60px; height: 3px;
-    background: linear-gradient(90deg, transparent, rgba(6,182,212,0.6), transparent);
+    background: linear-gradient(90deg, transparent, rgba(96,165,250,0.6), transparent);
     border-radius: 2px;
     margin: -6px auto 0 auto;
     animation: scannerBeamSweep 1.5s ease-in-out infinite;
@@ -3726,7 +3726,7 @@ header {{ visibility: hidden; }}
     top: 50%; left: 50%;
     width: 40px; height: 40px;
     border-radius: 50%;
-    border: 1px solid rgba(6,182,212,0.3);
+    border: 1px solid rgba(96,165,250,0.3);
     transform: translate(-50%, -50%);
     animation: scannerRingPulse 2s ease-out infinite;
 }}
@@ -3738,15 +3738,15 @@ header {{ visibility: hidden; }}
 }}
 /* Cyan accent overrides for scanner */
 .scanner-control .phase-indicator-active {{
-    border-color: rgba(6,182,212,0.5);
+    border-color: rgba(96,165,250,0.5);
     color: #60A5FA;
 }}
 .scanner-control .phase-indicator-active::after {{
     border-top-color: #60A5FA;
 }}
 .scanner-control .mission-phase-active {{
-    background: rgba(6,182,212,0.1);
-    border-color: rgba(6,182,212,0.25);
+    background: rgba(96,165,250,0.1);
+    border-color: rgba(96,165,250,0.25);
     animation: scannerPhasePulse 2s ease-in-out infinite;
 }}
 .scanner-control .mission-progress-fill {{
@@ -3754,7 +3754,7 @@ header {{ visibility: hidden; }}
     background-size: 200% 100%;
 }}
 .scanner-control .mission-progress-fill::after {{
-    box-shadow: 0 0 10px rgba(6,182,212,0.8), 0 0 20px rgba(6,182,212,0.4);
+    box-shadow: 0 0 10px rgba(96,165,250,0.8), 0 0 20px rgba(96,165,250,0.4);
 }}
 .scanner-ticker {{
     text-align: center;
@@ -3769,7 +3769,7 @@ header {{ visibility: hidden; }}
     font-weight: 800;
     color: #60A5FA;
     letter-spacing: 3px;
-    text-shadow: 0 0 15px rgba(6,182,212,0.4);
+    text-shadow: 0 0 15px rgba(96,165,250,0.4);
 }}
 .scanner-dots {{
     display: inline-block;
@@ -3957,7 +3957,7 @@ st.markdown(f"""
     background:
         radial-gradient(ellipse at 20% 50%, rgba(37,99,235,0.10) 0%, transparent 50%),
         radial-gradient(ellipse at 75% 20%, rgba(16,185,129,0.06) 0%, transparent 45%),
-        radial-gradient(ellipse at 50% 80%, rgba(59,130,246,0.05) 0%, transparent 50%);
+        radial-gradient(ellipse at 50% 80%, rgba(96,165,250,0.05) 0%, transparent 50%);
     animation: nebulaPulse 30s ease-in-out infinite;
     pointer-events: none;
 }}
@@ -3984,7 +3984,7 @@ st.markdown(f"""
 }}
 .orb-3 {{
     width: 120px; height: 120px;
-    background: rgba(59,130,246,0.04);
+    background: rgba(96,165,250,0.04);
     filter: blur(60px);
     top: 30%; right: 25%;
     animation: float3 28s ease-in-out infinite;
@@ -4100,7 +4100,7 @@ st.markdown(f"""
 
 /* ── SPACE SECTION (dark container for glass cards) ──── */
 .space-section {{
-    background: rgba(11,14,26,0.5);
+    background: rgba(12,15,26,0.5);
     border-radius: 0;
     padding: 3.5rem 3rem;
     margin: 0 calc(-50vw + 50%); width: 100vw;
@@ -4309,14 +4309,14 @@ st.markdown(f"""
 }}
 .rocket-flame {{
     font-size: 1.5rem;
-    filter: drop-shadow(0 0 8px rgba(255,165,0,0.7));
+    filter: drop-shadow(0 0 8px rgba(245,166,35,0.7));
     animation: flameFlicker 0.3s ease-in-out infinite;
     margin-top: -8px;
 }}
 .exhaust-trail {{
     width: 4px;
     height: 30px;
-    background: linear-gradient(to bottom, rgba(255,165,0,0.4), rgba(37,99,235,0.2), transparent);
+    background: linear-gradient(to bottom, rgba(245,166,35,0.4), rgba(37,99,235,0.2), transparent);
     filter: blur(2px);
     margin: 0 auto;
     animation: exhaustTrail 0.8s ease-out infinite;
@@ -5356,7 +5356,7 @@ def _render_growth_outlook(growth, cd):
     rating_bg = {"STRONG": "rgba(16,185,129,0.12)", "MODERATE": "rgba(245,166,35,0.12)", "WEAK": "rgba(239,68,68,0.12)"}
 
     st.markdown(
-        f'<div style="display:inline-block; background:{rating_bg.get(rating, "rgba(138,133,173,0.12)")}; '
+        f'<div style="display:inline-block; background:{rating_bg.get(rating, "rgba(156,163,175,0.12)")}; '
         f'color:{rating_color}; padding:0.4rem 1.2rem; border-radius:12px; font-weight:700; '
         f'font-size:0.9rem; letter-spacing:1px; margin-bottom:1rem;">Growth Rating: {rating}</div>',
         unsafe_allow_html=True,
@@ -5401,7 +5401,7 @@ def _render_capital_allocation(ca, cd):
     grade_bg = {"A": "rgba(16,185,129,0.12)", "B": "rgba(37,99,235,0.12)", "C": "rgba(245,166,35,0.12)", "D": "rgba(239,68,68,0.12)"}
 
     st.markdown(
-        f'<div style="display:inline-block; background:{grade_bg.get(grade, "rgba(138,133,173,0.12)")}; '
+        f'<div style="display:inline-block; background:{grade_bg.get(grade, "rgba(156,163,175,0.12)")}; '
         f'color:{grade_color}; padding:0.4rem 1.2rem; border-radius:12px; font-weight:700; '
         f'font-size:0.9rem; letter-spacing:1px; margin-bottom:1rem;">Capital Allocation Grade: {grade}</div>',
         unsafe_allow_html=True,
@@ -7911,7 +7911,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             _sc_details_html = '&nbsp;&nbsp;·&nbsp;&nbsp;'.join(_sc_details) if _sc_details else ''
 
             st.markdown(
-                f'<div style="background:linear-gradient(135deg, rgba(20,18,35,0.95), rgba(30,27,50,0.95)); '
+                f'<div style="background:linear-gradient(135deg, rgba(17,24,39,0.95), rgba(17,24,39,0.95)); '
                 f'border:2px solid transparent; border-image:linear-gradient(135deg, {_sc_accent1}, {_sc_accent2}, {_sc_accent1}) 1; '
                 f'border-radius:0px; padding:1.8rem 2rem; margin:1rem 0 1.5rem 0; position:relative; overflow:hidden; '
                 f'box-shadow: 0 8px 32px rgba(0,0,0,0.3), 0 0 60px {_sc_accent1}15;">'
@@ -9380,7 +9380,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 _cm_fig = go.Figure()
                 _cm_fig.add_trace(go.Scatterpolar(
                     r=_cm_sect_r, theta=_cm_cats_r,
-                    fill='toself', fillcolor='rgba(138,133,173,0.1)',
+                    fill='toself', fillcolor='rgba(156,163,175,0.1)',
                     line=dict(color='#9CA3AF', width=1, dash='dash'),
                     marker=dict(size=4, color='#9CA3AF'),
                     name='Sector Average',
@@ -10593,7 +10593,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                             dict(range=[0, 20], color="rgba(239,68,68,0.15)"),
                             dict(range=[20, 40], color="rgba(248,113,113,0.1)"),
                             dict(range=[40, 60], color="rgba(245,158,11,0.1)"),
-                            dict(range=[60, 80], color="rgba(52,211,153,0.1)"),
+                            dict(range=[60, 80], color="rgba(16,185,129,0.1)"),
                             dict(range=[80, 100], color="rgba(16,185,129,0.15)"),
                         ],
                         threshold=dict(line=dict(color=m_color, width=3), thickness=0.75, value=momentum),
@@ -12299,7 +12299,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                                         bordercolor="rgba(255,255,255,0.1)",
                                         steps=[
                                             dict(range=[0, 10], color="rgba(16,185,129,0.1)"),
-                                            dict(range=[10, 20], color="rgba(52,211,153,0.1)"),
+                                            dict(range=[10, 20], color="rgba(16,185,129,0.1)"),
                                             dict(range=[20, 30], color="rgba(245,158,11,0.1)"),
                                             dict(range=[30, 40], color="rgba(239,68,68,0.1)"),
                                             dict(range=[40, 50], color="rgba(153,27,27,0.1)"),
@@ -12457,7 +12457,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                             steps=[
                                 dict(range=[0, 30], color="rgba(239,68,68,0.08)"),
                                 dict(range=[30, 50], color="rgba(245,158,11,0.08)"),
-                                dict(range=[50, 70], color="rgba(52,211,153,0.08)"),
+                                dict(range=[50, 70], color="rgba(16,185,129,0.08)"),
                                 dict(range=[70, 100], color="rgba(16,185,129,0.08)"),
                             ],
                         ),
@@ -14609,7 +14609,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 ))
                 # Horizontal line
                 fig_tl.add_shape(type="line", x0=min(_tl_dates), x1=max(_tl_dates), y0=0, y1=0,
-                                 line=dict(color="rgba(138,133,173,0.3)", width=2))
+                                 line=dict(color="rgba(156,163,175,0.3)", width=2))
                 # Today marker
                 fig_tl.add_vline(x=pd.Timestamp.now(), line_dash="dash", line_color="rgba(245,158,11,0.5)",
                                  annotation_text="Today", annotation_font=dict(size=8, color="#F59E0B"))
@@ -14653,8 +14653,8 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         fig_earn.add_trace(go.Bar(
             x=eq_dates, y=eq_estimate, name="Estimate",
             marker=dict(
-                color="rgba(138,133,173,0.08)",
-                line=dict(color="rgba(138,133,173,0.5)", width=1.5),
+                color="rgba(156,163,175,0.08)",
+                line=dict(color="rgba(156,163,175,0.5)", width=1.5),
             ),
             text=[f"{v:.2f}" if v is not None else "" for v in eq_estimate],
             textposition="outside", textfont=dict(size=9, color="#9CA3AF"),
@@ -14928,7 +14928,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     if _est_col:
                         fig_esh.add_trace(go.Bar(
                             x=_qtr_labels, y=_estimates, name="Estimate",
-                            marker=dict(color="rgba(138,133,173,0.15)", line=dict(color="rgba(138,133,173,0.5)", width=1.5)),
+                            marker=dict(color="rgba(156,163,175,0.15)", line=dict(color="rgba(156,163,175,0.5)", width=1.5)),
                             text=[f"{v:.2f}" if v is not None and not np.isnan(v) else "" for v in _estimates],
                             textposition="outside", textfont=dict(size=9, color="#9CA3AF"),
                         ))
@@ -15180,7 +15180,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         fig_sp.add_trace(go.Bar(x=_p_labels, y=_s_vals, name=cd.ticker,
                             marker=dict(color="#2563EB", line=dict(width=0)), width=0.25, offset=-0.15))
                         fig_sp.add_trace(go.Bar(x=_p_labels, y=_e_vals, name=_sector_etf,
-                            marker=dict(color="rgba(138,133,173,0.4)", line=dict(color="#9CA3AF", width=1)), width=0.25, offset=0.15))
+                            marker=dict(color="rgba(156,163,175,0.4)", line=dict(color="#9CA3AF", width=1)), width=0.25, offset=0.15))
                         # Relative performance markers
                         fig_sp.add_trace(go.Scatter(x=_p_labels, y=_r_vals, name="Relative",
                             mode="markers+text", marker=dict(color=_r_colors, size=12, symbol="diamond"),
@@ -15300,8 +15300,8 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     continue
                 # Detect severity tag
                 severity_color = "#9CA3AF"
-                severity_bg = "rgba(138,133,173,0.05)"
-                severity_border = "rgba(138,133,173,0.2)"
+                severity_bg = "rgba(156,163,175,0.05)"
+                severity_border = "rgba(156,163,175,0.2)"
                 if line.startswith("[HIGH]"):
                     line = line[6:].strip()
                     severity_color = "#EF4444"
@@ -15714,9 +15714,9 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     margin=dict(t=40, b=40, l=80, r=80),
                     polar=dict(
                         radialaxis=dict(visible=True, range=[0, 5], tickfont=dict(size=8, color="#9CA3AF"),
-                                       gridcolor="rgba(138,133,173,0.15)"),
+                                       gridcolor="rgba(156,163,175,0.15)"),
                         angularaxis=dict(tickfont=dict(size=10, color="#D1D5DB"),
-                                        gridcolor="rgba(138,133,173,0.15)"),
+                                        gridcolor="rgba(156,163,175,0.15)"),
                         bgcolor="rgba(0,0,0,0)",
                     ),
                     showlegend=False,
@@ -16122,7 +16122,7 @@ Write in this format:
                     f'<div style="background:rgba(37,99,235,0.08); border-radius:10px; padding:0.5rem 1rem; text-align:center;">'
                     f'<div style="font-size:0.6rem; color:#9CA3AF;">{cd.ticker}</div>'
                     f'<div style="font-size:1rem; font-weight:700; color:{"#10B981" if _co_ret > 0 else "#EF4444"};">{_co_ret:+.1f}%</div></div>'
-                    f'<div style="background:rgba(138,133,173,0.08); border-radius:10px; padding:0.5rem 1rem; text-align:center;">'
+                    f'<div style="background:rgba(156,163,175,0.08); border-radius:10px; padding:0.5rem 1rem; text-align:center;">'
                     f'<div style="font-size:0.6rem; color:#9CA3AF;">S&P 500</div>'
                     f'<div style="font-size:1rem; font-weight:700; color:{"#10B981" if _sp_ret > 0 else "#EF4444"};">{_sp_ret:+.1f}%</div></div>'
                     f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border-radius:10px; padding:0.5rem 1rem; text-align:center;">'
@@ -16997,7 +16997,7 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
                 for qx, qy, qlabel, _anchor in _quad_labels:
                     fig_rvm.add_annotation(
                         x=qx, y=qy, text=qlabel, showarrow=False,
-                        font=dict(size=8, color="rgba(184,179,215,0.4)"),
+                        font=dict(size=8, color="rgba(156,163,175,0.4)"),
                         xanchor="left" if "left" in _anchor else "right",
                         yanchor="top" if "top" in _anchor else "bottom",
                     )
@@ -18725,8 +18725,8 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
 
         tag_label = ""
         tag_color = "#9CA3AF"
-        tag_bg = "rgba(138,133,173,0.05)"
-        tag_border = "rgba(138,133,173,0.2)"
+        tag_bg = "rgba(156,163,175,0.05)"
+        tag_border = "rgba(156,163,175,0.2)"
 
         for tag, label, color, bg, border in _risk_tag_config:
             if line.startswith(tag):
@@ -18779,14 +18779,14 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
                 "C": "rgba(245,166,35,0.12)", "D": "rgba(239,68,68,0.12)", "F": "rgba(239,68,68,0.12)"}
 
     st.markdown(
-        f'<div style="display:inline-block; background:{grade_bg.get(merger_insights.deal_grade, "rgba(138,133,173,0.12)")}; '
+        f'<div style="display:inline-block; background:{grade_bg.get(merger_insights.deal_grade, "rgba(156,163,175,0.12)")}; '
         f'color:{grade_c}; padding:0.5rem 1.5rem; border-radius:12px; font-weight:800; '
         f'font-size:1.2rem; letter-spacing:1px; margin-bottom:1rem;">Deal Grade: {merger_insights.deal_grade}</div>',
         unsafe_allow_html=True,
     )
 
     _verdict_tag_config = {
-        "[OVERALL]": ("Overall Assessment", None, "rgba(255,255,255,0.04)", "rgba(138,133,173,0.3)"),
+        "[OVERALL]": ("Overall Assessment", None, "rgba(255,255,255,0.04)", "rgba(156,163,175,0.3)"),
         "[BULL CASE]": ("Bull Case", "#10B981", "rgba(16,185,129,0.06)", "rgba(16,185,129,0.35)"),
         "[BEAR CASE]": ("Bear Case", "#EF4444", "rgba(239,68,68,0.06)", "rgba(239,68,68,0.35)"),
         "[KEY CONDITION]": ("Key Condition", "#F5A623", "rgba(245,166,35,0.08)", "rgba(245,166,35,0.35)"),
@@ -19684,7 +19684,7 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
 
                         fig_lbo_wf = go.Figure(go.Waterfall(
                             x=_lbo_wf_labels, y=_lbo_wf_values, measure=_lbo_wf_measures,
-                            connector=dict(line=dict(color="rgba(138,133,173,0.3)", width=1)),
+                            connector=dict(line=dict(color="rgba(156,163,175,0.3)", width=1)),
                             increasing=dict(marker=dict(color="#10B981")),
                             decreasing=dict(marker=dict(color="#EF4444")),
                             totals=dict(marker=dict(color="#2563EB")),
