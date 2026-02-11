@@ -2161,16 +2161,29 @@ footer {{ visibility: hidden; }}
 
 /* ── GLASS CARD BASE STYLE ──────────────────────────────── */
 .glass-card {{
-    background: rgba(17, 24, 39, 0.7) !important;
-    backdrop-filter: blur(16px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.06) !important;
-    border-radius: 12px !important;
-    padding: 1.25rem !important;
-    transition: all 0.2s ease !important;
+    background: rgba(17, 24, 39, 0.75) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 14px !important;
+    padding: 1.5rem !important;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    position: relative !important;
+}}
+.glass-card::before {{
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 1px !important;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent) !important;
+    border-radius: 14px 14px 0 0 !important;
 }}
 .glass-card:hover {{
-    border-color: rgba(37, 99, 235, 0.2) !important;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3) !important;
+    border-color: rgba(37, 99, 235, 0.25) !important;
+    box-shadow: 0 8px 32px rgba(37, 99, 235, 0.15), 0 0 0 1px rgba(37,99,235,0.1) !important;
+    transform: translateY(-2px) !important;
 }}
 
 /* ── BUTTON STYLING (modern gradient) ───────────────────── */
