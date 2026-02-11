@@ -2133,44 +2133,45 @@ footer {{ visibility: hidden; }}
 [data-testid="stMetric"] {{
     background: rgba(17, 24, 39, 0.7) !important;
     backdrop-filter: blur(16px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.06) !important;
-    border-left: 3px solid rgba(37,99,235,0.5) !important;
+    border: 1px solid rgba(37, 99, 235, 0.15) !important;
     border-radius: 12px !important;
-    padding: 0.85rem 1.1rem !important;
+    padding: 1.25rem !important;
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
     position: relative !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
 }}
 [data-testid="stMetric"]:hover {{
-    border-color: rgba(37, 99, 235, 0.25) !important;
-    border-left-color: #2563EB !important;
-    box-shadow: 0 6px 28px rgba(37, 99, 235, 0.2), 0 0 0 1px rgba(37,99,235,0.1) !important;
-    transform: translateY(-2px) !important;
+    border-color: rgba(37, 99, 235, 0.35) !important;
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.2), 0 0 0 1px rgba(37,99,235,0.15) !important;
+    transform: translateY(-3px) scale(1.02) !important;
 }}
 [data-testid="stMetric"] label {{
     color: #9CA3AF !important;
     font-weight: 600 !important;
-    font-size: 0.72rem !important;
+    font-size: 0.7rem !important;
     text-transform: uppercase !important;
     letter-spacing: 0.08em !important;
-    margin-bottom: 0.4rem !important;
+    margin-bottom: 0.5rem !important;
 }}
 [data-testid="stMetric"] [data-testid="stMetricValue"] {{
     color: #F9FAFB !important;
-    font-size: 1.65rem !important;
+    font-size: 1.75rem !important;
     font-weight: 800 !important;
     letter-spacing: -0.02em !important;
+    line-height: 1.2 !important;
 }}
 
 /* ── GLASS CARD BASE STYLE ──────────────────────────────── */
 .glass-card {{
-    background: rgba(17, 24, 39, 0.75) !important;
-    backdrop-filter: blur(20px) !important;
-    -webkit-backdrop-filter: blur(20px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    border-radius: 14px !important;
-    padding: 1.5rem !important;
+    background: rgba(17, 24, 39, 0.7) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(37, 99, 235, 0.15) !important;
+    border-radius: 12px !important;
+    padding: 1.25rem !important;
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
     position: relative !important;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1) !important;
 }}
 .glass-card::before {{
     content: '' !important;
@@ -2179,13 +2180,13 @@ footer {{ visibility: hidden; }}
     left: 0 !important;
     right: 0 !important;
     height: 1px !important;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent) !important;
-    border-radius: 14px 14px 0 0 !important;
+    background: linear-gradient(90deg, transparent, rgba(37,99,235,0.3), transparent) !important;
+    border-radius: 12px 12px 0 0 !important;
 }}
 .glass-card:hover {{
-    border-color: rgba(37, 99, 235, 0.25) !important;
-    box-shadow: 0 8px 32px rgba(37, 99, 235, 0.15), 0 0 0 1px rgba(37,99,235,0.1) !important;
-    transform: translateY(-2px) !important;
+    border-color: rgba(37, 99, 235, 0.35) !important;
+    box-shadow: 0 8px 32px rgba(37, 99, 235, 0.2), 0 0 0 1px rgba(37,99,235,0.15) !important;
+    transform: translateY(-3px) scale(1.005) !important;
 }}
 
 /* ── BUTTON STYLING (modern gradient) ───────────────────── */
@@ -2229,25 +2230,40 @@ footer {{ visibility: hidden; }}
 
 /* ── DATAFRAME / TABLE STYLING ──────────────────────────── */
 [data-testid="stDataFrame"] {{
-    border-radius: 8px !important;
+    border-radius: 12px !important;
     overflow: hidden !important;
-    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid rgba(37, 99, 235, 0.15) !important;
+    background: rgba(17, 24, 39, 0.7) !important;
+    backdrop-filter: blur(16px) !important;
 }}
 [data-testid="stDataFrame"] table {{
-    background: rgba(17, 24, 39, 0.5) !important;
+    background: transparent !important;
 }}
 [data-testid="stDataFrame"] thead tr {{
-    background: rgba(37, 99, 235, 0.1) !important;
+    background: rgba(37, 99, 235, 0.15) !important;
+}}
+[data-testid="stDataFrame"] thead th {{
+    color: #60A5FA !important;
+    font-weight: 700 !important;
+    font-size: 0.75rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    padding: 0.75rem !important;
 }}
 [data-testid="stDataFrame"] tbody tr:nth-child(even) {{
     background: rgba(255, 255, 255, 0.02) !important;
 }}
 [data-testid="stDataFrame"] tbody tr {{
-    transition: all 0.2s ease !important;
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }}
 [data-testid="stDataFrame"] tbody tr:hover {{
-    background: rgba(37, 99, 235, 0.08) !important;
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1) !important;
+    background: rgba(37, 99, 235, 0.12) !important;
+    box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.3), 0 2px 12px rgba(37, 99, 235, 0.15) !important;
+    transform: scale(1.005) !important;
+}}
+[data-testid="stDataFrame"] tbody td {{
+    color: #E5E7EB !important;
+    padding: 0.65rem !important;
 }}
 
 /* ── SECTION HEADERS (with left accent bar) ───────────────── */
@@ -2400,6 +2416,18 @@ footer {{ visibility: hidden; }}
     0% {{ transform: scale(0); }}
     60% {{ transform: scale(1.25); }}
     100% {{ transform: scale(1); }}
+}}
+@keyframes progressBarLoad {{
+    0% {{ transform: scaleX(0); transform-origin: left; }}
+    100% {{ transform: scaleX(1); transform-origin: left; }}
+}}
+@keyframes progressShine {{
+    0% {{ background-position: -200% center; }}
+    100% {{ background-position: 200% center; }}
+}}
+@keyframes cardLift {{
+    from {{ transform: translateY(0); }}
+    to {{ transform: translateY(-3px); }}
 }}
 @keyframes progressGlow {{
     0% {{ background-position: -200% 0; }}
@@ -3798,6 +3826,71 @@ header {{ visibility: hidden; }}
         font-size: 1.1rem;
     }}
 }}
+
+/* ── LINK STYLING WITH SMOOTH TRANSITIONS ───────────────── */
+a {{
+    color: #60A5FA !important;
+    text-decoration: none !important;
+    transition: all 0.25s ease !important;
+    position: relative !important;
+}}
+a:hover {{
+    color: #3B82F6 !important;
+    text-shadow: 0 0 8px rgba(37,99,235,0.3) !important;
+}}
+a::after {{
+    content: '' !important;
+    position: absolute !important;
+    width: 0 !important;
+    height: 2px !important;
+    bottom: -2px !important;
+    left: 0 !important;
+    background: linear-gradient(90deg, #2563EB, #60A5FA) !important;
+    transition: width 0.3s ease !important;
+}}
+a:hover::after {{
+    width: 100% !important;
+}}
+
+/* ── PROGRESS BAR ANIMATIONS ────────────────────────────── */
+.progress-bar {{
+    animation: progressBarLoad 1s ease-out forwards, progressShine 2s linear infinite !important;
+    background: linear-gradient(90deg, 
+        rgba(37,99,235,0.3), 
+        rgba(37,99,235,0.6), 
+        rgba(16,185,129,0.6), 
+        rgba(37,99,235,0.3)) !important;
+    background-size: 200% 100% !important;
+}}
+
+/* ── CHART CONTAINER STYLING ────────────────────────────── */
+.js-plotly-plot {{
+    background: rgba(17, 24, 39, 0.7) !important;
+    backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(37, 99, 235, 0.15) !important;
+    border-radius: 12px !important;
+    padding: 0.5rem !important;
+    transition: all 0.3s ease !important;
+}}
+.js-plotly-plot:hover {{
+    border-color: rgba(37, 99, 235, 0.3) !important;
+    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.15) !important;
+}}
+
+/* ── CARD SHADOW ELEVATION ──────────────────────────────── */
+.elevation-1 {{ box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important; }}
+.elevation-2 {{ box-shadow: 0 4px 16px rgba(0,0,0,0.15) !important; }}
+.elevation-3 {{ box-shadow: 0 8px 24px rgba(0,0,0,0.2) !important; }}
+
+/* ── TABLE CELL HOVER HIGHLIGHT ─────────────────────────── */
+table td {{
+    transition: all 0.2s ease !important;
+}}
+table td:hover {{
+    background: rgba(37, 99, 235, 0.08) !important;
+    color: #F9FAFB !important;
+}}
+
 </style>
 """, unsafe_allow_html=True)
 
