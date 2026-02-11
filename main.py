@@ -3224,7 +3224,7 @@ section[data-testid="stSidebar"] .stSlider label p {{
 .hero-title {{
     font-size: 2.2rem;
     font-weight: 800;
-    color: #ffffff;
+    color: #FFFFFF;
     margin: 0;
     letter-spacing: -0.5px;
     position: relative; z-index: 1;
@@ -3292,7 +3292,7 @@ section[data-testid="stSidebar"] .stSlider label p {{
 .company-name {{
     font-size: 1.8rem;
     font-weight: 800;
-    color: #ffffff;
+    color: #FFFFFF;
     margin: 0;
     letter-spacing: -0.3px;
 }}
@@ -3407,7 +3407,7 @@ div[data-testid="stMetric"] div[data-testid="stMetricValue"] {{
 }}
 .stTabs [data-baseweb="tab"][aria-selected="true"] {{
     background: linear-gradient(135deg, #2563EB, #60A5FA);
-    color: #ffffff;
+    color: #FFFFFF;
     box-shadow: 0 2px 12px rgba(37,99,235,0.4);
 }}
 .stTabs [data-baseweb="tab-highlight"] {{ display: none; }}
@@ -3497,7 +3497,7 @@ div[data-testid="stMetric"] div[data-testid="stMetricValue"] {{
     font-weight: 600; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.1); color: #D1D5DB;
 }}
 .stRadio > div > label[data-checked="true"] {{
-    background: linear-gradient(135deg, #2563EB, #60A5FA); color: #ffffff;
+    background: linear-gradient(135deg, #2563EB, #60A5FA); color: #FFFFFF;
 }}
 
 /* ── SCROLLBAR ──────────────────────────────────────────── */
@@ -4027,7 +4027,7 @@ st.markdown(f"""
 }}
 
 .splash-title {{
-    font-size: 4.5rem; font-weight: 900; color: #ffffff; margin: 0;
+    font-size: 4.5rem; font-weight: 900; color: #FFFFFF; margin: 0;
     letter-spacing: -2px; animation: fadeInUp 0.6s ease-out;
     text-shadow: 0 0 60px rgba(37,99,235,0.3);
 }}
@@ -18950,7 +18950,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
             _deal_book_html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>{acq_ticker} + {tgt_ticker} Deal Book</title>
 <style>
-body {{ font-family: 'Inter', 'Segoe UI', sans-serif; max-width: 900px; margin: 0 auto; padding: 2rem; color: #1a1a2e; line-height: 1.6; }}
+body {{ font-family: 'Inter', 'Segoe UI', sans-serif; max-width: 900px; margin: 0 auto; padding: 2rem; color: #1F2937; line-height: 1.6; }}
 h1 {{ color: #1a1a2e; border-bottom: 3px solid #2563EB; padding-bottom: 0.5rem; font-size: 1.8rem; }}
 h2 {{ color: #2563EB; margin-top: 2rem; font-size: 1.3rem; border-bottom: 1px solid #e0e0e0; padding-bottom: 0.3rem; }}
 .header {{ text-align: center; padding: 2rem; background: linear-gradient(135deg, #2563EB, #10B981); color: white; border-radius: 12px; margin-bottom: 2rem; }}
@@ -18958,8 +18958,8 @@ h2 {{ color: #2563EB; margin-top: 2rem; font-size: 1.3rem; border-bottom: 1px so
 .header p {{ margin: 0.3rem 0; opacity: 0.9; }}
 .metric-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1rem 0; }}
 .metric {{ background: #F3F4F6; border-radius: 8px; padding: 1rem; text-align: center; border: 1px solid #E5E7EB; }}
-.metric .label {{ font-size: 0.75rem; color: #6c757d; text-transform: uppercase; letter-spacing: 0.5px; }}
-.metric .value {{ font-size: 1.3rem; font-weight: 700; color: #1a1a2e; }}
+.metric .label {{ font-size: 0.75rem; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px; }}
+.metric .value {{ font-size: 1.3rem; font-weight: 700; color: #1F2937; }}
 .section {{ margin: 1.5rem 0; }}
 table {{ width: 100%; border-collapse: collapse; margin: 1rem 0; }}
 th, td {{ padding: 0.6rem 1rem; text-align: left; border-bottom: 1px solid #E5E7EB; }}
@@ -20424,7 +20424,7 @@ elif analysis_mode == "Quick Compare" and compare_btn and compare_tickers:
                         y=corr_matrix.index,
                         colorscale=[
                             [0, "#EF4444"],
-                            [0.5, "#1a1625"],
+                            [0.5, "#111827"],
                             [1, "#10B981"]
                         ],
                         zmin=-1, zmax=1,
