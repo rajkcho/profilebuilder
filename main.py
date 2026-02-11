@@ -2903,7 +2903,7 @@ footer {{ visibility: hidden; }}
 
 /* ── SIDEBAR ─────────────────────────────────────────────── */
 section[data-testid="stSidebar"] {{
-    background: linear-gradient(180deg, #0C0F1A 0%, #10132A 50%, #151933 100%);
+    background: linear-gradient(180deg, #0C0F1A 0%, #111827 50%, #1F2937 100%);
     border-right: 1px solid rgba(37,99,235,0.2);
     box-shadow: 4px 0 30px rgba(37,99,235,0.08);
     min-width: 340px !important;
@@ -3666,7 +3666,7 @@ header {{ visibility: hidden; }}
 
 /* ── SCANNER LOADING (profile mode) ──────────────────── */
 .scanner-control {{
-    background: linear-gradient(170deg, #020515 0%, #0C0F1A 40%, #151933 100%);
+    background: linear-gradient(170deg, #020515 0%, #0C0F1A 40%, #1F2937 100%);
     border-radius: 24px;
     padding: 2.5rem;
     min-height: 360px;
@@ -4237,7 +4237,7 @@ st.markdown(f"""
 
 /* ── MISSION CONTROL (Merger Loading) ──────────────────── */
 .mission-control {{
-    background: linear-gradient(170deg, #020515 0%, #0C0F1A 40%, #151933 100%);
+    background: linear-gradient(170deg, #020515 0%, #0C0F1A 40%, #1F2937 100%);
     border-radius: 24px;
     padding: 2.5rem;
     min-height: 420px;
