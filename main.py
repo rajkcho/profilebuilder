@@ -3271,6 +3271,16 @@ section[data-testid="stSidebar"] .stSlider label p {{
 .gradient-divider {{
     height: 1px; border: none; margin: 1.5rem 0;
     background: linear-gradient(90deg, transparent, rgba(37,99,235,0.3), rgba(16,185,129,0.2), transparent);
+    position: relative;
+}}
+.gradient-divider::after {{
+    content: '';
+    position: absolute;
+    top: -2px; left: 0; right: 0;
+    height: 5px;
+    background: linear-gradient(90deg, transparent, rgba(37,99,235,0.15), rgba(16,185,129,0.1), transparent);
+    filter: blur(4px);
+    animation: glowPulse 3s ease-in-out infinite;
 }}
 
 /* ── METRIC CARDS (defined earlier, this section removed for cleanup) ────────────────────────────────────────── */
