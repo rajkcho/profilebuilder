@@ -7629,18 +7629,46 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     )
 
     # ── Quick Facts Pills ──
+    # Add CSS for pill hover effects
+    st.markdown("""
+    <style>
+    .qf-pill {
+        display: inline-block;
+        padding: 0.25rem 0.7rem;
+        border-radius: 12px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        margin-right: 0.4rem;
+        margin-bottom: 0.3rem;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        border: 1px solid transparent;
+    }
+    .qf-pill:hover {
+        transform: translateY(-2px) scale(1.05);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .qf-pill-sector { background: rgba(37,99,235,0.15); color: #60A5FA; }
+    .qf-pill-sector:hover { background: rgba(37,99,235,0.2); border-color: rgba(37,99,235,0.3); }
+    .qf-pill-industry { background: rgba(16,185,129,0.15); color: #10B981; }
+    .qf-pill-industry:hover { background: rgba(16,185,129,0.2); border-color: rgba(16,185,129,0.3); }
+    .qf-pill-exchange { background: rgba(16,185,129,0.15); color: #10B981; }
+    .qf-pill-exchange:hover { background: rgba(16,185,129,0.2); border-color: rgba(16,185,129,0.3); }
+    .qf-pill-country { background: rgba(245,158,11,0.15); color: #F59E0B; }
+    .qf-pill-country:hover { background: rgba(245,158,11,0.2); border-color: rgba(245,158,11,0.3); }
+    </style>
+    """, unsafe_allow_html=True)
+    
     _qf_pills = []
-    _pill_style = ('display:inline-block; padding:0.2rem 0.6rem; border-radius:12px; '
-                   'font-size:0.65rem; font-weight:600; margin-right:0.4rem; margin-bottom:0.3rem;')
     if cd.sector:
-        _qf_pills.append(f'<span style="{_pill_style} background:rgba(37,99,235,0.15); color:#60A5FA;">🏢 {cd.sector}</span>')
+        _qf_pills.append(f'<span class="qf-pill qf-pill-sector">🏢 {cd.sector}</span>')
     if cd.industry:
-        _qf_pills.append(f'<span style="{_pill_style} background:rgba(16,185,129,0.15); color:#10B981;">⚙️ {cd.industry}</span>')
+        _qf_pills.append(f'<span class="qf-pill qf-pill-industry">⚙️ {cd.industry}</span>')
     if cd.exchange:
-        _qf_pills.append(f'<span style="{_pill_style} background:rgba(16,185,129,0.15); color:#10B981;">📍 {cd.exchange}</span>')
+        _qf_pills.append(f'<span class="qf-pill qf-pill-exchange">📍 {cd.exchange}</span>')
     _cd_country = getattr(cd, 'country', None)
     if _cd_country:
-        _qf_pills.append(f'<span style="{_pill_style} background:rgba(245,158,11,0.15); color:#F59E0B;">🌍 {_cd_country}</span>')
+        _qf_pills.append(f'<span class="qf-pill qf-pill-country">🌍 {_cd_country}</span>')
     if _qf_pills:
         st.markdown(
             f'<div style="padding:0.3rem 0 0.5rem 0;">{"".join(_qf_pills)}</div>',
