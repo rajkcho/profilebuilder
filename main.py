@@ -13228,13 +13228,14 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             else:
                 pio_color, pio_label = "#EF4444", "Weak"
             st.markdown(
-                f'<div style="text-align:center; padding:0.8rem; margin-top:0.5rem; '
-                f'background:rgba(37,99,235,0.05); border-radius:12px; '
-                f'border:1px solid rgba(37,99,235,0.15);">'
-                f'<span style="font-size:0.75rem; color:#9CA3AF;">Piotroski F-Score</span><br>'
-                f'<span style="font-size:1.8rem; font-weight:900; color:{pio_color};">{pio_score}</span>'
-                f'<span style="font-size:0.8rem; color:#9CA3AF;">/{pio_max}</span>'
-                f'<span style="font-size:0.75rem; color:{pio_color}; margin-left:0.5rem;">{pio_label}</span>'
+                f'<div style="text-align:center; padding:1.5rem; margin-top:0.5rem; '
+                f'background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border-radius:12px; '
+                f'border:2px solid {pio_color}40; box-shadow:0 4px 16px rgba(0,0,0,0.15), 0 0 0 1px {pio_color}20; '
+                f'transition:all 0.3s ease;">'
+                f'<span style="font-size:0.7rem; color:#9CA3AF; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Piotroski F-Score</span><br>'
+                f'<span style="font-size:2.2rem; font-weight:900; color:{pio_color}; letter-spacing:-0.02em;">{pio_score}</span>'
+                f'<span style="font-size:1rem; color:#9CA3AF;">/{pio_max}</span>'
+                f'<span style="font-size:0.85rem; color:{pio_color}; margin-left:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">{pio_label}</span>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -13578,10 +13579,11 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 for _eq_col, (_eq_name, _eq_val, _eq_s) in zip(_eq_cols, _eq_details):
                     _eq_sc = "#10B981" if _eq_s >= 7 else "#F5A623" if _eq_s >= 5 else "#EF4444"
                     _eq_col.markdown(
-                        f'<div style="text-align:center; padding:0.5rem; background:rgba(255,255,255,0.02); border-radius:8px;">'
-                        f'<div style="font-size:0.65rem; color:#9CA3AF;">{_eq_name}</div>'
-                        f'<div style="font-size:0.85rem; color:#D1D5DB;">{_eq_val}</div>'
-                        f'<div style="font-size:1rem; font-weight:700; color:{_eq_sc};">{_eq_s}/10</div></div>',
+                        f'<div style="text-align:center; padding:1rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+                        f'border-radius:12px; border:1px solid rgba(37,99,235,0.15); box-shadow:0 2px 12px rgba(0,0,0,0.1);">'
+                        f'<div style="font-size:0.7rem; color:#9CA3AF; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">{_eq_name}</div>'
+                        f'<div style="font-size:0.88rem; color:#E5E7EB; margin:0.3rem 0;">{_eq_val}</div>'
+                        f'<div style="font-size:1.2rem; font-weight:800; color:{_eq_sc}; letter-spacing:-0.02em;">{_eq_s}/10</div></div>',
                         unsafe_allow_html=True,
                     )
             else:
@@ -16064,13 +16066,15 @@ elif analysis_mode == "Company Profile" and generate_btn and not ticker_input:
             color = "#10B981" if change >= 0 else "#EF4444"
             arrow = "↑" if change >= 0 else "↓"
             pills_html += (
-                f'<div style="background:rgba(11,14,26,0.6); border:1px solid rgba(255,255,255,0.04); '
-                f'border-radius:10px; padding:0.9rem 1.4rem; min-width:150px; '
-                f'transition:all 0.2s ease;">'
+                f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(37,99,235,0.15); '
+                f'border-radius:12px; padding:1.25rem 1.5rem; min-width:150px; '
+                f'transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1); box-shadow:0 2px 12px rgba(0,0,0,0.1);" '
+                f'onmouseover="this.style.transform=\'translateY(-3px) scale(1.02)\'; this.style.boxShadow=\'0 8px 24px rgba(37,99,235,0.2)\';" '
+                f'onmouseout="this.style.transform=\'translateY(0) scale(1)\'; this.style.boxShadow=\'0 2px 12px rgba(0,0,0,0.1)\';">'
                 f'<div style="font-size:0.7rem; color:#9CA3AF; font-weight:600; text-transform:uppercase; '
-                f'letter-spacing:0.05em; margin-bottom:0.4rem;">{name}</div>'
-                f'<div style="font-size:1.2rem; font-weight:700; color:#F9FAFB; margin-bottom:0.3rem;">{price:,.2f}</div>'
-                f'<div style="font-size:0.85rem; color:{color}; font-weight:600;">{arrow} {abs(change):.2f}%</div>'
+                f'letter-spacing:0.5px; margin-bottom:0.5rem;">{name}</div>'
+                f'<div style="font-size:1.3rem; font-weight:800; color:#F9FAFB; margin-bottom:0.3rem; letter-spacing:-0.02em;">{price:,.2f}</div>'
+                f'<div style="font-size:0.9rem; color:{color}; font-weight:700;">{arrow} {abs(change):.2f}%</div>'
                 f'</div>'
             )
         pills_html += '</div></div>'
