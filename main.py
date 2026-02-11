@@ -2177,7 +2177,8 @@ footer {{ visibility: hidden; }}
     background: linear-gradient(135deg, #1D4ED8, #1E40AF) !important;
 }}
 .stButton > button:active {{
-    transform: translateY(0) !important;
+    transform: translateY(0) scale(0.98) !important;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3) !important;
 }}
 
 /* ── DATAFRAME / TABLE STYLING ──────────────────────────── */
