@@ -1901,13 +1901,14 @@ _STARS3 = _gen_stars(30)
 # ── Chart visual helpers ──────────────────────────────────
 _CHART_LAYOUT_BASE = dict(
     paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="Inter", size=12, color="#9CA3AF"),
+    plot_bgcolor="rgba(11,14,26,0.3)",
+    font=dict(family="Inter", size=11, color="#9CA3AF"),
     title=dict(text=""),  # Explicitly no title (prevents "undefined" rendering)
     hoverlabel=dict(
-        bgcolor="rgba(17,24,39,0.95)",
-        bordercolor="rgba(37,99,235,0.3)",
-        font=dict(size=13, color="#F9FAFB", family="Inter"),
+        bgcolor="rgba(17,24,39,0.98)",
+        bordercolor="rgba(37,99,235,0.5)",
+        font=dict(size=12, color="#F9FAFB", family="Inter"),
+        namelength=-1,
     ),
     hovermode="x unified",
     dragmode="zoom",  # Enable zoom by default
@@ -1916,15 +1917,25 @@ _CHART_LAYOUT_BASE = dict(
         color="#2563EB",
         activecolor="#60A5FA",
     ),
-    margin=dict(l=60, r=40, t=40, b=50),
+    margin=dict(l=55, r=35, t=35, b=45),
 )
 
 def _apply_space_grid(fig, show_x_grid=False, show_y_grid=True):
     """Apply subtle grid for professional look."""
     if show_y_grid:
-        fig.update_yaxes(gridcolor="rgba(255,255,255,0.05)", gridwidth=0.5, griddash="dot")
+        fig.update_yaxes(
+            gridcolor="rgba(255,255,255,0.03)", 
+            gridwidth=0.4, 
+            griddash="dot",
+            zeroline=False,
+        )
     if show_x_grid:
-        fig.update_xaxes(gridcolor="rgba(255,255,255,0.05)", gridwidth=0.5, griddash="dot")
+        fig.update_xaxes(
+            gridcolor="rgba(255,255,255,0.03)", 
+            gridwidth=0.4, 
+            griddash="dot",
+            zeroline=False,
+        )
 
 def _glow_line_traces(fig, x, y, color, name, width=2.5, glow_width=8, yaxis=None):
     """Add a neon glow effect: wide transparent underlay + sharp main line."""
@@ -3249,23 +3260,36 @@ section[data-testid="stSidebar"] .stSlider label p {{
 
 /* ── SECTION STYLING ─────────────────────────────────────── */
 .section-header {{
-    display: flex; align-items: center; gap: 0.8rem;
-    margin: 2.5rem 0 1rem 0; padding-bottom: 0.6rem;
+    display: flex; align-items: center; gap: 1rem;
+    margin: 3rem 0 1.5rem 0; padding-bottom: 0.75rem;
     position: relative;
     animation: slideUpBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }}
 .section-header::after {{
     content: '';
-    position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, #2563EB, #10B981, transparent);
+    position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, #2563EB, #10B981, rgba(16,185,129,0.3), transparent);
     animation: glowPulse 3s ease-in-out infinite;
-    border-radius: 2px;
+    border-radius: 3px;
+    box-shadow: 0 0 10px rgba(37,99,235,0.3);
 }}
 .section-header h3 {{
-    font-size: 1.3rem; font-weight: 800; color: #F9FAFB; margin: 0; letter-spacing: -0.3px;
+    font-size: 1.45rem; font-weight: 900; color: #F9FAFB; margin: 0; letter-spacing: -0.5px;
+    text-shadow: 0 0 20px rgba(37,99,235,0.2);
 }}
 .section-header .accent-bar {{
-    width: 5px; height: 26px; background: linear-gradient(180deg, #2563EB, #10B981); border-radius: 3px;
+    width: 6px; height: 32px; 
+    background: linear-gradient(180deg, #2563EB, #10B981); 
+    border-radius: 4px;
+    box-shadow: 0 0 12px rgba(37,99,235,0.4);
+    position: relative;
+}}
+.section-header .accent-bar::after {{
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.2), transparent);
+    border-radius: 4px;
 }}
 
 /* ── GRADIENT DIVIDER ────────────────────────────────────── */
