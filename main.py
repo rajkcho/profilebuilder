@@ -4795,7 +4795,7 @@ def _render_growth_outlook(growth, cd):
 
     st.markdown(
         f'<div style="display:inline-block; background:{rating_bg.get(rating, "rgba(138,133,173,0.12)")}; '
-        f'color:{rating_color}; padding:0.4rem 1.2rem; border-radius:20px; font-weight:700; '
+        f'color:{rating_color}; padding:0.4rem 1.2rem; border-radius:12px; font-weight:700; '
         f'font-size:0.9rem; letter-spacing:1px; margin-bottom:1rem;">Growth Rating: {rating}</div>',
         unsafe_allow_html=True,
     )
@@ -4840,7 +4840,7 @@ def _render_capital_allocation(ca, cd):
 
     st.markdown(
         f'<div style="display:inline-block; background:{grade_bg.get(grade, "rgba(138,133,173,0.12)")}; '
-        f'color:{grade_color}; padding:0.4rem 1.2rem; border-radius:20px; font-weight:700; '
+        f'color:{grade_color}; padding:0.4rem 1.2rem; border-radius:12px; font-weight:700; '
         f'font-size:0.9rem; letter-spacing:1px; margin-bottom:1rem;">Capital Allocation Grade: {grade}</div>',
         unsafe_allow_html=True,
     )
@@ -7136,7 +7136,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             f'border-radius:16px; padding:1.5rem; margin:1rem 0;">'
             f'<div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">'
             f'<div style="font-size:1.6rem; font-weight:900; color:#fff;">{cd.name}</div>'
-            f'<span style="background:#2563EB; color:white; padding:0.2rem 0.8rem; border-radius:20px; '
+            f'<span style="background:#2563EB; color:white; padding:0.2rem 0.8rem; border-radius:12px; '
             f'font-size:0.7rem; font-weight:700;">{cd.ticker}</span>'
             f'</div>'
             f'<div style="font-size:2rem; font-weight:800; color:#fff;">{cs}{cd.current_price:,.2f}</div>'
@@ -7320,15 +7320,15 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             # Badges
             _sc_badges = []
             if cd.sector:
-                _sc_badges.append(f'<span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:20px; font-size:0.65rem; font-weight:600; background:rgba({int(_sc_accent1[1:3],16)},{int(_sc_accent1[3:5],16)},{int(_sc_accent1[5:7],16)},0.15); color:{_sc_accent2}; letter-spacing:0.3px;">⚡ {cd.sector}</span>')
+                _sc_badges.append(f'<span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.65rem; font-weight:600; background:rgba({int(_sc_accent1[1:3],16)},{int(_sc_accent1[3:5],16)},{int(_sc_accent1[5:7],16)},0.15); color:{_sc_accent2}; letter-spacing:0.3px;">⚡ {cd.sector}</span>')
             if cd.industry:
-                _sc_badges.append(f'<span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:20px; font-size:0.65rem; font-weight:600; background:rgba(37,99,235,0.1); color:#60A5FA; letter-spacing:0.3px;">🏭 {cd.industry}</span>')
+                _sc_badges.append(f'<span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.65rem; font-weight:600; background:rgba(37,99,235,0.1); color:#60A5FA; letter-spacing:0.3px;">🏭 {cd.industry}</span>')
             _sc_country = getattr(cd, 'country', '') or ''
             if _sc_country:
-                _sc_badges.append(f'<span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:20px; font-size:0.65rem; font-weight:600; background:rgba(16,185,129,0.1); color:#34D399; letter-spacing:0.3px;">🌍 {_sc_country}</span>')
+                _sc_badges.append(f'<span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.65rem; font-weight:600; background:rgba(16,185,129,0.1); color:#34D399; letter-spacing:0.3px;">🌍 {_sc_country}</span>')
             _sc_emp = getattr(cd, 'full_time_employees', None)
             if _sc_emp:
-                _sc_badges.append(f'<span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:20px; font-size:0.65rem; font-weight:600; background:rgba(245,166,35,0.1); color:#F7C574; letter-spacing:0.3px;">👥 {_sc_emp:,} employees</span>')
+                _sc_badges.append(f'<span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:12px; font-size:0.65rem; font-weight:600; background:rgba(245,166,35,0.1); color:#F7C574; letter-spacing:0.3px;">👥 {_sc_emp:,} employees</span>')
             _sc_badges_html = ' '.join(_sc_badges)
 
             # Extra details (CEO, website, founded)
@@ -7361,7 +7361,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 f'<div>'
                 f'<div style="font-size:1.5rem; font-weight:900; color:#FFFFFF; letter-spacing:-0.5px;">{cd.name}</div>'
                 f'<div style="display:flex; align-items:center; gap:0.6rem; margin-top:0.2rem;">'
-                f'<span style="background:{_sc_accent1}; color:white; padding:0.15rem 0.6rem; border-radius:20px; '
+                f'<span style="background:{_sc_accent1}; color:white; padding:0.15rem 0.6rem; border-radius:12px; '
                 f'font-size:0.7rem; font-weight:700; letter-spacing:0.5px;">{cd.ticker}</span>'
                 f'<span style="color:#9CA3AF; font-size:0.75rem;">{cd.exchange}</span>'
                 f'</div></div></div>'
@@ -7488,7 +7488,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
 
     # ── Quick Facts Pills ──
     _qf_pills = []
-    _pill_style = ('display:inline-block; padding:0.2rem 0.6rem; border-radius:20px; '
+    _pill_style = ('display:inline-block; padding:0.2rem 0.6rem; border-radius:12px; '
                    'font-size:0.65rem; font-weight:600; margin-right:0.4rem; margin-bottom:0.3rem;')
     if cd.sector:
         _qf_pills.append(f'<span style="{_pill_style} background:rgba(37,99,235,0.15); color:#60A5FA;">🏢 {cd.sector}</span>')
@@ -13888,7 +13888,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             _ke_html += (
                 f'<div style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.3rem 0.7rem; '
                 f'background:rgba({",".join(str(int(_ke_color[i:i+2], 16)) for i in (1,3,5))},0.1); '
-                f'border:1px solid {_ke_color}33; border-radius:20px; margin-right:0.5rem; margin-bottom:0.3rem;">'
+                f'border:1px solid {_ke_color}33; border-radius:12px; margin-right:0.5rem; margin-bottom:0.3rem;">'
                 f'<span style="font-size:0.65rem; font-weight:700; color:{_ke_color};">{ke["title"]}</span>'
                 f'<span style="font-size:0.6rem; color:#9CA3AF;">{ke["date"]}</span></div>'
             )
@@ -14357,7 +14357,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     st.markdown(
                         f'<div style="text-align:center; margin-top:0.5rem;">'
                         f'<span style="background:rgba(37,99,235,0.08); border:1px solid {_br_color}; '
-                        f'border-radius:20px; padding:0.4rem 1.2rem; font-size:0.85rem; font-weight:700; color:{_br_color};">'
+                        f'border-radius:12px; padding:0.4rem 1.2rem; font-size:0.85rem; font-weight:700; color:{_br_color};">'
                         f'Beat Rate: {_beat_rate:.0f}% ({_beats}/{_total_valid} quarters)</span></div>',
                         unsafe_allow_html=True,
                     )
@@ -18116,7 +18116,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
 
     st.markdown(
         f'<div style="display:inline-block; background:{grade_bg.get(merger_insights.deal_grade, "rgba(138,133,173,0.12)")}; '
-        f'color:{grade_c}; padding:0.5rem 1.5rem; border-radius:20px; font-weight:800; '
+        f'color:{grade_c}; padding:0.5rem 1.5rem; border-radius:12px; font-weight:800; '
         f'font-size:1.2rem; letter-spacing:1px; margin-bottom:1rem;">Deal Grade: {merger_insights.deal_grade}</div>',
         unsafe_allow_html=True,
     )
