@@ -2184,7 +2184,7 @@ footer {{ visibility: hidden; }}
     transition: background 0.3s ease !important;
 }}
 [data-testid="stExpanderDetails"] {{
-    animation: fadeInUp 0.3s ease-out !important;
+    animation: fadeInUp 0.2s ease-out !important;
 }}
 
 /* ── ANIMATIONS (15+ keyframes) ────────────────────────── */
@@ -2608,7 +2608,7 @@ footer {{ visibility: hidden; }}
     padding: 1.5rem;
     position: relative;
     overflow: hidden;
-    animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+    animation: bounceIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both,
                dealCardPulse 3s ease-in-out 0.5s infinite;
 }}
 .deal-consideration-card::before {{
@@ -2636,7 +2636,7 @@ footer {{ visibility: hidden; }}
     background: rgba(17,24,39,0.7); backdrop-filter: blur(16px);
     border-radius: 12px;
     border-left: 3px solid;
-    animation: dealRowSlide 0.5s ease-out both;
+    animation: dealRowSlide 0.3s ease-out both;
     transition: all 0.2s ease;
 }}
 .deal-consideration-row:hover {{
@@ -2666,7 +2666,7 @@ footer {{ visibility: hidden; }}
     border-radius: 20px;
     padding: 1.5rem;
     overflow: hidden;
-    animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    animation: bounceIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }}
 .pf-table {{
     width: 100%; border-collapse: separate; border-spacing: 0;
@@ -2710,7 +2710,7 @@ footer {{ visibility: hidden; }}
 /* ── SOURCES & USES VISUAL ─────────────────────────────── */
 .su-container {{
     display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;
-    animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    animation: bounceIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }}
 .su-panel {{
     background: linear-gradient(145deg, rgba(37,99,235,0.05), rgba(0,0,0,0.2));
