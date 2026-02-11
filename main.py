@@ -5754,7 +5754,7 @@ with st.sidebar:
                         worst_perf = (_wt, _wch)
                 _mcap_str = f"${total_mcap/1e9:,.1f}B" if total_mcap >= 1e9 else f"${total_mcap/1e6:,.0f}M" if total_mcap >= 1e6 else "N/A"
                 st.markdown(
-                    f'<div style="background:rgba(37,99,235,0.06); border-radius:8px; padding:0.6rem; margin-bottom:0.5rem; font-size:0.72rem;">'
+                    f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:0.7rem; margin-bottom:0.5rem; font-size:0.72rem;">'
                     f'<div style="color:#9CA3AF; font-weight:700; margin-bottom:0.3rem;">📊 PORTFOLIO SNAPSHOT</div>'
                     f'<div style="color:#D1D5DB;">Total Mkt Cap: <b style="color:#F9FAFB;">{_mcap_str}</b></div>'
                     f'<div style="color:#10B981;">Best: <b>{best_perf[0]}</b> ({best_perf[1]:+.2f}%)</div>'
@@ -10030,18 +10030,18 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             _catalyst_items = "".join(f'<div style="padding:0.3rem 0; font-size:0.82rem; color:#D1D5DB; line-height:1.6;">{c}</div>' for c in _itg_catalysts[:4])
 
             st.markdown(
-                f'<div style="background:rgba(37,99,235,0.05); border:1px solid rgba(37,99,235,0.15); border-radius:16px; padding:1.2rem; margin:0.5rem 0;">'
+                f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1.25rem; margin:0.5rem 0;">'
                 f'<div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">'
-                f'<div style="background:rgba(16,185,129,0.04); border:1px solid rgba(16,185,129,0.15); border-radius:12px; padding:1rem;">'
+                f'<div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.2); border-radius:12px; padding:1rem;">'
                 f'<div style="font-size:0.65rem; font-weight:700; color:#10B981; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:0.5rem;">🐂 Bull Case</div>'
                 f'{_bull_items}</div>'
-                f'<div style="background:rgba(239,68,68,0.04); border:1px solid rgba(239,68,68,0.15); border-radius:12px; padding:1rem;">'
+                f'<div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); border-radius:12px; padding:1rem;">'
                 f'<div style="font-size:0.65rem; font-weight:700; color:#EF4444; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:0.5rem;">🐻 Bear Case</div>'
                 f'{_bear_items}</div></div>'
-                f'<div style="background:rgba(245,166,35,0.04); border:1px solid rgba(245,166,35,0.15); border-radius:12px; padding:1rem; margin-bottom:1rem;">'
+                f'<div style="background:rgba(245,166,35,0.08); border:1px solid rgba(245,166,35,0.2); border-radius:12px; padding:1rem; margin-bottom:1rem;">'
                 f'<div style="font-size:0.65rem; font-weight:700; color:#F5A623; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:0.5rem;">⚡ Key Catalysts</div>'
                 f'{_catalyst_items}</div>'
-                f'<div style="background:rgba(37,99,235,0.08); border:2px solid {_itg_verdict_color}; border-radius:12px; padding:1rem; text-align:center;">'
+                f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:2px solid {_itg_verdict_color}; border-radius:12px; padding:1.25rem; text-align:center;">'
                 f'<div style="font-size:0.6rem; color:#9CA3AF; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:0.3rem;">Investment Verdict</div>'
                 f'<div style="font-size:1.5rem; font-weight:900; color:{_itg_verdict_color};">{_itg_verdict}</div>'
                 f'<div style="font-size:0.8rem; color:#D1D5DB; margin-top:0.3rem;">{_itg_verdict_detail}</div>'
