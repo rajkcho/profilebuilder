@@ -2977,12 +2977,14 @@ section[data-testid="stSidebar"] hr {{
     align-items: center;
     gap: 0.9rem;
     animation: cardReveal 0.5s ease-out;
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    cursor: pointer;
 }}
 .sb-company-card:hover {{
-    border-color: rgba(37,99,235,0.5);
-    box-shadow: 0 4px 20px rgba(37,99,235,0.2);
-    transform: translateY(-2px);
+    border-color: rgba(37,99,235,0.6);
+    box-shadow: 0 6px 24px rgba(37,99,235,0.3), 0 0 0 1px rgba(37,99,235,0.1);
+    transform: translateY(-3px) scale(1.01);
+    background: linear-gradient(135deg, rgba(37,99,235,0.15), rgba(16,185,129,0.08));
 }}
 .sb-logo-fallback {{
     width: 44px;
