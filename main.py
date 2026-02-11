@@ -5629,10 +5629,10 @@ with st.sidebar:
     # What's New expander
     with st.expander("🆕 What's New in v7.1"):
         st.markdown(
-            "- 🔍 **VMS Screener** — Acquisition attractiveness scoring & Rule of 40 analysis\n"
-            "- 📊 **Options P/L Simulator** — Visual payoff diagrams for calls & puts\n"
-            "- 🔄 **Sector Rotation Tracker** — ETF performance heatmap & momentum signals\n"
-            "- ⚡ **Enhanced Comps** — Expanded peer benchmarking with correlation matrix",
+            "- 🎨 **Content Quality Polish** — Glass-morphism design system throughout\n"
+            "- ✨ **Enhanced UX Flow** — Cleaner input areas, consistent styling\n"
+            "- 📊 **Market Data Refresh** — Refined splash page widgets & hover states\n"
+            "- 🔧 **Professional Metrics** — Improved data formatting & N/A handling",
         )
 
     st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
@@ -5714,7 +5714,7 @@ with st.sidebar:
         _sp_color = "#10B981" if _sp_chg >= 0 else "#EF4444"
         _sp_arrow = "▲" if _sp_chg >= 0 else "▼"
         st.markdown(
-            f'<div style="background:rgba(37,99,235,0.08); border:1px solid rgba(37,99,235,0.15); border-radius:8px; padding:0.5rem 0.6rem; margin-bottom:0.5rem;">'
+            f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:0.6rem 0.7rem; margin-bottom:0.5rem;">'
             f'<div style="font-size:0.6rem; color:#9CA3AF; font-weight:700; letter-spacing:1px; margin-bottom:0.2rem;">S&P 500</div>'
             f'<div style="display:flex; justify-content:space-between; align-items:baseline;">'
             f'<span style="font-size:0.85rem; font-weight:700; color:#F9FAFB;">{_sp_price:,.1f}</span>'
@@ -8138,11 +8138,11 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 )
 
             st.markdown(
-                f'<div style="background:rgba(37,99,235,0.04); border:1px solid rgba(37,99,235,0.12); '
-                f'border-radius:12px; padding:0.8rem 1rem; margin:0.3rem 0 0.6rem 0;">'
+                f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+                f'border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1rem 1.25rem; margin:0.3rem 0 0.6rem 0;">'
                 f'<div style="font-size:0.65rem; font-weight:700; color:#2563EB; text-transform:uppercase; '
-                f'letter-spacing:1.5px; margin-bottom:0.5rem;">🏭 Industry Snapshot</div>'
-                f'<div style="display:grid; grid-template-columns:1fr 1fr; gap:0.3rem 1rem; font-size:0.75rem;">'
+                f'letter-spacing:1.5px; margin-bottom:0.6rem;">🏭 Industry Snapshot</div>'
+                f'<div style="display:grid; grid-template-columns:1fr 1fr; gap:0.4rem 1rem; font-size:0.75rem;">'
                 f'<div style="color:#9CA3AF;">Sector</div><div style="color:#F9FAFB;">{_ind_sector}</div>'
                 f'<div style="color:#9CA3AF;">Industry</div><div style="color:#F9FAFB;">{_ind_industry}</div>'
                 f'<div style="color:#9CA3AF;">Market Position</div><div style="color:#F9FAFB;">{_ind_mcap_str}</div>'
@@ -8151,7 +8151,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 f'<div style="color:#9CA3AF;">Sector Growth Rate</div><div style="color:#F9FAFB;">{_ind_gr_med*100:.1f}%</div>'
                 f'<div style="color:#9CA3AF;">Tracked Peers</div><div style="color:#F9FAFB;">{_ind_peer_count} companies</div>'
                 f'</div>'
-                + (f'<div style="margin-top:0.5rem; border-top:1px solid rgba(37,99,235,0.1); padding-top:0.4rem;">'
+                + (f'<div style="margin-top:0.6rem; border-top:1px solid rgba(255,255,255,0.06); padding-top:0.5rem;">'
                    f'<div style="font-size:0.62rem; color:#2563EB; font-weight:600; margin-bottom:0.2rem;">Top Peers by Market Cap</div>'
                    f'{_ind_peers_html}</div>' if _ind_peers_html else '')
                 + f'</div>',
