@@ -1307,7 +1307,8 @@ def _calculate_dcf(cd, growth_rate: float = 0.05, terminal_growth: float = 0.025
     base_fcf = None
     if cd.free_cashflow_series is not None and len(cd.free_cashflow_series) > 0:
         base_fcf = cd.free_cashflow_series.iloc[0]
-    elif cd.operating_cashflow_series is not None and cd.capital_expenditure is not None:
+    elif (cd.operating_cashflow_series is not None and len(cd.operating_cashflow_series) > 0 and 
+          cd.capital_expenditure is not None and len(cd.capital_expenditure) > 0):
         base_fcf = cd.operating_cashflow_series.iloc[0] + cd.capital_expenditure.iloc[0]  # CapEx is negative
     
     if base_fcf is None or base_fcf <= 0:
@@ -8268,8 +8269,9 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             )
             st.markdown(
                 f'<div style="background:linear-gradient(135deg, rgba(37,99,235,0.08), rgba(16,185,129,0.06)); '
-                f'border:2px solid transparent; border-image:linear-gradient(135deg, rgba(37,99,235,0.4), rgba(16,185,129,0.3)) 1; '
-                f'border-radius:0px; padding:1.2rem 1.5rem; margin:1rem 0;">'
+                f'border:2px solid rgba(37,99,235,0.35); '
+                f'border-radius:12px; padding:1.2rem 1.5rem; margin:1rem 0; '
+                f'box-shadow:0 0 0 1px rgba(16,185,129,0.15);">'
                 f'<div style="font-size:0.7rem; font-weight:800; color:#60A5FA; text-transform:uppercase; '
                 f'letter-spacing:2px; margin-bottom:0.6rem;">Executive Summary</div>'
                 f'{_es_html}'
@@ -8735,7 +8737,8 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 try:
                     for _rdl in ["ResearchAndDevelopment", "Research And Development", "ResearchDevelopment"]:
                         if _rdl in cd.income_stmt.index:
-                            _rd_v = float(cd.income_stmt.loc[_rdl].iloc[0])
+                            _rd_row = cd.income_stmt.loc[_rdl]
+                            _rd_v = float(_rd_row.iloc[0]) if len(_rd_row) > 0 else 0
                             _rv_v = float(cd.revenue.iloc[0]) if cd.revenue is not None and len(cd.revenue) > 0 else 0
                             if _rv_v > 0 and _rd_v > 0:
                                 _cm_rd_pct = _rd_v / _rv_v
@@ -8776,7 +8779,8 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     _sga_val = None
                     for _sga_label in ["SellingGeneralAndAdministration", "Selling General And Administration", "SGA"]:
                         if _sga_label in cd.income_stmt.index:
-                            _sga_val = float(cd.income_stmt.loc[_sga_label].iloc[0])
+                            _sga_row = cd.income_stmt.loc[_sga_label]
+                            _sga_val = float(_sga_row.iloc[0]) if len(_sga_row) > 0 else None
                             break
                     if _sga_val and _sga_val > 0:
                         _cm_sga_ratio = _sga_val / float(cd.revenue.iloc[0])
@@ -12325,6 +12329,15 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     if cd.dividend_yield and cd.dividend_yield > 0:
         _section("Dividend Analysis")
         
+        # Fetch ticker info before columns to avoid NameError
+        tk_div = None
+        info_div = {}
+        try:
+            tk_div = yf.Ticker(cd.ticker)
+            info_div = tk_div.info or {}
+        except Exception:
+            pass
+        
         div_col1, div_col2, div_col3, div_col4 = st.columns(4)
         
         with div_col1:
@@ -12342,8 +12355,6 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         
         with div_col2:
             try:
-                tk_div = yf.Ticker(cd.ticker)
-                info_div = tk_div.info or {}
                 payout = info_div.get("payoutRatio", 0)
                 payout_pct = payout * 100 if payout and payout < 5 else payout or 0
                 po_color = "#EF4444" if payout_pct > 80 else "#10B981" if payout_pct < 60 else "#F59E0B"
@@ -12374,7 +12385,11 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     unsafe_allow_html=True,
                 )
             except Exception:
-                pass
+                st.markdown(
+                    '<div style="text-align:center; padding:0.8rem; background:rgba(37,99,235,0.05); '
+                    'border-radius:12px;"><div style="color:#9CA3AF;">Annual Dividend N/A</div></div>',
+                    unsafe_allow_html=True,
+                )
         
         with div_col4:
             try:
@@ -12394,11 +12409,18 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     unsafe_allow_html=True,
                 )
             except Exception:
-                pass
+                st.markdown(
+                    '<div style="text-align:center; padding:0.8rem; background:rgba(37,99,235,0.05); '
+                    'border-radius:12px;"><div style="color:#9CA3AF;">Date N/A</div></div>',
+                    unsafe_allow_html=True,
+                )
         
         # Dividend history chart
         try:
-            divs = tk_div.dividends
+            if tk_div:
+                divs = tk_div.dividends
+            else:
+                divs = None
             if divs is not None and not divs.empty:
                 # Last 5 years
                 divs_recent = divs.last("5Y") if hasattr(divs, "last") else divs.tail(20)
@@ -12607,6 +12629,17 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 _apply_space_grid(fig_yc)
                 st.plotly_chart(fig_yc, use_container_width=True, key="div_yield_comparison")
 
+        _divider()
+    else:
+        # No dividend data available
+        _section("Dividend Analysis")
+        st.markdown(
+            '<div style="text-align:center; padding:2rem; background:rgba(37,99,235,0.05); '
+            'border-radius:12px; border:1px solid rgba(37,99,235,0.1);">'
+            '<div style="font-size:1rem; color:#9CA3AF;">📊 No dividend data available for this company</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
         _divider()
 
     # ══════════════════════════════════════════════════════
