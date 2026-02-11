@@ -6,7 +6,7 @@ Generates an 8-slide investment-banker-grade PowerPoint tear sheet.
 
 Run:  streamlit run main.py
 
-v7.0 - Full Feature Suite:
+v5.8 - Full Feature Suite:
 - Watchlist with session persistence & notes
 - Excel/CSV export for all financial data
 - DCF Valuation with sensitivity analysis
@@ -244,70 +244,31 @@ def _fetch_market_indices() -> list:
     return results
 
 def _render_market_ticker(indices: list):
-    """Render modern horizontal pill badge ticker."""
+    """Render a scrolling market ticker."""
     if not indices:
         return
     
     ticker_items = []
     for idx in indices:
         color = "#10B981" if idx["change_pct"] >= 0 else "#EF4444"
-        bg_color = "rgba(16, 185, 129, 0.12)" if idx["change_pct"] >= 0 else "rgba(239, 68, 68, 0.12)"
-        border_color = "rgba(16, 185, 129, 0.3)" if idx["change_pct"] >= 0 else "rgba(239, 68, 68, 0.3)"
-        arrow = "↑" if idx["change_pct"] >= 0 else "↓"
+        arrow = "▲" if idx["change_pct"] >= 0 else "▼"
         ticker_items.append(
-            f'<div class="badge" style="background:{bg_color}; border:1px solid {border_color}; '
-            f'display:inline-flex; align-items:center; gap:0.5rem; padding:0.375rem 0.875rem; '
-            f'border-radius:20px; margin-right:0.75rem; margin-bottom:0.5rem;">'
-            f'<span style="color:#F9FAFB; font-weight:700; font-size:0.75rem;">{idx["name"]}</span>'
-            f'<span style="color:{color}; font-weight:600; font-size:0.75rem;">'
-            f'{idx["price"]:,.2f} <span style="font-size:0.65rem;">{arrow} {abs(idx["change_pct"]):.2f}%</span>'
-            f'</span></div>'
+            f'<span style="margin-right:2rem;">'
+            f'<span style="color:#E0DCF5; font-weight:600;">{idx["name"]}</span> '
+            f'<span style="color:{color};">{idx["price"]:,.2f} {arrow} {idx["change_pct"]:+.2f}%</span>'
+            f'</span>'
         )
     
-    ticker_html = "".join(ticker_items)
+    # Duplicate for seamless scroll
+    ticker_html = "".join(ticker_items) * 2
     
     st.markdown(
-        f'<div style="background:rgba(17, 24, 39, 0.4); backdrop-filter:blur(8px); '
-        f'border:1px solid rgba(255,255,255,0.06); border-radius:12px; '
-        f'padding:1rem; margin-bottom:1.5rem; display:flex; flex-wrap:wrap; align-items:center;">'
+        f'<div style="overflow:hidden; background:rgba(107,92,231,0.05); '
+        f'border-top:1px solid rgba(107,92,231,0.15); border-bottom:1px solid rgba(107,92,231,0.15); '
+        f'padding:0.5rem 0; margin-bottom:1rem;">'
+        f'<div style="display:inline-block; white-space:nowrap; animation:ticker-scroll 30s linear infinite;">'
         f'{ticker_html}'
-        f'</div>',
-        unsafe_allow_html=True,
-    )
-
-def _render_modern_splash(title: str, subtitle: str, stats: list = None, pills: list = None):
-    """Render modern splash page with gradient hero."""
-    pills_html = ""
-    if pills:
-        pills_html = '<div style="display:flex; gap:0.75rem; justify-content:center; flex-wrap:wrap; margin-top:2rem;">'
-        for pill in pills:
-            pills_html += f'<span class="badge badge-blue" style="font-size:0.75rem;">{pill}</span>'
-        pills_html += '</div>'
-    
-    stats_html = ""
-    if stats:
-        stats_html = '<div class="splash-stats">'
-        for stat in stats:
-            stats_html += (
-                f'<div class="splash-stat">'
-                f'<div class="splash-stat-value">{stat["value"]}</div>'
-                f'<div class="splash-stat-label">{stat["label"]}</div>'
-                f'</div>'
-            )
-        stats_html += '</div>'
-    
-    st.markdown(
-        '<div class="splash-hero">'
-        '<div class="geo-accent geo-1"></div>'
-        '<div class="geo-accent geo-2"></div>'
-        '<div class="geo-accent geo-3"></div>'
-        '<div class="splash-content">'
-        f'<h1 class="splash-title"><span class="splash-accent">ORBITAL</span></h1>'
-        f'<p class="splash-subtitle">{subtitle}</p>'
-        f'{pills_html}'
-        f'{stats_html}'
-        '</div>'
-        '</div>',
+        f'</div></div>',
         unsafe_allow_html=True,
     )
 
@@ -365,7 +326,7 @@ def _fetch_top_movers() -> dict:
 # ══════════════════════════════════════════════════════════════
 # SPARKLINE - Mini inline charts
 # ══════════════════════════════════════════════════════════════
-def _render_sparkline_svg(values: list, color: str = "#2563EB", width: int = 80, height: int = 24) -> str:
+def _render_sparkline_svg(values: list, color: str = "#6B5CE7", width: int = 80, height: int = 24) -> str:
     """Generate an SVG sparkline from a list of values."""
     if not values or len(values) < 2:
         return ""
@@ -456,7 +417,7 @@ def _render_status_badge(text: str, status: str = "neutral") -> str:
         "negative": ("#EF4444", "rgba(239,68,68,0.15)"),
         "warning": ("#F5A623", "rgba(245,166,35,0.15)"),
         "neutral": ("#8A85AD", "rgba(138,133,173,0.15)"),
-        "info": ("#2563EB", "rgba(107,92,231,0.15)"),
+        "info": ("#6B5CE7", "rgba(107,92,231,0.15)"),
     }
     text_color, bg_color = colors.get(status, colors["neutral"])
     
@@ -484,7 +445,7 @@ def _render_keyboard_shortcuts():
     st.markdown(
         '<div style="background:rgba(107,92,231,0.05); border:1px solid rgba(107,92,231,0.15); '
         'border-radius:12px; padding:1rem; margin:1rem 0;">'
-        '<div style="font-size:0.75rem; font-weight:700; color:#60A5FA; text-transform:uppercase; '
+        '<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
         'letter-spacing:1px; margin-bottom:0.8rem;">⌨️ Keyboard Shortcuts</div>',
         unsafe_allow_html=True,
     )
@@ -507,36 +468,35 @@ def _render_keyboard_shortcuts():
 # ══════════════════════════════════════════════════════════════
 def _render_metric_with_sparkline(label: str, value: str, sparkline_data: list = None, 
                                    delta: str = None, delta_color: str = None):
-    """Render a glass-morphism metric card with optional sparkline."""
+    """Render a metric card with optional sparkline."""
     sparkline_html = ""
     if sparkline_data and len(sparkline_data) >= 2:
-        sparkline_html = _render_sparkline_svg(sparkline_data, color="#2563EB")
+        sparkline_html = _render_sparkline_svg(sparkline_data)
     
     delta_html = ""
     if delta:
         d_color = delta_color or ("#10B981" if delta.startswith("+") else "#EF4444")
-        delta_html = f'<span style="color:{d_color}; font-size:0.875rem; font-weight:600; margin-left:0.5rem;">{delta}</span>'
+        delta_html = f'<span style="color:{d_color}; font-size:0.75rem; margin-left:0.5rem;">{delta}</span>'
     
     st.markdown(
-        f'<div class="metric-card" style="background:rgba(17, 24, 39, 0.6); backdrop-filter:blur(12px); '
-        f'border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:1.25rem; '
-        f'position:relative; overflow:hidden; transition:all 0.3s ease;">'
-        f'<div class="metric-label" style="font-size:0.75rem; font-weight:600; color:#9CA3AF; '
-        f'text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.5rem;">{label}</div>'
+        f'<div style="background:rgba(255,255,255,0.04); border:1px solid rgba(107,92,231,0.15); '
+        f'border-radius:12px; padding:1rem; position:relative; overflow:hidden;">'
+        f'<div style="font-size:0.7rem; font-weight:600; color:#8A85AD; text-transform:uppercase; '
+        f'letter-spacing:0.5px; margin-bottom:0.3rem;">{label}</div>'
         f'<div style="display:flex; align-items:center; justify-content:space-between;">'
-        f'<div class="metric-value" style="font-size:1.875rem; font-weight:700; color:#F9FAFB;">{value}{delta_html}</div>'
+        f'<div style="font-size:1.3rem; font-weight:700; color:#E0DCF5;">{value}{delta_html}</div>'
         f'{sparkline_html}'
         f'</div></div>',
         unsafe_allow_html=True,
     )
 
 def _render_movers_cards(movers: dict):
-    """Render top gainers and losers with modern glass cards."""
+    """Render top gainers and losers cards."""
     if not movers or (not movers.get("gainers") and not movers.get("losers")):
         return
     
     st.markdown(
-        '<div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-top:1.5rem;">',
+        '<div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:1rem;">',
         unsafe_allow_html=True,
     )
     
@@ -544,20 +504,18 @@ def _render_movers_cards(movers: dict):
     
     with col1:
         st.markdown(
-            '<div style="background:rgba(17, 24, 39, 0.6); backdrop-filter:blur(12px); '
-            'border:1px solid rgba(16,185,129,0.3); border-top:3px solid #10B981; '
-            'border-radius:12px; padding:1.25rem;">'
-            '<div style="font-size:0.75rem; font-weight:700; color:#34D399; text-transform:uppercase; '
-            'letter-spacing:0.05em; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">'
-            '<span>↗</span> Top Gainers</div>',
+            '<div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.2); '
+            'border-radius:12px; padding:1rem;">'
+            '<div style="font-size:0.75rem; font-weight:700; color:#10B981; text-transform:uppercase; '
+            'letter-spacing:1px; margin-bottom:0.8rem;">🚀 Top Gainers</div>',
             unsafe_allow_html=True,
         )
         for stock in movers.get("gainers", [])[:5]:
             st.markdown(
-                f'<div style="display:flex; justify-content:space-between; align-items:center; '
-                f'padding:0.625rem 0; border-bottom:1px solid rgba(255,255,255,0.06);">'
-                f'<span style="color:#F9FAFB; font-weight:600; font-size:0.875rem;">{stock["ticker"]}</span>'
-                f'<span style="color:#10B981; font-weight:700; font-size:0.875rem;">+{stock["change_pct"]:.2f}%</span>'
+                f'<div style="display:flex; justify-content:space-between; padding:0.3rem 0; '
+                f'border-bottom:1px solid rgba(255,255,255,0.05);">'
+                f'<span style="color:#E0DCF5; font-weight:600;">{stock["ticker"]}</span>'
+                f'<span style="color:#10B981; font-weight:700;">+{stock["change_pct"]:.2f}%</span>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -565,20 +523,18 @@ def _render_movers_cards(movers: dict):
     
     with col2:
         st.markdown(
-            '<div style="background:rgba(17, 24, 39, 0.6); backdrop-filter:blur(12px); '
-            'border:1px solid rgba(239,68,68,0.3); border-top:3px solid #EF4444; '
-            'border-radius:12px; padding:1.25rem;">'
-            '<div style="font-size:0.75rem; font-weight:700; color:#F87171; text-transform:uppercase; '
-            'letter-spacing:0.05em; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">'
-            '<span>↘</span> Top Losers</div>',
+            '<div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); '
+            'border-radius:12px; padding:1rem;">'
+            '<div style="font-size:0.75rem; font-weight:700; color:#EF4444; text-transform:uppercase; '
+            'letter-spacing:1px; margin-bottom:0.8rem;">📉 Top Losers</div>',
             unsafe_allow_html=True,
         )
         for stock in movers.get("losers", [])[:5]:
             st.markdown(
-                f'<div style="display:flex; justify-content:space-between; align-items:center; '
-                f'padding:0.625rem 0; border-bottom:1px solid rgba(255,255,255,0.06);">'
-                f'<span style="color:#F9FAFB; font-weight:600; font-size:0.875rem;">{stock["ticker"]}</span>'
-                f'<span style="color:#EF4444; font-weight:700; font-size:0.875rem;">{stock["change_pct"]:.2f}%</span>'
+                f'<div style="display:flex; justify-content:space-between; padding:0.3rem 0; '
+                f'border-bottom:1px solid rgba(255,255,255,0.05);">'
+                f'<span style="color:#E0DCF5; font-weight:600;">{stock["ticker"]}</span>'
+                f'<span style="color:#EF4444; font-weight:700;">{stock["change_pct"]:.2f}%</span>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -652,7 +608,7 @@ def _render_earnings_calendar(earnings: list):
         'border-radius:16px; padding:1.5rem; margin-top:1rem;">'
         '<div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">'
         '<span style="font-size:1.2rem;">📅</span>'
-        '<span style="font-size:0.8rem; font-weight:700; color:#60A5FA; text-transform:uppercase; '
+        '<span style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
         'letter-spacing:1.5px;">Upcoming Earnings</span>'
         '</div>',
         unsafe_allow_html=True,
@@ -670,7 +626,7 @@ def _render_earnings_calendar(earnings: list):
             day_name = ""
         
         st.markdown(
-            f'<div style="font-size:0.7rem; color:#2563EB; font-weight:600; margin-top:0.8rem; '
+            f'<div style="font-size:0.7rem; color:#6B5CE7; font-weight:600; margin-top:0.8rem; '
             f'margin-bottom:0.3rem; padding-bottom:0.2rem; border-bottom:1px solid rgba(107,92,231,0.15);">'
             f'{day_name} — {date_label}</div>',
             unsafe_allow_html=True,
@@ -739,7 +695,7 @@ def _render_news_feed(news: list):
         'border-radius:16px; padding:1.5rem; margin-top:1rem;">'
         '<div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">'
         '<span style="font-size:1.2rem;">📰</span>'
-        '<span style="font-size:0.8rem; font-weight:700; color:#60A5FA; text-transform:uppercase; '
+        '<span style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
         'letter-spacing:1.5px;">Market News</span>'
         '</div>',
         unsafe_allow_html=True,
@@ -768,7 +724,7 @@ def _render_news_feed(news: list):
             f'transition:background 0.2s; border-bottom:1px solid rgba(255,255,255,0.03);">'
             f'<div style="font-size:0.78rem; color:#E0DCF5; font-weight:500; line-height:1.35;">{item["title"]}</div>'
             f'<div style="display:flex; justify-content:space-between; margin-top:0.25rem;">'
-            f'<span style="font-size:0.65rem; color:#2563EB; font-weight:600;">{item["ticker"]}</span>'
+            f'<span style="font-size:0.65rem; color:#6B5CE7; font-weight:600;">{item["ticker"]}</span>'
             f'<span style="font-size:0.6rem; color:#8A85AD;">{item.get("publisher", "")} · {time_str}</span>'
             f'</div>'
             f'</a>',
@@ -860,7 +816,7 @@ def _render_sentiment_gauge(sentiment: dict):
         border-radius:16px; padding:1.5rem; margin-top:1rem; text-align:center;">
         <div style="display:flex; align-items:center; justify-content:center; gap:0.5rem; margin-bottom:1rem;">
             <span style="font-size:1.2rem;">🎯</span>
-            <span style="font-size:0.8rem; font-weight:700; color:#60A5FA; text-transform:uppercase;
+            <span style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase;
             letter-spacing:1.5px;">Market Sentiment</span>
         </div>
         <svg viewBox="0 0 200 120" width="200" height="120" style="margin:0 auto; display:block;">
@@ -927,7 +883,7 @@ def _render_sector_heatmap(sectors: list):
         'border-radius:16px; padding:1.5rem; margin-top:1rem;">'
         '<div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">'
         '<span style="font-size:1.2rem;">🗺️</span>'
-        '<span style="font-size:0.8rem; font-weight:700; color:#60A5FA; text-transform:uppercase; '
+        '<span style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
         'letter-spacing:1.5px;">Sector Performance</span>'
         '</div>'
         '<div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:0.5rem;">',
@@ -1256,7 +1212,7 @@ def _generate_pdf_html(cd) -> str:
         iv = _calc_iv(cd)
         if iv:
             valuation_html = f"""
-            <h3 style="color:#60A5FA; margin-top:24px;">Valuation Summary (DCF)</h3>
+            <h3 style="color:#9B8AFF; margin-top:24px;">Valuation Summary (DCF)</h3>
             <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">
             <tr><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:#B8B3D7;'>Intrinsic Value / Share</td><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:#E0DCF5; text-align:right;'>{cs}{iv['intrinsic_value_per_share']:.2f}</td></tr>
             <tr><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:#B8B3D7;'>Upside / (Downside)</td><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:{"#10B981" if iv["upside_pct"] > 0 else "#EF4444"}; text-align:right; font-weight:700;'>{iv['upside_pct']:+.1f}%</td></tr>
@@ -1270,7 +1226,7 @@ def _generate_pdf_html(cd) -> str:
     if cd.analyst_price_targets:
         t = cd.analyst_price_targets
         analyst_html = f"""
-        <h3 style="color:#60A5FA; margin-top:24px;">Analyst Price Targets</h3>
+        <h3 style="color:#9B8AFF; margin-top:24px;">Analyst Price Targets</h3>
         <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">
         <tr><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:#B8B3D7;'>Low</td><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:#E0DCF5; text-align:right;'>{cs}{t.get("low",0):.2f}</td></tr>
         <tr><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:#B8B3D7;'>Mean</td><td style='padding:6px 12px; border-bottom:1px solid #2A2D42; color:#E0DCF5; text-align:right;'>{cs}{t.get("mean",0):.2f}</td></tr>
@@ -1288,14 +1244,14 @@ def _generate_pdf_html(cd) -> str:
 <style>
 body {{ font-family: 'Inter', 'Segoe UI', sans-serif; background: #0B0E1A; color: #E0DCF5; max-width: 900px; margin: 0 auto; padding: 40px 30px; }}
 h1 {{ color: #fff; margin-bottom: 4px; }}
-h2 {{ color: #60A5FA; border-bottom: 2px solid #2563EB; padding-bottom: 6px; margin-top: 32px; }}
-h3 {{ color: #60A5FA; }}
+h2 {{ color: #9B8AFF; border-bottom: 2px solid #6B5CE7; padding-bottom: 6px; margin-top: 32px; }}
+h3 {{ color: #9B8AFF; }}
 .subtitle {{ color: #8A85AD; font-size: 14px; margin-bottom: 24px; }}
 .price {{ font-size: 28px; font-weight: 800; color: #fff; }}
 .meta {{ color: #8A85AD; font-size: 12px; margin-top: 8px; }}
 table {{ width: 100%; border-collapse: collapse; margin-bottom: 16px; }}
-th {{ background: #2563EB; color: white; padding: 8px 12px; text-align: left; font-size: 12px; }}
-@media print {{ body {{ background: white; color: #333; }} h1, .price {{ color: #333; }} h2, h3 {{ color: #2563EB; }} }}
+th {{ background: #6B5CE7; color: white; padding: 8px 12px; text-align: left; font-size: 12px; }}
+@media print {{ body {{ background: white; color: #333; }} h1, .price {{ color: #333; }} h2, h3 {{ color: #6B5CE7; }} }}
 </style></head><body>
 <h1>{cd.name} ({cd.ticker})</h1>
 <div class="subtitle">{cd.sector} | {cd.industry} | {cd.exchange}</div>
@@ -1650,7 +1606,7 @@ def _build_terminal_value_sensitivity(cd, base_dcf: dict, key: str = "tv_sensiti
     discount_rates = [0.08, 0.10, 0.12]
     
     fig = go.Figure()
-    colors = ["#2563EB", "#E8638B", "#10B981"]
+    colors = ["#6B5CE7", "#E8638B", "#10B981"]
     
     for i, dr in enumerate(discount_rates):
         prices = []
@@ -1708,7 +1664,7 @@ def _build_price_performance_chart(tickers: list, period: str = "1y", key: str =
         return
     
     fig = go.Figure()
-    colors = ["#2563EB", "#E8638B", "#10B981", "#F5A623", "#3B82F6", 
+    colors = ["#6B5CE7", "#E8638B", "#10B981", "#F5A623", "#3B82F6", 
               "#8B5CF6", "#EC4899", "#14B8A6", "#F59E0B", "#6366F1"]
     
     for i, ticker in enumerate(tickers[:10]):
@@ -1807,7 +1763,7 @@ def _build_comparison_radar(companies: list, key: str = "compare_radar"):
     
     fig = go.Figure()
     
-    colors = ["#2563EB", "#E8638B", "#10B981", "#F5A623", "#3B82F6"]
+    colors = ["#6B5CE7", "#E8638B", "#10B981", "#F5A623", "#3B82F6"]
     
     for i, cd in enumerate(companies[:5]):  # Max 5 companies
         values = []
@@ -1956,8 +1912,8 @@ _CHART_LAYOUT_BASE = dict(
     dragmode="zoom",  # Enable zoom by default
     modebar=dict(
         bgcolor="rgba(0,0,0,0)",
-        color="#2563EB",
-        activecolor="#60A5FA",
+        color="#6B5CE7",
+        activecolor="#9B8AFF",
     ),
 )
 
@@ -2004,1117 +1960,2141 @@ st.markdown(
 # ══════════════════════════════════════════════════════════════
 # COMPREHENSIVE CUSTOM CSS — Immersive space theme
 # ══════════════════════════════════════════════════════════════
-st.markdown("""
+st.markdown(f"""
 <style>
-/* ══════════════════════════════════════════════════════════
-   ORBITAL v7.0 — Modern Fintech Design System
-   Inspired by Linear, Vercel, Stripe, Bloomberg Terminal
-   ══════════════════════════════════════════════════════════ */
-
-/* ── GLOBAL RESET & TYPOGRAPHY ──────────────────────────── */
+/* ── GLOBAL ──────────────────────────────────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
-html, body, [class*="css"] {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-}
+html, body, [class*="css"] {{
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}}
 
-/* ── BASE BACKGROUND & LAYOUT ───────────────────────────── */
-[data-testid="stApp"] {
-    background: #0C0F1A !important;
-    background-image: 
-        radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.08) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.06) 0px, transparent 50%);
-    background-attachment: fixed;
-}
+[data-testid="stApp"] {{
+    background: linear-gradient(170deg, #020515, #0B0E1A, #151933, #1a1040) !important;
+}}
 
-.block-container {
-    padding-top: 1rem !important;
+.block-container {{
+    padding-top: 0 !important;
     padding-bottom: 2rem;
-    max-width: 1440px;
+    max-width: 1400px;
     position: relative;
-}
+    z-index: 1;
+}}
 
-/* ── MESH GRADIENT OVERLAY (subtle) ────────────────────── */
-[data-testid="stApp"]::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: 
-        repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.01) 2px, rgba(255,255,255,0.01) 4px),
-        repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(255,255,255,0.01) 2px, rgba(255,255,255,0.01) 4px);
-    pointer-events: none;
-    z-index: 0;
-    opacity: 0.3;
-}
+/* ── GLOBAL STARFIELD (fixed behind all content) ──────── */
+.global-starfield {{
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 0; pointer-events: none; overflow: hidden;
+}}
+.global-star-1 {{
+    position: absolute; top: 0; left: 0; width: 1px; height: 1px;
+    box-shadow: {_STARS1};
+    opacity: 0.4;
+    animation: starDrift1 150s linear infinite;
+}}
+.global-star-1::after {{
+    content: ''; position: absolute; top: 2000px; left: 0;
+    width: 1px; height: 1px;
+    box-shadow: {_STARS1};
+}}
+.global-star-2 {{
+    position: absolute; top: 0; left: 0; width: 1.5px; height: 1.5px;
+    box-shadow: {_STARS2};
+    opacity: 0.5;
+    animation: starDrift2 100s linear infinite;
+}}
+.global-star-2::after {{
+    content: ''; position: absolute; top: 2000px; left: 0;
+    width: 1.5px; height: 1.5px;
+    box-shadow: {_STARS2};
+}}
+.global-star-3 {{
+    position: absolute; top: 0; left: 0; width: 2px; height: 2px;
+    box-shadow: {_STARS3};
+    opacity: 0.6;
+    animation: starDrift3 75s linear infinite;
+}}
+.global-star-3::after {{
+    content: ''; position: absolute; top: 2000px; left: 0;
+    width: 2px; height: 2px;
+    box-shadow: {_STARS3};
+}}
+.global-nebula {{
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background:
+        radial-gradient(ellipse at 30% 40%, rgba(107,92,231,0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 60%, rgba(232,99,139,0.04) 0%, transparent 50%);
+    animation: nebulaPulse 30s ease-in-out infinite;
+}}
 
-/* ── GLOBAL TEXT STYLING ────────────────────────────────── */
-[data-testid="stAppViewContainer"] { 
-    color: #E5E7EB; 
-}
+/* ── GLOBAL TEXT OVERRIDES FOR NATIVE STREAMLIT ELEMENTS ─ */
+[data-testid="stAppViewContainer"] {{ color: #E0DCF5; }}
+[data-testid="stAlert"] {{ background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.1) !important; color: #E0DCF5 !important; }}
+[data-testid="stAlert"] p {{ color: #E0DCF5 !important; }}
+[data-testid="stExpanderDetails"] {{ background: rgba(255,255,255,0.02) !important; }}
 
-h1, h2, h3, h4, h5, h6 {
-    color: #F9FAFB !important;
-    font-weight: 700 !important;
-    letter-spacing: -0.02em !important;
-}
+/* ── HIDE STREAMLIT DEFAULT CHROME ────────────────────── */
+#MainMenu {{ visibility: hidden; }}
+header {{ visibility: hidden; }}
+footer {{ visibility: hidden; }}
+[data-testid="stToolbar"] {{ display: none !important; }}
 
-h1 {
-    font-size: 2.5rem !important;
-    background: linear-gradient(135deg, #F9FAFB 0%, #9CA3AF 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
+/* ── CUSTOM SCROLLBAR ─────────────────────────────────── */
+::-webkit-scrollbar {{ width: 6px; height: 6px; }}
+::-webkit-scrollbar-track {{ background: rgba(0,0,0,0.1); }}
+::-webkit-scrollbar-thumb {{ background: rgba(107,92,231,0.5); border-radius: 3px; }}
+::-webkit-scrollbar-thumb:hover {{ background: rgba(107,92,231,0.75); }}
+* {{ scrollbar-width: thin; scrollbar-color: rgba(107,92,231,0.5) rgba(0,0,0,0.1); }}
 
-h2 {
-    font-size: 1.875rem !important;
-}
+/* ── TAB STYLING (rounded, active indicator) ──────────── */
+[data-testid="stTabs"] button[role="tab"] {{
+    border-radius: 10px 10px 0 0 !important;
+    padding: 0.5rem 1.2rem !important;
+    font-weight: 600 !important;
+    color: #8A85AD !important;
+    border: none !important;
+    background: rgba(255,255,255,0.02) !important;
+    transition: all 0.3s ease !important;
+}}
+[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {{
+    color: #9B8AFF !important;
+    background: rgba(107,92,231,0.12) !important;
+    border-bottom: 3px solid #6B5CE7 !important;
+}}
+[data-testid="stTabs"] button[role="tab"]:hover {{
+    color: #E0DCF5 !important;
+    background: rgba(107,92,231,0.08) !important;
+}}
 
-h3 {
-    font-size: 1.5rem !important;
-}
+/* ── METRIC CARD GRADIENT BACKGROUNDS ─────────────────── */
+[data-testid="stMetric"] {{
+    background: linear-gradient(135deg, rgba(107,92,231,0.08) 0%, rgba(232,99,139,0.04) 100%) !important;
+    border: 1px solid rgba(107,92,231,0.15) !important;
+    border-radius: 14px !important;
+    padding: 0.8rem 1rem !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}}
+[data-testid="stMetric"]:hover {{
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 20px rgba(107,92,231,0.15) !important;
+}}
+[data-testid="stMetric"] label {{ color: #8A85AD !important; font-weight: 600 !important; }}
+[data-testid="stMetric"] [data-testid="stMetricValue"] {{ color: #E0DCF5 !important; }}
 
-p, div, span, label {
-    color: #D1D5DB !important;
-}
-
-/* ── STREAMLIT CHROME REMOVAL ───────────────────────────── */
-#MainMenu { visibility: hidden; }
-header { visibility: hidden; }
-footer { visibility: hidden; }
-[data-testid="stToolbar"] { display: none !important; }
-[data-testid="stStatusWidget"] { display: none !important; }
-[data-testid="stDecoration"] { display: none !important; }
-
-/* ── CUSTOM SCROLLBAR (minimal) ─────────────────────────── */
-::-webkit-scrollbar { 
-    width: 6px; 
-    height: 6px; 
-}
-::-webkit-scrollbar-track { 
-    background: rgba(0,0,0,0.2); 
-    border-radius: 3px;
-}
-::-webkit-scrollbar-thumb { 
-    background: rgba(37, 99, 235, 0.5); 
-    border-radius: 3px; 
-    transition: background 0.2s;
-}
-::-webkit-scrollbar-thumb:hover { 
-    background: rgba(37, 99, 235, 0.8); 
-}
-* { 
-    scrollbar-width: thin; 
-    scrollbar-color: rgba(37, 99, 235, 0.5) rgba(0,0,0,0.2); 
-}
-
-/* ── GLASS-MORPHISM CARDS ───────────────────────────────── */
-.glass-card {
-    background: rgba(17, 24, 39, 0.6) !important;
-    backdrop-filter: blur(12px) saturate(180%);
-    -webkit-backdrop-filter: blur(12px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
-    padding: 1.5rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.glass-card:hover {
-    transform: translateY(-2px);
-    border-color: rgba(37, 99, 235, 0.3);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
-}
-
-/* ── METRIC CARDS (glass with gradient accents) ─────────── */
-.metric-card {
-    background: rgba(17, 24, 39, 0.6);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    padding: 1.25rem;
-    position: relative;
+/* ── EXPANDER STYLING ─────────────────────────────────── */
+[data-testid="stExpander"] {{
+    border: 1px solid rgba(107,92,231,0.15) !important;
+    border-radius: 14px !important;
     overflow: hidden;
-    transition: all 0.3s ease;
-}
+    transition: border-color 0.3s ease !important;
+}}
+[data-testid="stExpander"]:hover {{
+    border-color: rgba(107,92,231,0.35) !important;
+}}
+[data-testid="stExpander"] summary {{
+    border-radius: 14px !important;
+    transition: background 0.3s ease !important;
+}}
+[data-testid="stExpanderDetails"] {{
+    animation: fadeInUp 0.3s ease-out !important;
+}}
 
-.metric-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, #2563EB, #10B981);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
+/* ── ANIMATIONS (15+ keyframes) ────────────────────────── */
+@keyframes ticker-scroll {{
+    from {{ transform: translateX(0); }}
+    to {{ transform: translateX(-50%); }}
+}}
+@keyframes fadeInUp {{
+    from {{ opacity: 0; transform: translateY(30px) scale(0.98); }}
+    to {{ opacity: 1; transform: translateY(0) scale(1); }}
+}}
+@keyframes fadeInScale {{
+    from {{ opacity: 0; transform: scale(0.9); }}
+    to {{ opacity: 1; transform: scale(1); }}
+}}
+@keyframes starDrift1 {{
+    from {{ transform: translateY(0); }}
+    to {{ transform: translateY(-2000px); }}
+}}
+@keyframes starDrift2 {{
+    from {{ transform: translateY(0); }}
+    to {{ transform: translateY(-2000px); }}
+}}
+@keyframes starDrift3 {{
+    from {{ transform: translateY(0); }}
+    to {{ transform: translateY(-2000px); }}
+}}
+@keyframes shootingStar {{
+    0% {{ transform: translate(0, 0) rotate(-45deg); opacity: 0; }}
+    5% {{ opacity: 1; }}
+    40% {{ opacity: 1; }}
+    100% {{ transform: translate(-600px, 600px) rotate(-45deg); opacity: 0; }}
+}}
+@keyframes nebulaPulse {{
+    0%, 100% {{ opacity: 0.4; transform: scale(1); }}
+    50% {{ opacity: 0.7; transform: scale(1.05); }}
+}}
+@keyframes float1 {{
+    0%, 100% {{ transform: translate(0, 0); }}
+    25% {{ transform: translate(15px, -20px); }}
+    50% {{ transform: translate(-10px, -35px); }}
+    75% {{ transform: translate(-20px, -10px); }}
+}}
+@keyframes float2 {{
+    0%, 100% {{ transform: translate(0, 0); }}
+    25% {{ transform: translate(-20px, 15px); }}
+    50% {{ transform: translate(10px, 25px); }}
+    75% {{ transform: translate(25px, -15px); }}
+}}
+@keyframes float3 {{
+    0%, 100% {{ transform: translate(0, 0); }}
+    33% {{ transform: translate(20px, -25px); }}
+    66% {{ transform: translate(-15px, 20px); }}
+}}
+@keyframes float4 {{
+    0%, 100% {{ transform: translate(0, 0); }}
+    20% {{ transform: translate(-15px, -10px); }}
+    40% {{ transform: translate(10px, -30px); }}
+    60% {{ transform: translate(25px, -5px); }}
+    80% {{ transform: translate(-5px, 15px); }}
+}}
+@keyframes titleGlow {{
+    0%, 100% {{ opacity: 0.3; transform: scale(1); }}
+    50% {{ opacity: 0.6; transform: scale(1.1); }}
+}}
+@keyframes gradientShift {{
+    0% {{ background-position: 0% 50%; }}
+    50% {{ background-position: 100% 50%; }}
+    100% {{ background-position: 0% 50%; }}
+}}
+@keyframes shimmerLine {{
+    0% {{ background-position: -200% 0; }}
+    100% {{ background-position: 200% 0; }}
+}}
+@keyframes gentlePulse {{
+    0%, 100% {{ opacity: 1; }}
+    50% {{ opacity: 0.8; }}
+}}
+@keyframes glowPulse {{
+    0%, 100% {{ box-shadow: 0 0 5px rgba(107,92,231,0.3); }}
+    50% {{ box-shadow: 0 0 15px rgba(107,92,231,0.6); }}
+}}
+@keyframes twinkle {{
+    0%, 100% {{ opacity: 0.3; }}
+    50% {{ opacity: 1; }}
+}}
+@keyframes pulse-glow {{
+    0%, 100% {{ opacity: 0.6; }}
+    50% {{ opacity: 1; }}
+}}
+@keyframes shimmer {{
+    0% {{ background-position: -200% 0; }}
+    100% {{ background-position: 200% 0; }}
+}}
+@keyframes borderGlow {{
+    0%, 100% {{ border-color: rgba(107,92,231,0.3); }}
+    50% {{ border-color: rgba(155,138,255,0.6); }}
+}}
+@keyframes rocketLaunch {{
+    0% {{ transform: translateY(0) scale(1); opacity: 1; }}
+    60% {{ transform: translateY(-120px) scale(0.9); opacity: 0.8; }}
+    100% {{ transform: translateY(-300px) scale(0.6); opacity: 0; }}
+}}
+@keyframes flameFlicker {{
+    0%, 100% {{ transform: scaleY(1) scaleX(1); opacity: 0.9; }}
+    25% {{ transform: scaleY(1.3) scaleX(0.85); opacity: 1; }}
+    50% {{ transform: scaleY(0.8) scaleX(1.15); opacity: 0.85; }}
+    75% {{ transform: scaleY(1.15) scaleX(0.9); opacity: 1; }}
+}}
+@keyframes exhaustTrail {{
+    0% {{ opacity: 0.6; transform: translateY(0); }}
+    100% {{ opacity: 0; transform: translateY(40px); }}
+}}
+@keyframes missionPulse {{
+    0%, 100% {{ box-shadow: 0 0 8px rgba(107,92,231,0.2); }}
+    50% {{ box-shadow: 0 0 20px rgba(107,92,231,0.5), 0 0 40px rgba(107,92,231,0.15); }}
+}}
+@keyframes checkPop {{
+    0% {{ transform: scale(0); }}
+    60% {{ transform: scale(1.25); }}
+    100% {{ transform: scale(1); }}
+}}
+@keyframes progressGlow {{
+    0% {{ background-position: -200% 0; }}
+    100% {{ background-position: 200% 0; }}
+}}
+@keyframes spin {{
+    from {{ transform: rotate(0deg); }}
+    to {{ transform: rotate(360deg); }}
+}}
+@keyframes slideInLeft {{
+    from {{ opacity: 0; transform: translateX(-20px); }}
+    to {{ opacity: 1; transform: translateX(0); }}
+}}
+@keyframes slideInRight {{
+    from {{ opacity: 0; transform: translateX(20px); }}
+    to {{ opacity: 1; transform: translateX(0); }}
+}}
+@keyframes countUp {{
+    from {{ opacity: 0; transform: translateY(8px); }}
+    to {{ opacity: 1; transform: translateY(0); }}
+}}
+@keyframes sparklinePulse {{
+    0%, 100% {{ stroke-opacity: 0.8; }}
+    50% {{ stroke-opacity: 1; }}
+}}
+@keyframes numberGrow {{
+    from {{ transform: scale(0.5); opacity: 0; }}
+    to {{ transform: scale(1); opacity: 1; }}
+}}
+@keyframes badgePop {{
+    0% {{ transform: scale(0); }}
+    70% {{ transform: scale(1.1); }}
+    100% {{ transform: scale(1); }}
+}}
+@keyframes borderShimmer {{
+    0% {{ background-position: 0% 0%; }}
+    100% {{ background-position: 100% 100%; }}
+}}
+@keyframes cardReveal {{
+    from {{ opacity: 0; transform: translateY(15px) scale(0.98); }}
+    to {{ opacity: 1; transform: none; }}
+}}
+@keyframes pulseRing {{
+    0% {{ transform: scale(1); opacity: 0.6; }}
+    100% {{ transform: scale(1.5); opacity: 0; }}
+}}
+@keyframes sb-fill {{
+    from {{ max-width: 0; }}
+    to {{ max-width: 100%; }}
+}}
+@keyframes sb-btn-pulse {{
+    0%, 100% {{ box-shadow: 0 4px 20px rgba(107,92,231,0.3); }}
+    50% {{ box-shadow: 0 4px 30px rgba(107,92,231,0.55); }}
+}}
+@keyframes orbBreath1 {{
+    0%, 100% {{ filter: blur(80px) hue-rotate(0deg); }}
+    50% {{ filter: blur(80px) hue-rotate(30deg); }}
+}}
+@keyframes orbBreath4 {{
+    0%, 100% {{ filter: blur(90px) hue-rotate(0deg); }}
+    50% {{ filter: blur(90px) hue-rotate(30deg); }}
+}}
+@keyframes bounceIn {{
+    0%   {{ opacity: 0; transform: scale(0.85) translateY(30px); }}
+    50%  {{ opacity: 1; transform: scale(1.03) translateY(-5px); }}
+    70%  {{ transform: scale(0.98) translateY(2px); }}
+    100% {{ opacity: 1; transform: scale(1) translateY(0); }}
+}}
+@keyframes slideUpBounce {{
+    0%   {{ opacity: 0; transform: translateY(40px); }}
+    60%  {{ opacity: 1; transform: translateY(-8px); }}
+    80%  {{ transform: translateY(3px); }}
+    100% {{ transform: translateY(0); }}
+}}
+@keyframes chartGlow {{
+    0%, 100% {{ box-shadow: 0 2px 15px rgba(107,92,231,0.15); }}
+    50%      {{ box-shadow: 0 8px 35px rgba(107,92,231,0.3); }}
+}}
+/* Elastic bounce for chart containers — chartscss.org inspired */
+@keyframes chartBounceIn {{
+    0%   {{ transform: scale(0.92) translateY(20px); opacity: 0; }}
+    40%  {{ transform: scale(1.03) translateY(-4px); opacity: 1; }}
+    60%  {{ transform: scaleY(0.97) scaleX(1.02); }}
+    80%  {{ transform: scaleY(1.01) scaleX(0.99); }}
+    100% {{ transform: scale(1); }}
+}}
+/* Glow pulse on chart data */
+@keyframes dataGlowPulse {{
+    0%, 100% {{ box-shadow: none; }}
+    50%      {{ box-shadow: 0 0 4px 0 rgba(107,92,231,0.4), 0 0 20px 5px rgba(107,92,231,0.15); }}
+}}
+/* Scanner keyframes (profile loading) */
+@keyframes scannerSweep {{
+    0%, 100% {{ transform: rotate(-15deg); }}
+    50%      {{ transform: rotate(15deg); }}
+}}
+@keyframes scannerLock {{
+    0%   {{ transform: scale(1); filter: drop-shadow(0 0 12px rgba(6,182,212,0.5)); }}
+    50%  {{ transform: scale(1.15); filter: drop-shadow(0 0 25px rgba(16,185,129,0.7)); }}
+    100% {{ transform: scale(1); filter: drop-shadow(0 0 15px rgba(16,185,129,0.5)); }}
+}}
+@keyframes scannerBeamSweep {{
+    0%   {{ transform: scaleX(0.3) rotate(-20deg); opacity: 0.3; }}
+    50%  {{ transform: scaleX(1) rotate(0deg); opacity: 0.8; }}
+    100% {{ transform: scaleX(0.3) rotate(20deg); opacity: 0.3; }}
+}}
+@keyframes scannerRingPulse {{
+    0%   {{ transform: translate(-50%, -50%) scale(1); opacity: 0.4; }}
+    100% {{ transform: translate(-50%, -50%) scale(2); opacity: 0; }}
+}}
+@keyframes scannerPhasePulse {{
+    0%, 100% {{ box-shadow: 0 0 8px rgba(6,182,212,0.2); }}
+    50%      {{ box-shadow: 0 0 20px rgba(6,182,212,0.5), 0 0 40px rgba(6,182,212,0.15); }}
+}}
 
-.metric-card:hover::before {
-    opacity: 1;
-}
+/* ── ORBITAL LOGO ANIMATIONS ───────────────────────────── */
+@keyframes orbitRotate {{
+    0%   {{ transform: rotate(0deg); }}
+    100% {{ transform: rotate(360deg); }}
+}}
+@keyframes orbitRotateReverse {{
+    0%   {{ transform: rotate(360deg); }}
+    100% {{ transform: rotate(0deg); }}
+}}
+@keyframes orbitPulse {{
+    0%, 100% {{ opacity: 0.4; transform: scale(1); }}
+    50%      {{ opacity: 1; transform: scale(1.1); }}
+}}
+@keyframes particleGlow {{
+    0%, 100% {{ box-shadow: 0 0 4px currentColor, 0 0 8px currentColor; }}
+    50%      {{ box-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor; }}
+}}
+@keyframes coreGlow {{
+    0%, 100% {{ box-shadow: 0 0 15px rgba(107,92,231,0.6), 0 0 30px rgba(107,92,231,0.3); }}
+    50%      {{ box-shadow: 0 0 25px rgba(107,92,231,0.9), 0 0 50px rgba(107,92,231,0.5), 0 0 80px rgba(107,92,231,0.2); }}
+}}
+@keyframes ringFlash {{
+    0%, 90%, 100% {{ opacity: 0.3; }}
+    95%           {{ opacity: 1; }}
+}}
 
-.metric-card:hover {
-    transform: translateY(-4px);
-    border-color: rgba(37, 99, 235, 0.4);
-    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.3);
-}
-
-.metric-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #9CA3AF !important;
-    margin-bottom: 0.5rem;
-}
-
-.metric-value {
-    font-size: 1.875rem;
-    font-weight: 700;
-    color: #F9FAFB !important;
-    line-height: 1;
-}
-
-.metric-change {
-    font-size: 0.875rem;
-    font-weight: 500;
-    margin-top: 0.5rem;
-}
-
-.metric-change.positive {
-    color: #10B981 !important;
-}
-
-.metric-change.negative {
-    color: #EF4444 !important;
-}
-
-/* ── SIDEBAR STYLING ────────────────────────────────────── */
-[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0C0F1A 0%, #111827 100%) !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-[data-testid="stSidebar"] > div:first-child {
-    background: transparent !important;
-}
-
-/* Sidebar active state */
-[data-testid="stSidebar"] .element-container {
-    transition: all 0.2s ease;
-}
-
-/* ── BUTTONS (gradient fills) ───────────────────────────── */
-.stButton > button {
-    background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 8px !important;
-    padding: 0.625rem 1.25rem !important;
-    font-weight: 600 !important;
-    font-size: 0.875rem !important;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2) !important;
-    text-transform: none !important;
-}
-
-.stButton > button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 8px 16px rgba(37, 99, 235, 0.3) !important;
-    background: linear-gradient(135deg, #1D4ED8 0%, #1E40AF 100%) !important;
-}
-
-.stButton > button:active {
-    transform: translateY(0);
-}
-
-/* Secondary button variant */
-.stButton.secondary > button {
-    background: rgba(55, 65, 81, 0.8) !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
-}
-
-.stButton.secondary > button:hover {
-    background: rgba(75, 85, 104, 0.9) !important;
-}
-
-/* ── TABS (clean with active indicator) ────────────────── */
-[data-testid="stTabs"] {
-    gap: 0.5rem;
-}
-
-[data-testid="stTabs"] button[role="tab"] {
-    border-radius: 8px 8px 0 0 !important;
-    padding: 0.625rem 1.25rem !important;
-    font-weight: 600 !important;
-    font-size: 0.875rem !important;
-    color: #9CA3AF !important;
-    border: none !important;
-    background: transparent !important;
-    border-bottom: 2px solid transparent !important;
-    transition: all 0.2s ease !important;
+/* ── ORBITAL LOGO COMPONENT ────────────────────────────── */
+.orbital-logo {{
     position: relative;
-}
-
-[data-testid="stTabs"] button[role="tab"]:hover {
-    color: #D1D5DB !important;
-    background: rgba(255, 255, 255, 0.03) !important;
-}
-
-[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
-    color: #2563EB !important;
-    background: rgba(37, 99, 235, 0.08) !important;
-    border-bottom: 2px solid #2563EB !important;
-}
-
-[data-testid="stTabs"] > div {
-    gap: 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-/* ── INPUT FIELDS ───────────────────────────────────────── */
-.stTextInput > div > div > input,
-.stSelectbox > div > div > select,
-.stNumberInput > div > div > input {
-    background: rgba(17, 24, 39, 0.6) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 8px !important;
-    color: #F9FAFB !important;
-    padding: 0.625rem !important;
-    font-size: 0.875rem !important;
-    transition: all 0.2s ease !important;
-}
-
-.stTextInput > div > div > input:focus,
-.stSelectbox > div > div > select:focus,
-.stNumberInput > div > div > input:focus {
-    border-color: #2563EB !important;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
-    outline: none !important;
-}
-
-.stTextInput > label,
-.stSelectbox > label,
-.stNumberInput > label {
-    font-size: 0.75rem !important;
-    font-weight: 600 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
-    color: #9CA3AF !important;
-}
-
-/* ── DATAFRAMES & TABLES ────────────────────────────────── */
-[data-testid="stDataFrame"] {
-    background: rgba(17, 24, 39, 0.6) !important;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    border-radius: 12px !important;
-    overflow: hidden !important;
-}
-
-.dataframe {
-    background: transparent !important;
-    color: #E5E7EB !important;
-}
-
-.dataframe thead th {
-    background: rgba(31, 41, 55, 0.8) !important;
-    color: #F9FAFB !important;
-    font-weight: 700 !important;
-    font-size: 0.75rem !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
-    padding: 0.75rem !important;
-    border-bottom: 2px solid rgba(37, 99, 235, 0.3) !important;
-}
-
-.dataframe tbody tr {
-    transition: background 0.15s ease;
-}
-
-.dataframe tbody tr:nth-child(even) {
-    background: rgba(31, 41, 55, 0.3) !important;
-}
-
-.dataframe tbody tr:hover {
-    background: rgba(37, 99, 235, 0.1) !important;
-}
-
-.dataframe tbody td {
-    padding: 0.625rem !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
-    color: #D1D5DB !important;
-}
-
-/* ── EXPANDERS ──────────────────────────────────────────── */
-[data-testid="stExpander"] {
-    background: rgba(17, 24, 39, 0.4) !important;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    border-radius: 12px !important;
-    overflow: hidden;
-    margin-bottom: 1rem;
-}
-
-[data-testid="stExpander"] summary {
-    background: rgba(31, 41, 55, 0.5) !important;
-    color: #F9FAFB !important;
-    font-weight: 600 !important;
-    padding: 1rem !important;
-    border-radius: 12px !important;
-    transition: all 0.2s ease;
-}
-
-[data-testid="stExpander"] summary:hover {
-    background: rgba(37, 99, 235, 0.1) !important;
-}
-
-[data-testid="stExpanderDetails"] {
-    background: transparent !important;
-    padding: 1rem !important;
-}
-
-/* ── ALERTS & NOTIFICATIONS ─────────────────────────────── */
-[data-testid="stAlert"] {
-    background: rgba(17, 24, 39, 0.8) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 8px !important;
-    padding: 1rem !important;
-    backdrop-filter: blur(8px);
-}
-
-[data-testid="stAlert"][data-baseweb="notification"] {
-    border-left: 3px solid #2563EB !important;
-}
-
-[data-testid="stAlert"] p {
-    color: #E5E7EB !important;
-}
-
-/* Info alert */
-.stAlert.info {
-    border-left: 3px solid #2563EB !important;
-    background: rgba(37, 99, 235, 0.1) !important;
-}
-
-/* Success alert */
-.stAlert.success {
-    border-left: 3px solid #10B981 !important;
-    background: rgba(16, 185, 129, 0.1) !important;
-}
-
-/* Warning alert */
-.stAlert.warning {
-    border-left: 3px solid #F59E0B !important;
-    background: rgba(245, 158, 11, 0.1) !important;
-}
-
-/* Error alert */
-.stAlert.error {
-    border-left: 3px solid #EF4444 !important;
-    background: rgba(239, 68, 68, 0.1) !important;
-}
-
-/* ── PROGRESS BARS ──────────────────────────────────────── */
-.stProgress > div > div > div {
-    background: linear-gradient(90deg, #2563EB, #10B981) !important;
-    border-radius: 4px !important;
-    position: relative;
-    overflow: hidden;
-}
-
-.stProgress > div > div > div::after {
-    content: '';
+    width: 140px; height: 140px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}}
+.orbital-text {{
     position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    right: 0;
-    background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(255, 255, 255, 0.3),
-        transparent
-    );
-    animation: shimmer 2s infinite;
-}
-
-@keyframes shimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
-}
-
-.stProgress > div > div {
-    background: rgba(31, 41, 55, 0.5) !important;
-    border-radius: 4px !important;
-}
-
-/* ── SPINNERS & LOADERS ─────────────────────────────────── */
-.stSpinner > div {
-    border-color: rgba(37, 99, 235, 0.3) !important;
-    border-top-color: #2563EB !important;
-}
-
-/* ── CHECKBOXES & RADIO BUTTONS ─────────────────────────── */
-.stCheckbox > label {
-    color: #E5E7EB !important;
-    font-size: 0.875rem !important;
-}
-
-.stRadio > label {
-    color: #E5E7EB !important;
-    font-size: 0.875rem !important;
-}
-
-/* ── SLIDERS ────────────────────────────────────────────── */
-.stSlider > div > div > div > div {
-    background: #2563EB !important;
-}
-
-.stSlider > div > div > div {
-    background: rgba(31, 41, 55, 0.5) !important;
-}
-
-/* ── FILE UPLOADER ──────────────────────────────────────── */
-[data-testid="stFileUploader"] {
-    background: rgba(17, 24, 39, 0.6) !important;
-    border: 2px dashed rgba(255, 255, 255, 0.2) !important;
-    border-radius: 12px !important;
-    padding: 2rem !important;
-    transition: all 0.2s ease;
-}
-
-[data-testid="stFileUploader"]:hover {
-    border-color: rgba(37, 99, 235, 0.5) !important;
-    background: rgba(37, 99, 235, 0.05) !important;
-}
-
-/* ── DOWNLOAD BUTTON ────────────────────────────────────── */
-.stDownloadButton > button {
-    background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 8px !important;
-    padding: 0.625rem 1.25rem !important;
-    font-weight: 600 !important;
-    transition: all 0.2s ease !important;
-    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2) !important;
-}
-
-.stDownloadButton > button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 8px 16px rgba(16, 185, 129, 0.3) !important;
-    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
-}
-
-/* ── METRICS (native Streamlit) ─────────────────────────── */
-[data-testid="stMetricValue"] {
-    font-size: 2rem !important;
-    font-weight: 700 !important;
-    color: #F9FAFB !important;
-}
-
-[data-testid="stMetricLabel"] {
-    font-size: 0.75rem !important;
-    font-weight: 600 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
-    color: #9CA3AF !important;
-}
-
-[data-testid="stMetricDelta"] {
-    font-size: 0.875rem !important;
-    font-weight: 500 !important;
-}
-
-[data-testid="stMetricDeltaIcon-Up"] {
-    color: #10B981 !important;
-}
-
-[data-testid="stMetricDeltaIcon-Down"] {
-    color: #EF4444 !important;
-}
-
-/* ── COLUMNS & CONTAINERS ───────────────────────────────── */
-.element-container {
-    margin-bottom: 1rem;
-}
-
-/* ── TOAST NOTIFICATIONS ────────────────────────────────── */
-.stToast {
-    background: rgba(17, 24, 39, 0.95) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 8px !important;
-    backdrop-filter: blur(12px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
-}
-
-/* ── PLOTLY CHART STYLING ───────────────────────────────── */
-.js-plotly-plot .plotly .main-svg {
-    border-radius: 12px;
-    background: rgba(17, 24, 39, 0.4) !important;
-}
-
-/* ── ANIMATIONS ─────────────────────────────────────────── */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.fade-in {
-    animation: fadeIn 0.4s ease-out;
-}
-
-@keyframes slideInRight {
-    from {
-        opacity: 0;
-        transform: translateX(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-.slide-in-right {
-    animation: slideInRight 0.4s ease-out;
-}
-
-@keyframes pulse {
-    0%, 100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.5;
-    }
-}
-
-.pulse {
-    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* ── COUNT-UP ANIMATION ─────────────────────────────────── */
-@keyframes countUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.count-up {
-    animation: countUp 0.6s ease-out;
-}
-
-/* ── HOVER LIFT EFFECT ──────────────────────────────────── */
-.hover-lift {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.hover-lift:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
-}
-
-/* ── GRADIENT TEXT ──────────────────────────────────────── */
-.gradient-text {
-    background: linear-gradient(135deg, #2563EB 0%, #10B981 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-/* ── BADGE STYLES ───────────────────────────────────────── */
-.badge {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.badge-blue {
-    background: rgba(37, 99, 235, 0.15);
-    color: #60A5FA;
-    border: 1px solid rgba(37, 99, 235, 0.3);
-}
-
-.badge-green {
-    background: rgba(16, 185, 129, 0.15);
-    color: #34D399;
-    border: 1px solid rgba(16, 185, 129, 0.3);
-}
-
-.badge-red {
-    background: rgba(239, 68, 68, 0.15);
-    color: #F87171;
-    border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-.badge-yellow {
-    background: rgba(245, 158, 11, 0.15);
-    color: #FBBF24;
-    border: 1px solid rgba(245, 158, 11, 0.3);
-}
-
-.badge-gray {
-    background: rgba(107, 114, 128, 0.15);
-    color: #9CA3AF;
-    border: 1px solid rgba(107, 114, 128, 0.3);
-}
-
-/* ── DIVIDERS ───────────────────────────────────────────── */
-hr {
-    border: none;
-    height: 1px;
-    background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(255, 255, 255, 0.1),
-        transparent
-    );
-    margin: 2rem 0;
-}
-
-/* ── CODE BLOCKS ────────────────────────────────────────── */
-code {
-    background: rgba(17, 24, 39, 0.8) !important;
-    color: #10B981 !important;
-    padding: 0.25rem 0.5rem !important;
-    border-radius: 4px !important;
-    font-family: 'Fira Code', 'Consolas', monospace !important;
-    font-size: 0.875rem !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-}
-
-pre {
-    background: rgba(17, 24, 39, 0.8) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 8px !important;
-    padding: 1rem !important;
-    overflow-x: auto;
-}
-
-pre code {
-    border: none !important;
-    padding: 0 !important;
-}
-
-/* ── LINKS ──────────────────────────────────────────────── */
-a {
-    color: #60A5FA !important;
-    text-decoration: none !important;
-    transition: color 0.2s ease;
-    position: relative;
-}
-
-a:hover {
-    color: #2563EB !important;
-}
-
-a::after {
-    content: '';
+    font-size: 1.4rem;
+    font-weight: 900;
+    letter-spacing: 3px;
+    color: #fff;
+    z-index: 5;
+    text-shadow: 0 0 25px rgba(107,92,231,1), 0 0 50px rgba(107,92,231,0.6), 0 0 80px rgba(107,92,231,0.3);
+    font-family: 'Inter', 'Arial Black', sans-serif;
+}}
+.orbital-ring {{
     position: absolute;
-    bottom: -2px;
-    left: 0;
-    width: 0;
-    height: 2px;
-    background: #2563EB;
-    transition: width 0.2s ease;
-}
-
-a:hover::after {
-    width: 100%;
-}
-
-/* ── TOOLTIP ────────────────────────────────────────────── */
-.tooltip {
-    position: relative;
-    display: inline-block;
-    cursor: help;
-}
-
-.tooltip .tooltiptext {
-    visibility: hidden;
-    background: rgba(17, 24, 39, 0.95);
-    color: #F9FAFB;
-    text-align: center;
-    border-radius: 6px;
-    padding: 0.5rem 0.75rem;
+    border: 2.5px solid transparent;
+    border-radius: 50%;
+}}
+.orbital-ring-1 {{
+    width: 70px; height: 70px;
+    border-top-color: #6B5CE7;
+    border-right-color: rgba(107,92,231,0.4);
+    border-bottom-color: rgba(107,92,231,0.1);
+    animation: orbitRotate 3s linear infinite;
+}}
+.orbital-ring-2 {{
+    width: 100px; height: 100px;
+    border-top-color: #E8638B;
+    border-right-color: rgba(232,99,139,0.3);
+    animation: orbitRotateReverse 5s linear infinite;
+}}
+.orbital-ring-3 {{
+    width: 130px; height: 130px;
+    border-top-color: #9B8AFF;
+    border-left-color: rgba(155,138,255,0.2);
+    animation: orbitRotate 7s linear infinite, ringFlash 4s ease-in-out infinite;
+}}
+.orbital-particle {{
     position: absolute;
-    z-index: 1000;
-    bottom: 125%;
-    left: 50%;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+}}
+.orbital-particle-1 {{
+    background: #6B5CE7;
+    color: #6B5CE7;
+    top: 5px; left: 50%;
     transform: translateX(-50%);
-    white-space: nowrap;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(8px);
-    font-size: 0.75rem;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-}
+    animation: particleGlow 1.5s ease-in-out infinite;
+}}
+.orbital-particle-2 {{
+    background: #E8638B;
+    color: #E8638B;
+    bottom: 14px; right: 14px;
+    animation: particleGlow 1.5s ease-in-out infinite 0.5s;
+}}
+.orbital-particle-3 {{
+    background: #10B981;
+    color: #10B981;
+    bottom: 14px; left: 14px;
+    animation: particleGlow 1.5s ease-in-out infinite 1s;
+}}
 
-.tooltip:hover .tooltiptext {
-    visibility: visible;
-    opacity: 1;
-}
+/* Small orbital logo for sidebar */
+.orbital-logo-sm {{
+    width: 70px; height: 70px;
+}}
+.orbital-logo-sm .orbital-text {{
+    font-size: 0.6rem;
+    letter-spacing: 1.5px;
+    font-weight: 900;
+}}
+.orbital-logo-sm .orbital-ring-1 {{ width: 34px; height: 34px; border-width: 2px; }}
+.orbital-logo-sm .orbital-ring-2 {{ width: 48px; height: 48px; border-width: 2px; }}
+.orbital-logo-sm .orbital-ring-3 {{ width: 64px; height: 64px; border-width: 2px; }}
+.orbital-logo-sm .orbital-particle {{ width: 5px; height: 5px; }}
+.orbital-logo-sm .orbital-particle-1 {{ top: 3px; }}
+.orbital-logo-sm .orbital-particle-2 {{ bottom: 6px; right: 6px; }}
+.orbital-logo-sm .orbital-particle-3 {{ bottom: 6px; left: 6px; }}
 
-/* ── LOADING SKELETON ───────────────────────────────────── */
-.skeleton {
-    background: linear-gradient(
-        90deg,
-        rgba(31, 41, 55, 0.5) 25%,
-        rgba(55, 65, 81, 0.5) 50%,
-        rgba(31, 41, 55, 0.5) 75%
-    );
-    background-size: 200% 100%;
-    animation: skeleton-loading 1.5s infinite;
-    border-radius: 8px;
-}
+/* Large orbital logo for splash */
+.orbital-logo-lg {{
+    width: 200px; height: 200px;
+}}
+.orbital-logo-lg .orbital-text {{
+    font-size: 1.8rem;
+    letter-spacing: 4px;
+    font-weight: 900;
+    text-shadow: 0 0 30px rgba(107,92,231,1), 0 0 60px rgba(107,92,231,0.7), 0 0 100px rgba(107,92,231,0.4);
+}}
+.orbital-logo-lg .orbital-ring-1 {{ width: 100px; height: 100px; border-width: 3px; }}
+.orbital-logo-lg .orbital-ring-2 {{ width: 145px; height: 145px; border-width: 3px; }}
+.orbital-logo-lg .orbital-ring-3 {{ width: 190px; height: 190px; border-width: 3px; }}
+.orbital-logo-lg .orbital-particle {{ width: 12px; height: 12px; }}
+.orbital-logo-lg .orbital-particle-1 {{ top: 5px; }}
+.orbital-logo-lg .orbital-particle-2 {{ bottom: 18px; right: 18px; }}
+.orbital-logo-lg .orbital-particle-3 {{ bottom: 18px; left: 18px; }}
 
-@keyframes skeleton-loading {
-    0% {
-        background-position: 200% 0;
-    }
-    100% {
-        background-position: -200% 0;
-    }
-}
+/* Orbital brand container */
+.orbital-brand {{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}}
+.orbital-tagline {{
+    font-size: 1rem;
+    color: #A8A3C7;
+    font-weight: 500;
+    margin-top: -0.3rem;
+    letter-spacing: 0.5px;
+}}
 
-/* ── RESPONSIVE ADJUSTMENTS ─────────────────────────────── */
-@media (max-width: 768px) {
-    .block-container {
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-    }
-    
-    h1 {
-        font-size: 2rem !important;
-    }
-    
-    h2 {
-        font-size: 1.5rem !important;
-    }
-    
-    .metric-value {
-        font-size: 1.5rem !important;
-    }
-}
+/* ── Deal Terms & Consideration animations ─────────────── */
+@keyframes dealCardPulse {{
+    0%, 100% {{ box-shadow: 0 0 15px rgba(107,92,231,0.2), inset 0 0 20px rgba(107,92,231,0.05); }}
+    50%      {{ box-shadow: 0 0 30px rgba(107,92,231,0.4), inset 0 0 40px rgba(107,92,231,0.1); }}
+}}
+@keyframes dealIconSpin {{
+    0%   {{ transform: rotate(0deg) scale(1); }}
+    50%  {{ transform: rotate(10deg) scale(1.1); }}
+    100% {{ transform: rotate(0deg) scale(1); }}
+}}
+@keyframes dealRowSlide {{
+    from {{ opacity: 0; transform: translateX(-20px); }}
+    to   {{ opacity: 1; transform: translateX(0); }}
+}}
+@keyframes barFillLeft {{
+    from {{ width: 0; }}
+    to   {{ width: var(--fill-pct); }}
+}}
+@keyframes barFillRight {{
+    from {{ width: 0; }}
+    to   {{ width: var(--fill-pct); }}
+}}
+@keyframes pfRowReveal {{
+    from {{ opacity: 0; transform: translateY(10px); }}
+    to   {{ opacity: 1; transform: translateY(0); }}
+}}
+@keyframes suBarGrow {{
+    from {{ transform: scaleX(0); }}
+    to   {{ transform: scaleX(1); }}
+}}
+@keyframes valueCountUp {{
+    from {{ opacity: 0; transform: scale(0.8); }}
+    to   {{ opacity: 1; transform: scale(1); }}
+}}
 
-/* ══════════════════════════════════════════════════════════
-   END DESIGN SYSTEM
-   ══════════════════════════════════════════════════════════ */
-</style>
-""", unsafe_allow_html=True)
-
-# ── Modern Splash Page CSS ──
-st.markdown("""
-<style>
-/* ── SPLASH HERO (Modern Fintech) ───────────────────────── */
-.splash-hero {
-    background: linear-gradient(135deg, #0C0F1A 0%, #1F2937 100%);
-    border-radius: 0; 
-    padding: 5rem 3rem 4rem; 
-    text-align: center;
-    margin: -1rem calc(-50vw + 50%); 
-    width: 100vw;
-    position: relative; 
+/* ── DEAL TERMS CONSIDERATION CARD ─────────────────────── */
+.deal-consideration-card {{
+    background: linear-gradient(145deg, rgba(107,92,231,0.08), rgba(232,99,139,0.04));
+    border: 1px solid rgba(107,92,231,0.25);
+    border-radius: 20px;
+    padding: 1.5rem;
+    position: relative;
     overflow: hidden;
-    min-height: 90vh;
+    animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+               dealCardPulse 3s ease-in-out 0.5s infinite;
+}}
+.deal-consideration-card::before {{
+    content: '';
+    position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+    background: radial-gradient(circle at 30% 30%, rgba(107,92,231,0.06) 0%, transparent 50%),
+                radial-gradient(circle at 70% 70%, rgba(232,99,139,0.04) 0%, transparent 50%);
+    animation: nebulaPulse 15s ease-in-out infinite;
+    pointer-events: none;
+}}
+.deal-consideration-card .deal-header {{
+    font-size: 0.7rem; font-weight: 700; color: #9B8AFF;
+    text-transform: uppercase; letter-spacing: 1.5px;
+    margin-bottom: 1rem;
+    display: flex; align-items: center; gap: 0.5rem;
+}}
+.deal-consideration-card .deal-header-icon {{
+    font-size: 1rem;
+    animation: dealIconSpin 3s ease-in-out infinite;
+}}
+.deal-consideration-row {{
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.8rem 1rem;
+    margin: 0.4rem 0;
+    background: rgba(255,255,255,0.03);
+    border-radius: 12px;
+    border-left: 3px solid;
+    animation: dealRowSlide 0.5s ease-out both;
+    transition: all 0.25s ease;
+}}
+.deal-consideration-row:hover {{
+    background: rgba(107,92,231,0.08);
+    transform: translateX(5px);
+}}
+.deal-consideration-row.cash {{ border-left-color: #10B981; }}
+.deal-consideration-row.stock {{ border-left-color: #6B5CE7; }}
+.deal-consideration-row.offer {{ border-left-color: #E8638B; }}
+.deal-consideration-row .deal-label {{
+    font-size: 0.8rem; color: #8A85AD; font-weight: 600;
+    display: flex; align-items: center; gap: 0.4rem;
+}}
+.deal-consideration-row .deal-label .emoji {{ font-size: 1.1rem; }}
+.deal-consideration-row .deal-value {{
+    font-size: 1rem; font-weight: 700; color: #E0DCF5;
+    animation: valueCountUp 0.6s ease-out both;
+}}
+.deal-consideration-row .deal-sub {{
+    font-size: 0.7rem; color: #8A85AD; margin-top: 2px;
+}}
+
+/* ── PRO FORMA FINANCIALS TABLE ────────────────────────── */
+.pf-table-wrapper {{
+    background: linear-gradient(145deg, rgba(107,92,231,0.06), rgba(16,185,129,0.02));
+    border: 1px solid rgba(107,92,231,0.2);
+    border-radius: 20px;
+    padding: 1.5rem;
+    overflow: hidden;
+    animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}}
+.pf-table {{
+    width: 100%; border-collapse: separate; border-spacing: 0;
+}}
+.pf-table th {{
+    background: rgba(107,92,231,0.12);
+    color: #9B8AFF; font-size: 0.75rem;
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 0.8rem 1rem; font-weight: 700;
+    border-bottom: 2px solid rgba(107,92,231,0.25);
+}}
+.pf-table th:first-child {{ border-radius: 12px 0 0 0; }}
+.pf-table th:last-child {{ border-radius: 0 12px 0 0; background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(107,92,231,0.12)); }}
+.pf-table td {{
+    padding: 0.7rem 1rem; font-size: 0.85rem; color: #C8C3E3;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    animation: pfRowReveal 0.4s ease-out both;
+}}
+.pf-table tr:nth-child(1) td {{ animation-delay: 0.1s; }}
+.pf-table tr:nth-child(2) td {{ animation-delay: 0.15s; }}
+.pf-table tr:nth-child(3) td {{ animation-delay: 0.2s; }}
+.pf-table tr:nth-child(4) td {{ animation-delay: 0.25s; }}
+.pf-table tr:nth-child(5) td {{ animation-delay: 0.3s; }}
+.pf-table td:first-child {{
+    font-weight: 700; color: #B8B3D7;
+    border-left: 3px solid rgba(107,92,231,0.3);
+    background: rgba(107,92,231,0.03);
+}}
+.pf-table td:last-child {{
+    font-weight: 700; color: #10B981;
+    background: linear-gradient(90deg, transparent, rgba(16,185,129,0.08));
+}}
+.pf-table tr:hover td {{
+    background: rgba(107,92,231,0.06);
+}}
+.pf-table tr:last-child td {{ border-bottom: none; }}
+.pf-table tr:last-child td:first-child {{ border-radius: 0 0 0 12px; }}
+.pf-table tr:last-child td:last-child {{ border-radius: 0 0 12px 0; }}
+.pf-adj {{ color: #F5A623 !important; font-style: italic; }}
+
+/* ── SOURCES & USES VISUAL ─────────────────────────────── */
+.su-container {{
+    display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;
+    animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}}
+.su-panel {{
+    background: linear-gradient(145deg, rgba(107,92,231,0.05), rgba(0,0,0,0.2));
+    border: 1px solid rgba(107,92,231,0.2);
+    border-radius: 20px;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+}}
+.su-panel::before {{
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    border-radius: 20px 20px 0 0;
+}}
+.su-panel.sources::before {{ background: linear-gradient(90deg, #10B981, #6B5CE7); }}
+.su-panel.uses::before {{ background: linear-gradient(90deg, #E8638B, #F5A623); }}
+.su-panel-header {{
+    font-size: 0.85rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.5px; margin-bottom: 1rem;
+    display: flex; align-items: center; gap: 0.6rem;
+}}
+.su-panel.sources .su-panel-header {{ color: #10B981; }}
+.su-panel.uses .su-panel-header {{ color: #E8638B; }}
+.su-panel-header .su-icon {{ font-size: 1.2rem; }}
+.su-row {{
+    margin: 0.6rem 0;
+    animation: dealRowSlide 0.4s ease-out both;
+}}
+.su-row:nth-child(2) {{ animation-delay: 0.1s; }}
+.su-row:nth-child(3) {{ animation-delay: 0.15s; }}
+.su-row:nth-child(4) {{ animation-delay: 0.2s; }}
+.su-row:nth-child(5) {{ animation-delay: 0.25s; }}
+.su-row-header {{
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 0.3rem;
+}}
+.su-row-label {{ font-size: 0.8rem; color: #B8B3D7; }}
+.su-row-value {{ font-size: 0.9rem; font-weight: 700; color: #E0DCF5; }}
+.su-bar {{
+    height: 8px; border-radius: 4px;
+    background: rgba(255,255,255,0.08);
+    overflow: hidden;
+}}
+.su-bar-fill {{
+    height: 100%; border-radius: 4px;
+    transform-origin: left;
+    animation: suBarGrow 0.8s ease-out both;
+}}
+.su-panel.sources .su-bar-fill {{ background: linear-gradient(90deg, #10B981, #6B5CE7); }}
+.su-panel.uses .su-bar-fill {{ background: linear-gradient(90deg, #E8638B, #F5A623); }}
+.su-row.total {{
+    margin-top: 1rem; padding-top: 1rem;
+    border-top: 2px solid rgba(107,92,231,0.2);
+}}
+.su-row.total .su-row-label {{ font-weight: 700; color: #E0DCF5; }}
+.su-row.total .su-row-value {{ font-size: 1.1rem; }}
+.su-row.total .su-bar {{ height: 12px; }}
+.su-row.total .su-bar-fill {{
+    background: linear-gradient(90deg, #6B5CE7, #9B8AFF);
+    box-shadow: 0 0 15px rgba(107,92,231,0.5);
+}}
+
+/* ── SIDEBAR ─────────────────────────────────────────────── */
+section[data-testid="stSidebar"] {{
+    background: linear-gradient(180deg, #0B0E1A 0%, #10132A 50%, #151933 100%);
+    border-right: 1px solid rgba(107,92,231,0.2);
+    box-shadow: 4px 0 30px rgba(107,92,231,0.08);
+    min-width: 340px !important;
+}}
+section[data-testid="stSidebar"] > div:first-child {{
+    padding: 1rem 1.5rem !important;
+}}
+section[data-testid="stSidebar"] * {{
+    color: #C8C3E3 !important;
+}}
+/* Hide default radio labels */
+section[data-testid="stSidebar"] .stRadio > label {{
+    display: none !important;
+}}
+section[data-testid="stSidebar"] .stRadio > div {{
+    flex-direction: column !important;
+    gap: 4px !important;
+    background: rgba(107,92,231,0.06);
+    border-radius: 14px;
+    padding: 6px;
+    border: 1px solid rgba(107,92,231,0.15);
+}}
+section[data-testid="stSidebar"] .stRadio > div > label {{
+    margin: 0 !important;
+    padding: 0.55rem 0.8rem !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    font-size: 0.78rem !important;
+    text-align: left !important;
+    transition: all 0.2s ease !important;
+    cursor: pointer !important;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+}}
+section[data-testid="stSidebar"] .stRadio > div > label:hover {{
+    background: rgba(107,92,231,0.08) !important;
+    border-color: rgba(107,92,231,0.2) !important;
+}}
+section[data-testid="stSidebar"] .stRadio > div > label[data-checked="true"] {{
+    background: linear-gradient(135deg, #6B5CE7 0%, #9B8AFF 100%) !important;
+    box-shadow: 0 4px 15px rgba(107,92,231,0.4) !important;
+    border-color: transparent !important;
+}}
+section[data-testid="stSidebar"] .stRadio > div > label[data-checked="true"] span,
+section[data-testid="stSidebar"] .stRadio > div > label[data-checked="true"] p {{
+    color: #fff !important;
+}}
+section[data-testid="stSidebar"] .stTextInput > div > div > input {{
+    background: rgba(107,92,231,0.08);
+    border: 1px solid rgba(107,92,231,0.3);
+    border-radius: 12px;
+    color: #fff !important;
+    font-weight: 700;
+    font-size: 1.2rem;
+    letter-spacing: 3px;
+    text-align: center;
+    padding: 0.9rem;
+    text-transform: uppercase;
+}}
+section[data-testid="stSidebar"] .stTextInput > div > div > input:focus {{
+    border-color: #6B5CE7;
+    box-shadow: 0 0 20px rgba(107,92,231,0.4);
+}}
+section[data-testid="stSidebar"] .stTextInput > div > div > input::placeholder {{
+    color: #6B5CE7 !important;
+    opacity: 0.5;
+    letter-spacing: 1px;
+    font-size: 0.85rem;
+}}
+section[data-testid="stSidebar"] .stButton > button {{
+    background: linear-gradient(135deg, #6B5CE7 0%, #9B8AFF 100%) !important;
+    color: #fff !important;
+    font-weight: 700 !important;
+    border: none !important;
+    border-radius: 14px !important;
+    padding: 0.9rem 2rem !important;
+    font-size: 1rem !important;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 20px rgba(107,92,231,0.3);
+    animation: sb-btn-pulse 2s ease-in-out infinite;
+    margin-top: 0.5rem !important;
+}}
+section[data-testid="stSidebar"] .stButton > button:hover {{
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(107,92,231,0.5);
+}}
+/* ── SIDEBAR SELECTBOX ──────────────────────────────── */
+section[data-testid="stSidebar"] .stSelectbox > div > div {{
+    background: rgba(107,92,231,0.08) !important;
+    border: 1px solid rgba(107,92,231,0.25) !important;
+    border-radius: 10px !important;
+    color: #E0DCF5 !important;
+    font-size: 0.82rem !important;
+}}
+section[data-testid="stSidebar"] .stSelectbox > div > div:hover {{
+    border-color: rgba(107,92,231,0.5) !important;
+}}
+section[data-testid="stSidebar"] .stSelectbox > label {{
+    color: #8A85AD !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.8px !important;
+}}
+/* ── SIDEBAR SLIDER ──────────────────────────────── */
+section[data-testid="stSidebar"] .stSlider > div > div > div {{
+    color: #6B5CE7 !important;
+}}
+section[data-testid="stSidebar"] .stSlider > label {{
+    color: #8A85AD !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+}}
+/* ── SIDEBAR NUMBER INPUT ──────────────────────────── */
+section[data-testid="stSidebar"] .stNumberInput > div > div > input {{
+    background: rgba(107,92,231,0.08) !important;
+    border: 1px solid rgba(107,92,231,0.25) !important;
+    border-radius: 10px !important;
+    color: #E0DCF5 !important;
+}}
+section[data-testid="stSidebar"] .stNumberInput > label {{
+    color: #8A85AD !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+}}
+/* ── SIDEBAR CHECKBOX ──────────────────────────────── */
+section[data-testid="stSidebar"] .stCheckbox > label {{
+    color: #B8B3D7 !important;
+    font-size: 0.78rem !important;
+}}
+/* ── SIDEBAR EXPANDER ──────────────────────────────── */
+section[data-testid="stSidebar"] .streamlit-expanderHeader {{
+    background: rgba(107,92,231,0.06) !important;
+    border-radius: 10px !important;
+    color: #B8B3D7 !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+}}
+section[data-testid="stSidebar"] hr {{
+    border-color: rgba(107,92,231,0.2) !important;
+}}
+/* Company preview card */
+.sb-company-card {{
+    background: linear-gradient(135deg, rgba(107,92,231,0.12), rgba(232,99,139,0.05));
+    border: 1px solid rgba(107,92,231,0.25);
+    border-radius: 16px;
+    padding: 0.9rem 1rem;
+    margin: 0.6rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    animation: cardReveal 0.5s ease-out;
+    transition: all 0.3s ease;
+}}
+.sb-company-card:hover {{
+    border-color: rgba(107,92,231,0.5);
+    box-shadow: 0 4px 20px rgba(107,92,231,0.2);
+    transform: translateY(-2px);
+}}
+.sb-logo-fallback {{
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #6B5CE7, #9B8AFF);
     display: flex;
     align-items: center;
     justify-content: center;
-}
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #fff !important;
+    text-transform: uppercase;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(107,92,231,0.3);
+}}
+.sb-company-info {{
+    flex: 1;
+    min-width: 0;
+}}
+.sb-company-name {{
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #fff !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin: 0;
+    line-height: 1.3;
+}}
+.sb-company-ticker {{
+    font-size: 0.7rem;
+    color: #9B8AFF !important;
+    font-weight: 600;
+    letter-spacing: 1px;
+}}
+.sb-company-price {{
+    text-align: right;
+    flex-shrink: 0;
+}}
+.sb-company-price-value {{
+    font-size: 1rem;
+    font-weight: 800;
+    color: #fff !important;
+}}
+.sb-company-price-change {{
+    font-size: 0.7rem;
+    font-weight: 600;
+}}
+.sb-company-price-change.up {{ color: #10B981 !important; }}
+.sb-company-price-change.down {{ color: #EF4444 !important; }}
+.sb-company-invalid {{
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 12px;
+    padding: 0.6rem 0.9rem;
+    margin: 0.5rem 0;
+    font-size: 0.75rem;
+    color: #EF4444 !important;
+    text-align: center;
+}}
+/* Role label styling */
+.sb-role-label {{
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #6B5CE7 !important;
+    margin-bottom: 0.3rem;
+    display: block;
+}}
+.sb-role-label.acquirer {{ color: #9B8AFF !important; }}
+.sb-role-label.target {{ color: #E8638B !important; }}
+}}
 
-/* Mesh gradient background */
-.splash-hero::before {
+/* ── SIDEBAR SECTIONS (merger mode) ─────────────────────── */
+.sb-section {{
+    background: linear-gradient(135deg, rgba(107,92,231,0.1), rgba(232,99,139,0.03));
+    border-left: 3px solid #6B5CE7;
+    border-radius: 0 8px 8px 0;
+    padding: 0.45rem 0.75rem;
+    margin: 0.9rem 0 0.4rem 0;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.8px;
+    color: #A8A3C7 !important;
+    animation: slideInLeft 0.4s ease-out both;
+}}
+.sb-section-icon {{
+    color: #9B8AFF !important;
+    margin-right: 0.3rem;
+    font-size: 0.55rem;
+}}
+section[data-testid="stSidebar"] .stSlider [data-baseweb="slider"] [role="slider"] {{
+    background: #9B8AFF !important;
+    border-color: #6B5CE7 !important;
+    box-shadow: 0 0 8px rgba(107,92,231,0.4);
+    width: 14px !important; height: 14px !important;
+}}
+section[data-testid="stSidebar"] .stSlider label p {{
+    font-size: 0.72rem !important;
+    color: #8A85AD !important;
+}}
+.sb-split-bar {{
+    display: flex;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 0.5rem 0 0.3rem 0;
+    background: rgba(255,255,255,0.05);
+}}
+.sb-split-cash {{
+    background: linear-gradient(90deg, #6B5CE7, #9B8AFF);
+    border-radius: 4px 0 0 4px;
+    transition: width 0.4s ease;
+    overflow: hidden;
+    animation: sb-fill 0.6s ease-out;
+}}
+.sb-split-stock {{
+    background: linear-gradient(90deg, #E8638B, #F5A4BD);
+    border-radius: 0 4px 4px 0;
+    transition: width 0.4s ease;
+    overflow: hidden;
+    animation: sb-fill 0.6s ease-out;
+}}
+.sb-split-labels {{
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.65rem;
+    font-weight: 600;
+    margin-top: 0.15rem;
+}}
+.sb-split-labels .cash-label {{ color: #9B8AFF !important; }}
+.sb-split-labels .stock-label {{ color: #E8638B !important; }}
+.sb-divider {{
+    height: 1px;
+    border: none;
+    margin: 0.6rem 0;
+    background: linear-gradient(90deg, transparent, rgba(107,92,231,0.3), transparent);
+}}
+
+/* ── HERO / HEADER (profile view) ──────────────────────── */
+.hero-header {{
+    background: linear-gradient(135deg, #050816 0%, #0B0E1A 40%, #151933 100%);
+    border-radius: 20px;
+    padding: 2rem 2.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 3px solid rgba(107,92,231,0.5);
+    box-shadow: 0 8px 40px rgba(11,14,26,0.4);
+    position: relative;
+    overflow: hidden;
+}}
+.hero-header::before {{
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: 
-        radial-gradient(at 20% 30%, rgba(37, 99, 235, 0.15) 0px, transparent 50%),
-        radial-gradient(at 80% 70%, rgba(16, 185, 129, 0.12) 0px, transparent 50%),
-        radial-gradient(at 50% 50%, rgba(59, 130, 246, 0.08) 0px, transparent 50%);
-    animation: meshMove 20s ease-in-out infinite;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: transparent;
+    box-shadow: {_gen_stars(50, 800)};
+    width: 1px; height: 1px;
+    opacity: 0.5;
     pointer-events: none;
-}
-
-@keyframes meshMove {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.8; }
-}
-
-/* Geometric accent elements */
-.geo-accent {
+}}
+.hero-header::after {{
+    content: '';
     position: absolute;
-    border: 1px solid rgba(37, 99, 235, 0.2);
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 20% 50%, rgba(107,92,231,0.1) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 30%, rgba(232,99,139,0.06) 0%, transparent 50%);
     pointer-events: none;
-}
+}}
+.hero-title {{
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: #ffffff;
+    margin: 0;
+    letter-spacing: -0.5px;
+    position: relative; z-index: 1;
+}}
+.hero-accent {{ color: #9B8AFF; }}
+.hero-sub {{
+    font-size: 1rem;
+    color: #A8A3C7;
+    margin-top: 0.3rem;
+    font-weight: 400;
+    position: relative; z-index: 1;
+}}
+.hero-tagline {{
+    display: inline-block;
+    background: rgba(107,92,231,0.15);
+    color: #9B8AFF;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 0.5rem;
+    position: relative; z-index: 1;
+}}
 
-.geo-1 {
-    width: 300px;
-    height: 300px;
+/* ── COMPANY HEADER CARD ─────────────────────────────────── */
+.company-card {{
+    background: linear-gradient(135deg, #050816 0%, #0B0E1A 50%, #151933 100%);
+    border-radius: 20px;
+    padding: 1.8rem 2rem;
+    margin-bottom: 1.2rem;
+    border-left: 4px solid;
+    border-image: linear-gradient(180deg, #6B5CE7, #E8638B) 1;
+    box-shadow: 0 4px 30px rgba(11,14,26,0.3);
+    position: relative;
+    overflow: hidden;
+    animation: cardReveal 0.6s ease-out both;
+}}
+.company-card::before {{
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 80% 20%, rgba(107,92,231,0.08) 0%, transparent 60%);
+    pointer-events: none;
+}}
+.company-card::after {{
+    content: '';
+    position: absolute;
+    width: 80px; height: 80px; border-radius: 50%;
+    background: rgba(107,92,231,0.06);
+    filter: blur(40px);
+    top: -20px; right: 40px;
+    animation: float1 20s ease-in-out infinite;
+    pointer-events: none;
+}}
+.company-name {{
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #ffffff;
+    margin: 0;
+    letter-spacing: -0.3px;
+}}
+.company-meta {{
+    font-size: 0.85rem;
+    color: #A8A3C7;
+    margin-top: 0.25rem;
+}}
+.company-meta span {{ color: #9B8AFF; font-weight: 600; }}
+.price-tag {{ font-size: 1.5rem; font-weight: 700; margin: 0; }}
+.price-up {{ color: #10B981; }}
+.price-down {{ color: #EF4444; }}
+.price-change {{
+    font-size: 0.85rem; font-weight: 600;
+    padding: 0.15rem 0.5rem; border-radius: 6px;
+    display: inline-block; margin-left: 0.5rem;
+}}
+.change-up {{ background: rgba(16,185,129,0.15); color: #10B981; }}
+.change-down {{ background: rgba(239,68,68,0.15); color: #EF4444; }}
+
+/* ── SECTION STYLING ─────────────────────────────────────── */
+.section-header {{
+    display: flex; align-items: center; gap: 0.8rem;
+    margin: 2.5rem 0 1rem 0; padding-bottom: 0.6rem;
+    position: relative;
+    animation: slideUpBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}}
+.section-header::after {{
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, #6B5CE7, #E8638B, transparent);
+    animation: glowPulse 3s ease-in-out infinite;
+    border-radius: 2px;
+}}
+.section-header h3 {{
+    font-size: 1.3rem; font-weight: 800; color: #E0DCF5; margin: 0; letter-spacing: -0.3px;
+}}
+.section-header .accent-bar {{
+    width: 5px; height: 26px; background: linear-gradient(180deg, #6B5CE7, #E8638B); border-radius: 3px;
+}}
+
+/* ── GRADIENT DIVIDER ────────────────────────────────────── */
+.gradient-divider {{
+    height: 1px; border: none; margin: 1.5rem 0;
+    background: linear-gradient(90deg, transparent, rgba(107,92,231,0.3), rgba(232,99,139,0.2), transparent);
+}}
+
+/* ── METRIC CARDS ────────────────────────────────────────── */
+div[data-testid="stMetric"] {{
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(107,92,231,0.15);
+    border-radius: 16px;
+    padding: 1rem 1.2rem;
+    box-shadow: 0 4px 15px rgba(107,92,231,0.1);
+    position: relative;
+    overflow: hidden;
+    animation: slideUpBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}}
+div[data-testid="stMetric"]::before {{
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, #6B5CE7, #9B8AFF, #E8638B);
+    opacity: 0; transition: opacity 0.3s ease;
+}}
+div[data-testid="stMetric"]:hover {{
+    border-color: rgba(107,92,231,0.4);
+    box-shadow: 0 10px 30px rgba(107,92,231,0.25);
+    transform: translateY(-5px);
+}}
+div[data-testid="stMetric"]:hover::before {{
+    opacity: 1;
+}}
+div[data-testid="stMetric"] label {{
+    font-size: 0.75rem !important; font-weight: 600 !important;
+    text-transform: uppercase; letter-spacing: 0.8px; color: #8A85AD !important;
+}}
+div[data-testid="stMetric"] div[data-testid="stMetricValue"] {{
+    font-size: 1.25rem !important; font-weight: 700 !important; color: #E0DCF5 !important;
+}}
+
+/* ── TABS ────────────────────────────────────────────────── */
+.stTabs [data-baseweb="tab-list"] {{
+    gap: 0; background: rgba(255,255,255,0.05); border-radius: 12px; padding: 4px;
+}}
+.stTabs [data-baseweb="tab"] {{
+    border-radius: 10px; font-weight: 600; font-size: 0.82rem;
+    padding: 0.5rem 1.2rem; color: #8A85AD;
+}}
+.stTabs [data-baseweb="tab"][aria-selected="true"] {{
+    background: linear-gradient(135deg, #6B5CE7, #9B8AFF);
+    color: #ffffff;
+    box-shadow: 0 2px 12px rgba(107,92,231,0.4);
+}}
+.stTabs [data-baseweb="tab-highlight"] {{ display: none; }}
+.stTabs [data-baseweb="tab-border"] {{ display: none; }}
+
+/* ── EXPANDERS ───────────────────────────────────────────── */
+.streamlit-expanderHeader {{
+    font-weight: 600 !important; font-size: 0.95rem !important;
+    color: #E0DCF5 !important; background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+}}
+
+/* ── DATAFRAMES ──────────────────────────────────────────── */
+.stDataFrame {{
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden;
+}}
+
+/* ── DOWNLOAD BUTTON ─────────────────────────────────────── */
+.stDownloadButton > button {{
+    background: linear-gradient(135deg, #6B5CE7, #E8638B, #F5A623) !important;
+    background-size: 200% 200% !important;
+    animation: gradientShift 6s ease infinite !important;
+    color: white !important; font-weight: 700 !important;
+    border: none !important; border-radius: 14px !important;
+    padding: 0.8rem 2rem !important; font-size: 1rem !important;
+    width: 100% !important; transition: all 0.3s ease;
+    box-shadow: 0 4px 25px rgba(107,92,231,0.3);
+}}
+.stDownloadButton > button:hover {{
+    transform: translateY(-2px);
+    box-shadow: 0 8px 35px rgba(107,92,231,0.5);
+}}
+
+/* ── NEWS CARDS ──────────────────────────────────────────── */
+.news-item {{
+    padding: 0.65rem 0; border-bottom: 1px solid rgba(255,255,255,0.1);
+    transition: background 0.15s;
+}}
+.news-item:hover {{ background: rgba(255,255,255,0.03); }}
+.news-title {{
+    font-weight: 600; color: #E0DCF5; font-size: 0.88rem; text-decoration: none;
+}}
+.news-title:hover {{ color: #9B8AFF; }}
+.news-pub {{ font-size: 0.72rem; color: #8A85AD; font-weight: 500; }}
+
+/* ── PILLS ──────────────────────────────────────────────── */
+.pill {{
+    display: inline-block; padding: 0.2rem 0.7rem; border-radius: 20px;
+    font-size: 0.72rem; font-weight: 600; letter-spacing: 0.5px;
+}}
+.pill-purple {{ background: rgba(107,92,231,0.12); color: #6B5CE7; }}
+.pill-dark {{ background: rgba(26,29,46,0.08); color: #1A1D2E; }}
+.pill-green {{ background: rgba(16,185,129,0.12); color: #10B981; }}
+
+/* ── PLOTLY CHARTS ──────────────────────────────────────── */
+.stPlotlyChart {{
+    border: 1px solid rgba(107,92,231,0.25);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(107,92,231,0.18);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    background: rgba(107,92,231,0.04);
+    animation: chartBounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    filter: saturate(0.9);
+    padding: 0.5rem;
+}}
+.stPlotlyChart:hover {{
+    border-color: rgba(107,92,231,0.6);
+    box-shadow: 0 16px 48px rgba(107,92,231,0.35), 0 0 80px rgba(107,92,231,0.1);
+    transform: translateY(-4px) scale(1.008);
+    filter: saturate(1.15);
+}}
+/* Ensure chart modebar is visible and styled */
+.stPlotlyChart .modebar {{
+    top: 10px !important;
+    right: 10px !important;
+}}
+.stPlotlyChart .modebar-btn {{
+    font-size: 16px !important;
+}}
+
+/* ── RADIO BUTTONS ──────────────────────────────────────── */
+.stRadio > div {{ gap: 0.3rem; }}
+.stRadio > div > label {{
+    background: rgba(255,255,255,0.05); border-radius: 8px; padding: 0.3rem 1rem;
+    font-weight: 600; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.1); color: #B8B3D7;
+}}
+.stRadio > div > label[data-checked="true"] {{
+    background: linear-gradient(135deg, #6B5CE7, #9B8AFF); color: #ffffff;
+}}
+
+/* ── SCROLLBAR ──────────────────────────────────────────── */
+::-webkit-scrollbar {{ width: 6px; height: 6px; }}
+::-webkit-scrollbar-track {{ background: rgba(255,255,255,0.03); border-radius: 10px; }}
+::-webkit-scrollbar-thumb {{ background: rgba(107,92,231,0.4); border-radius: 10px; }}
+::-webkit-scrollbar-thumb:hover {{ background: #9B8AFF; }}
+
+/* ── SPINNER ────────────────────────────────────────────── */
+.stSpinner > div > div {{ border-top-color: #6B5CE7 !important; }}
+
+/* ── HIDE BRANDING ──────────────────────────────────────── */
+#MainMenu {{ visibility: hidden; }}
+footer {{ visibility: hidden; }}
+header {{ visibility: hidden; }}
+
+/* ── LOADING SKELETON ──────────────────────────────────── */
+@keyframes shimmer {{
+    0% {{ background-position: -200% 0; }}
+    100% {{ background-position: 200% 0; }}
+}}
+.skeleton {{
+    background: linear-gradient(90deg, rgba(107,92,231,0.05) 25%, rgba(107,92,231,0.12) 50%, rgba(107,92,231,0.05) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: 8px;
+}}
+.skeleton-text {{ height: 14px; margin-bottom: 8px; width: 80%; }}
+.skeleton-card {{ height: 100px; margin-bottom: 12px; }}
+.skeleton-chart {{ height: 200px; margin-bottom: 12px; }}
+
+/* ── CARD HOVER EFFECTS ──────────────────────────────── */
+.hover-lift {{
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}}
+.hover-lift:hover {{
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(107,92,231,0.15);
+}}
+
+/* ── CUSTOM FOOTER ──────────────────────────────────── */
+.orbital-footer {{
+    margin-top: 3rem;
+    padding: 2rem 1rem;
+    text-align: center;
+    border-top: 1px solid rgba(107,92,231,0.15);
+}}
+.orbital-footer-brand {{
+    font-size: 1.1rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #6B5CE7 0%, #E8638B 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 2px;
+}}
+.orbital-footer-links {{
+    margin-top: 0.5rem;
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+}}
+.orbital-footer-links a {{
+    color: #8A85AD;
+    text-decoration: none;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: color 0.2s;
+}}
+.orbital-footer-links a:hover {{
+    color: #6B5CE7;
+}}
+.orbital-footer-version {{
+    font-size: 0.6rem;
+    color: #5A567A;
+    margin-top: 0.5rem;
+}}
+
+/* ── PRINT STYLES ──────────────────────────────────── */
+@media print {{
+    .stSidebar, .stToolbar, .orbital-footer, header, #MainMenu {{ display: none !important; }}
+    .main .block-container {{ padding: 0 !important; max-width: 100% !important; }}
+    * {{ color: #333 !important; background: white !important; }}
+}}
+
+/* ── PRICE DISPLAY BAR ──────────────────────────────────── */
+.price-bar {{
+    border-radius: 14px; padding: 1rem 1.5rem; margin-bottom: 1rem;
+    display: flex; gap: 1.5rem; align-items: center;
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}}
+
+/* ── MERGER CHART WRAPPER ──────────────────────────────── */
+.merger-chart-wrapper {{
+    background: linear-gradient(135deg, rgba(107,92,231,0.06), rgba(232,99,139,0.03));
+    border: 1px solid rgba(107,92,231,0.18);
+    border-radius: 24px; padding: 2rem; margin: 1rem 0 1.5rem 0;
+    animation: bounceIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+               chartGlow 4s ease-in-out 1s infinite;
+}}
+
+/* ── PRECEDENT & INSIDER TABLES ────────────────────────── */
+.precedent-table, .insider-table {{
+    width: 100%; border-collapse: separate; border-spacing: 0;
+    border-radius: 14px; overflow: hidden;
+    animation: bounceIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}}
+.precedent-table th, .insider-table th {{
+    background: rgba(107,92,231,0.15); color: #9B8AFF; font-size: 0.7rem;
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 0.7rem 0.8rem; font-weight: 700;
+    border-bottom: 2px solid rgba(107,92,231,0.3);
+}}
+.precedent-table td, .insider-table td {{
+    padding: 0.55rem 0.8rem; font-size: 0.8rem; color: #C8C3E3;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}}
+.precedent-table tr:hover td, .insider-table tr:hover td {{
+    background: rgba(107,92,231,0.08);
+}}
+
+/* ── NEWS SENTIMENT CARDS ──────────────────────────────── */
+.news-card {{
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px; padding: 0.8rem 1rem; margin-bottom: 0.6rem;
+    animation: slideUpBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    transition: all 0.25s ease;
+}}
+.news-card:hover {{
+    border-color: rgba(107,92,231,0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(107,92,231,0.15);
+}}
+.news-sentiment-bullish {{ border-left: 3px solid #10B981; }}
+.news-sentiment-bearish {{ border-left: 3px solid #EF4444; }}
+.news-sentiment-neutral {{ border-left: 3px solid #8A85AD; }}
+
+/* ── EARNINGS SURPRISE CHART CARD ─────────────────────── */
+.earnings-beat {{ color: #10B981; font-weight: 700; }}
+.earnings-miss {{ color: #EF4444; font-weight: 700; }}
+
+/* ── PROFILE CHART WRAPPER ───────────────────────────── */
+.profile-chart-wrapper {{
+    background: linear-gradient(135deg, rgba(107,92,231,0.05), rgba(6,182,212,0.03));
+    border: 1px solid rgba(107,92,231,0.15);
+    border-radius: 24px; padding: 2rem; margin: 1rem 0 1.5rem 0;
+    position: relative; overflow: hidden;
+    animation: chartBounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+               chartGlow 4s ease-in-out 1s infinite;
+}}
+.profile-chart-wrapper::before {{
+    content: '';
+    position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+    background: radial-gradient(circle at 30% 40%, rgba(107,92,231,0.03) 0%, transparent 50%),
+                radial-gradient(circle at 70% 60%, rgba(6,182,212,0.02) 0%, transparent 50%);
+    pointer-events: none;
+    animation: nebulaPulse 20s ease-in-out infinite;
+}}
+
+/* ── SCANNER LOADING (profile mode) ──────────────────── */
+.scanner-control {{
+    background: linear-gradient(170deg, #020515 0%, #0B0E1A 40%, #151933 100%);
+    border-radius: 24px;
+    padding: 2.5rem;
+    min-height: 360px;
+    position: relative;
+    overflow: hidden;
+    animation: fadeInScale 0.5s ease-out both;
+    border: 1px solid rgba(6,182,212,0.2);
+}}
+.scanner-control::before {{
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background:
+        radial-gradient(ellipse at 25% 30%, rgba(6,182,212,0.08) 0%, transparent 55%),
+        radial-gradient(ellipse at 75% 70%, rgba(59,130,246,0.05) 0%, transparent 55%);
+    pointer-events: none;
+}}
+.scanner-control::after {{
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: transparent;
+    box-shadow: {_gen_stars(40, 600)};
+    width: 1px; height: 1px;
+    opacity: 0.4;
+    pointer-events: none;
+}}
+.scanner-dish-container {{
+    text-align: center;
+    height: 100px;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}}
+.scanner-dish {{
+    font-size: 3.5rem;
+    filter: drop-shadow(0 0 12px rgba(6,182,212,0.5));
+    position: relative;
+    z-index: 2;
+}}
+.scanner-dish-scanning {{
+    animation: scannerSweep 2s ease-in-out infinite;
+}}
+.scanner-dish-locked {{
+    animation: scannerLock 1.5s ease-in-out infinite;
+}}
+.scanner-beam {{
+    width: 60px; height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(6,182,212,0.6), transparent);
+    border-radius: 2px;
+    margin: -6px auto 0 auto;
+    animation: scannerBeamSweep 1.5s ease-in-out infinite;
+}}
+.scanner-ring {{
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 40px; height: 40px;
     border-radius: 50%;
-    top: 10%;
-    left: 5%;
-    animation: float 20s ease-in-out infinite;
-}
-
-.geo-2 {
-    width: 200px;
-    height: 200px;
-    border-radius: 12px;
-    transform: rotate(45deg);
-    bottom: 15%;
-    right: 10%;
-    border-color: rgba(16, 185, 129, 0.2);
-    animation: float 25s ease-in-out infinite reverse;
-}
-
-.geo-3 {
-    width: 150px;
-    height: 150px;
+    border: 1px solid rgba(6,182,212,0.3);
+    transform: translate(-50%, -50%);
+    animation: scannerRingPulse 2s ease-out infinite;
+}}
+.scanner-ring-2 {{
+    animation-delay: 0.7s;
+}}
+.scanner-ring-3 {{
+    animation-delay: 1.4s;
+}}
+/* Cyan accent overrides for scanner */
+.scanner-control .phase-indicator-active {{
+    border-color: rgba(6,182,212,0.5);
+    color: #06B6D4;
+}}
+.scanner-control .phase-indicator-active::after {{
+    border-top-color: #06B6D4;
+}}
+.scanner-control .mission-phase-active {{
+    background: rgba(6,182,212,0.1);
+    border-color: rgba(6,182,212,0.25);
+    animation: scannerPhasePulse 2s ease-in-out infinite;
+}}
+.scanner-control .mission-progress-fill {{
+    background: linear-gradient(90deg, #06B6D4, #3B82F6, #6B5CE7, #06B6D4);
+    background-size: 200% 100%;
+}}
+.scanner-control .mission-progress-fill::after {{
+    box-shadow: 0 0 10px rgba(6,182,212,0.8), 0 0 20px rgba(6,182,212,0.4);
+}}
+.scanner-ticker {{
+    text-align: center;
+    margin-top: 1.2rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    position: relative;
+    z-index: 1;
+}}
+.scanner-ticker span {{
+    font-size: 1rem;
+    font-weight: 800;
+    color: #06B6D4;
+    letter-spacing: 3px;
+    text-shadow: 0 0 15px rgba(6,182,212,0.4);
+}}
+.scanner-dots {{
+    display: inline-block;
+    margin-left: 4px;
+}}
+.scanner-dots span {{
+    display: inline-block;
+    width: 4px; height: 4px;
     border-radius: 50%;
-    top: 60%;
-    right: 20%;
-    border-color: rgba(59, 130, 246, 0.15);
-    animation: float 18s ease-in-out infinite;
-}
+    background: #06B6D4;
+    margin: 0 2px;
+    animation: gentlePulse 1.5s ease-in-out infinite;
+}}
+.scanner-dots span:nth-child(2) {{ animation-delay: 0.3s; }}
+.scanner-dots span:nth-child(3) {{ animation-delay: 0.6s; }}
+</style>
+""", unsafe_allow_html=True)
 
-@keyframes float {
-    0%, 100% {
-        transform: translateY(0px);
-    }
-    50% {
-        transform: translateY(-20px);
-    }
-}
+# ── Space-specific CSS (starfield, nebula, orbs, glass cards) ──
+st.markdown(f"""
+<style>
+/* ── SPLASH HERO ────────────────────────────────────────── */
+.splash-hero {{
+    background: transparent;
+    border-radius: 0; padding: 5rem 3rem 4rem; text-align: center;
+    margin: -1rem calc(-50vw + 50%); width: 100vw;
+    position: relative; overflow: hidden;
+    min-height: 90vh;
+}}
+
+/* Star Layer 1 — small distant stars */
+.star-layer-1 {{
+    position: absolute; top: 0; left: 0; width: 1px; height: 1px;
+    box-shadow: {_STARS1};
+    opacity: 0.6;
+    animation: starDrift1 150s linear infinite;
+}}
+.star-layer-1::after {{
+    content: ''; position: absolute; top: 2000px; left: 0;
+    width: 1px; height: 1px;
+    box-shadow: {_STARS1};
+}}
+
+/* Star Layer 2 — medium stars */
+.star-layer-2 {{
+    position: absolute; top: 0; left: 0; width: 1.5px; height: 1.5px;
+    box-shadow: {_STARS2};
+    opacity: 0.8;
+    animation: starDrift2 100s linear infinite;
+}}
+.star-layer-2::after {{
+    content: ''; position: absolute; top: 2000px; left: 0;
+    width: 1.5px; height: 1.5px;
+    box-shadow: {_STARS2};
+}}
+
+/* Star Layer 3 — large close stars */
+.star-layer-3 {{
+    position: absolute; top: 0; left: 0; width: 2px; height: 2px;
+    box-shadow: {_STARS3};
+    opacity: 1.0;
+    animation: starDrift3 75s linear infinite;
+}}
+.star-layer-3::after {{
+    content: ''; position: absolute; top: 2000px; left: 0;
+    width: 2px; height: 2px;
+    box-shadow: {_STARS3};
+}}
+
+/* Nebula overlay */
+.nebula-overlay {{
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background:
+        radial-gradient(ellipse at 20% 50%, rgba(107,92,231,0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 75% 20%, rgba(232,99,139,0.1) 0%, transparent 45%),
+        radial-gradient(ellipse at 50% 80%, rgba(59,130,246,0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 90% 70%, rgba(45,195,195,0.06) 0%, transparent 40%);
+    animation: nebulaPulse 30s ease-in-out infinite;
+    pointer-events: none;
+}}
+
+/* Floating luminous orbs */
+.orb {{
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+}}
+.orb-1 {{
+    width: 200px; height: 200px;
+    background: rgba(107,92,231,0.12);
+    filter: blur(80px);
+    top: 10%; left: 5%;
+    animation: float1 20s ease-in-out infinite, orbBreath1 10s ease-in-out infinite;
+}}
+.orb-2 {{
+    width: 160px; height: 160px;
+    background: rgba(232,99,139,0.1);
+    filter: blur(70px);
+    top: 60%; right: 10%;
+    animation: float2 22s ease-in-out infinite;
+}}
+.orb-3 {{
+    width: 120px; height: 120px;
+    background: rgba(59,130,246,0.08);
+    filter: blur(60px);
+    top: 30%; right: 25%;
+    animation: float3 18s ease-in-out infinite;
+}}
+.orb-4 {{
+    width: 180px; height: 180px;
+    background: rgba(155,138,255,0.08);
+    filter: blur(90px);
+    bottom: 10%; left: 30%;
+    animation: float4 25s ease-in-out infinite, orbBreath4 12s ease-in-out 3s infinite;
+}}
+.orb-5 {{
+    width: 100px; height: 100px;
+    background: rgba(45,195,195,0.06);
+    filter: blur(60px);
+    top: 15%; right: 5%;
+    animation: float2 19s ease-in-out infinite reverse;
+}}
+
+/* Shooting stars */
+.shooting-star {{
+    position: absolute;
+    width: 120px; height: 1.5px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.8), transparent);
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: 0;
+}}
+.shooting-star-1 {{
+    top: 15%; right: -120px;
+    animation: shootingStar 8s ease-in-out 2s infinite;
+}}
+.shooting-star-2 {{
+    top: 40%; right: -120px;
+    animation: shootingStar 10s ease-in-out 5s infinite;
+}}
+.shooting-star-3 {{
+    top: 25%; right: -120px;
+    animation: shootingStar 12s ease-in-out 8s infinite;
+}}
+.shooting-star-4 {{
+    top: 55%; right: -120px;
+    animation: shootingStar 15s ease-in-out 11s infinite;
+    transform: rotate(-8deg);
+}}
+.shooting-star-5 {{
+    top: 8%; right: -120px;
+    animation: shootingStar 20s ease-in-out 16s infinite;
+    transform: rotate(5deg);
+}}
+
+/* Noise/grain overlay */
+.noise-overlay {{
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    opacity: 0.04;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    pointer-events: none;
+}}
+
+/* Title glow halo */
+.title-glow {{
+    position: absolute;
+    width: 400px; height: 200px;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -70%);
+    background: radial-gradient(ellipse, rgba(107,92,231,0.2) 0%, transparent 70%);
+    animation: titleGlow 4s ease-in-out infinite;
+    pointer-events: none;
+}}
 
 /* Content layer */
-.splash-content {
-    position: relative; 
-    z-index: 10;
-    max-width: 1200px;
-    margin: 0 auto;
-}
+.splash-content {{
+    position: relative; z-index: 10;
+}}
 
-.splash-title {
-    font-size: 4.5rem; 
-    font-weight: 900; 
-    margin: 0;
-    letter-spacing: -0.02em; 
-    animation: fadeInUp 0.6s ease-out;
-    background: linear-gradient(135deg, #F9FAFB 0%, #9CA3AF 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+.splash-title {{
+    font-size: 4.5rem; font-weight: 900; color: #ffffff; margin: 0;
+    letter-spacing: -2px; animation: fadeInUp 0.6s ease-out;
+    text-shadow: 0 0 60px rgba(107,92,231,0.3);
+}}
+.splash-accent {{
+    background: linear-gradient(135deg, #9B8AFF, #E8638B, #F5A623, #9B8AFF);
+    background-size: 200% auto;
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     background-clip: text;
-    line-height: 1.1;
-}
-
-.splash-accent {
-    background: linear-gradient(135deg, #2563EB 0%, #10B981 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    display: inline-block;
-}
-
-.splash-subtitle {
-    font-size: 1.25rem; 
-    color: #9CA3AF; 
-    margin-top: 1.5rem;
-    font-weight: 400; 
-    animation: fadeInUp 0.8s ease-out;
-    letter-spacing: 0.01em;
-    max-width: 700px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.splash-stats {
-    display: flex; 
-    justify-content: center; 
-    gap: 4rem; 
-    margin-top: 3rem;
+    animation: shimmer 3s linear infinite;
+}}
+.splash-subtitle {{
+    font-size: 1.2rem; color: #B8B3D7; margin-top: 0.8rem;
+    font-weight: 300; animation: fadeInUp 0.8s ease-out;
+    letter-spacing: 0.5px;
+}}
+.splash-stats {{
+    display: flex; justify-content: center; gap: 3rem; margin-top: 2.5rem;
     animation: fadeInUp 1s ease-out;
-    flex-wrap: wrap;
-}
-
-.splash-stat {
-    text-align: center;
+}}
+.splash-stat-value {{
+    font-size: 1.8rem; font-weight: 800; color: #fff;
+    animation: gentlePulse 3s ease-in-out infinite;
     position: relative;
-}
-
-.splash-stat-value {
-    font-size: 2.5rem; 
-    font-weight: 800; 
-    color: #F9FAFB;
-    display: block;
-    margin-bottom: 0.5rem;
-    background: linear-gradient(135deg, #2563EB 0%, #10B981 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.splash-stat-label {
-    font-size: 0.875rem;
-    color: #9CA3AF;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-weight: 600;
-}
-
-.splash-stat-icon {
+}}
+.splash-stat {{
+    position: relative;
+}}
+.splash-stat:nth-child(1) .splash-stat-value {{ animation-delay: 0s; }}
+.splash-stat:nth-child(2) .splash-stat-value {{ animation-delay: 0.5s; }}
+.splash-stat:nth-child(3) .splash-stat-value {{ animation-delay: 1.0s; }}
+.splash-stat-icon {{
+    position: relative;
     display: inline-block;
-    margin-right: 0.5rem;
-}
-
-/* CTA Buttons */
-.splash-cta {
-    margin-top: 3rem;
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
+}}
+.splash-stat-icon::before {{
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 2px solid rgba(107,92,231,0.4);
+    animation: pulseRing 2s ease-out infinite;
+    pointer-events: none;
+}}
+.splash-stat-label {{
+    font-size: 0.7rem; color: #A8A3C7; text-transform: uppercase;
+    letter-spacing: 1px; font-weight: 500;
+}}
+.pill-row {{
+    display: flex; justify-content: center; gap: 0.7rem; margin-top: 1.8rem;
+    flex-wrap: wrap;
     animation: fadeInUp 1.2s ease-out;
-}
-
-.splash-btn {
-    padding: 0.875rem 2rem;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 1rem;
-    text-decoration: none;
-    transition: all 0.2s ease;
-    display: inline-block;
-}
-
-.splash-btn-primary {
-    background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
-    color: white;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-}
-
-.splash-btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4);
-}
-
-.splash-btn-secondary {
-    background: rgba(55, 65, 81, 0.6);
-    color: #E5E7EB;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(8px);
-}
-
-.splash-btn-secondary:hover {
-    background: rgba(75, 85, 104, 0.8);
-    border-color: rgba(37, 99, 235, 0.3);
-}
-
-/* Feature Grid */
-.feature-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 2rem;
-    margin-top: 4rem;
-    padding: 0 2rem;
-}
-
-.feature-card {
-    background: rgba(17, 24, 39, 0.6);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    padding: 2rem;
-    text-align: center;
+}}
+.feature-pill {{
+    border: 1px solid rgba(107,92,231,0.3); border-radius: 24px;
+    padding: 0.4rem 1.1rem; font-size: 0.75rem; font-weight: 600;
+    color: #B8B3D7; background: rgba(107,92,231,0.06);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     transition: all 0.3s ease;
-}
+}}
+.feature-pill:hover {{
+    border-color: rgba(155,138,255,0.6);
+    box-shadow: 0 0 15px rgba(107,92,231,0.2);
+    color: #fff;
+}}
 
-.feature-card:hover {
-    transform: translateY(-4px);
-    border-color: rgba(37, 99, 235, 0.3);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
-}
+/* ── SPACE SECTION (dark container for glass cards) ──── */
+.space-section {{
+    background: rgba(11,14,26,0.5);
+    border-radius: 0;
+    padding: 2.5rem 3rem;
+    margin: 0 calc(-50vw + 50%); width: 100vw;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+}}
+.space-section-title {{
+    font-size: 0.75rem; font-weight: 600; color: #A8A3C7;
+    text-transform: uppercase; letter-spacing: 2px;
+    text-align: center; margin-bottom: 1.5rem;
+}}
 
-.feature-icon {
-    font-size: 2.5rem;
-    margin-bottom: 1rem;
-    display: inline-block;
-}
+/* ── GLASS STEP CARDS ──────────────────────────────────── */
+.step-grid {{
+    display: flex; gap: 1.2rem; margin: 0 0 2rem 0;
+    position: relative;
+}}
+.step-card {{
+    flex: 1;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 18px; padding: 1.5rem; text-align: center;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    position: relative; overflow: hidden;
+    animation: fadeInUp 0.6s ease-out both;
+}}
+.step-card:nth-child(1) {{ animation-delay: 0.1s; }}
+.step-card:nth-child(2) {{ animation-delay: 0.2s; }}
+.step-card:nth-child(3) {{ animation-delay: 0.3s; }}
+.step-card:nth-child(4) {{ animation-delay: 0.4s; }}
+.step-card::before {{
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: 18px;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(107,92,231,0.3), rgba(232,99,139,0.1), transparent);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0; transition: opacity 0.3s;
+    pointer-events: none;
+}}
+.step-card:hover {{
+    border-color: rgba(107,92,231,0.3); transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(107,92,231,0.15);
+}}
+.step-card:hover::before {{ opacity: 1; }}
+.step-num {{
+    background: linear-gradient(135deg, #6B5CE7, #9B8AFF);
+    color: #fff; width: 38px; height: 38px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 1rem; margin-bottom: 0.6rem;
+    box-shadow: 0 4px 15px rgba(107,92,231,0.3);
+}}
+.step-label {{ font-size: 0.88rem; font-weight: 700; color: #E0DCF5; }}
+.step-detail {{ font-size: 0.72rem; color: #8A85AD; margin-top: 0.3rem; }}
 
-.feature-title {
-    font-size: 1.25rem;
+/* Connector lines between steps */
+.step-connector {{
+    position: absolute; top: 50%; height: 2px; z-index: 0;
+    background: linear-gradient(90deg, rgba(107,92,231,0.2), rgba(232,99,139,0.2), rgba(107,92,231,0.2));
+    background-size: 200% 100%;
+    animation: shimmerLine 3s linear infinite;
+}}
+
+/* ── GLASS FEATURE CARDS ───────────────────────────────── */
+.feature-grid {{
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 1rem; margin-top: 0.5rem;
+}}
+.feature-card {{
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 18px; padding: 1.5rem 1.2rem; text-align: center;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    animation: fadeInScale 0.6s ease-out both;
+    position: relative; overflow: hidden;
+}}
+.feature-card:nth-child(1) {{ animation-delay: 0.05s; }}
+.feature-card:nth-child(2) {{ animation-delay: 0.1s; }}
+.feature-card:nth-child(3) {{ animation-delay: 0.15s; }}
+.feature-card:nth-child(4) {{ animation-delay: 0.2s; }}
+.feature-card:nth-child(5) {{ animation-delay: 0.25s; }}
+.feature-card:nth-child(6) {{ animation-delay: 0.3s; }}
+.feature-card:nth-child(7) {{ animation-delay: 0.35s; }}
+.feature-card:nth-child(8) {{ animation-delay: 0.4s; }}
+.feature-card::before {{
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: 18px;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(107,92,231,0.3), rgba(232,99,139,0.1), transparent);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0; transition: opacity 0.3s;
+    pointer-events: none;
+}}
+.feature-card:hover {{
+    border-color: rgba(107,92,231,0.3); transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(107,92,231,0.15);
+}}
+.feature-card:hover::before {{ opacity: 1; }}
+.feature-icon {{ font-size: 2.2rem; margin-bottom: 0.5rem; }}
+.feature-title {{ font-size: 0.88rem; font-weight: 700; color: #E0DCF5; margin-bottom: 0.3rem; }}
+.feature-desc {{ font-size: 0.72rem; color: #8A85AD; line-height: 1.6; }}
+
+/* ── MISSION CONTROL (Merger Loading) ──────────────────── */
+.mission-control {{
+    background: linear-gradient(170deg, #020515 0%, #0B0E1A 40%, #151933 100%);
+    border-radius: 24px;
+    padding: 2.5rem;
+    min-height: 420px;
+    position: relative;
+    overflow: hidden;
+    animation: fadeInScale 0.5s ease-out both;
+    border: 1px solid rgba(107,92,231,0.2);
+}}
+.mission-control::before {{
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background:
+        radial-gradient(ellipse at 25% 30%, rgba(107,92,231,0.08) 0%, transparent 55%),
+        radial-gradient(ellipse at 75% 70%, rgba(232,99,139,0.05) 0%, transparent 55%);
+    pointer-events: none;
+}}
+.mission-control::after {{
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: transparent;
+    box-shadow: {_gen_stars(40, 600)};
+    width: 1px; height: 1px;
+    opacity: 0.4;
+    pointer-events: none;
+}}
+.mission-header {{
+    text-align: center;
+    margin-bottom: 1.5rem;
+    position: relative;
+    z-index: 1;
+}}
+.mission-title {{
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #E0DCF5;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    margin: 0;
+    text-shadow: 0 0 20px rgba(107,92,231,0.4);
+}}
+.mission-subtitle {{
+    font-size: 0.72rem;
+    color: #8A85AD;
+    margin-top: 0.3rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}}
+.rocket-container {{
+    text-align: center;
+    height: 120px;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}}
+.rocket {{
+    font-size: 3.5rem;
+    filter: drop-shadow(0 0 12px rgba(107,92,231,0.5));
+    position: relative;
+    z-index: 2;
+}}
+.rocket-idle {{
+    animation: float1 6s ease-in-out infinite;
+}}
+.rocket-launching {{
+    animation: rocketLaunch 2s ease-in forwards;
+}}
+.rocket-flame {{
+    font-size: 1.5rem;
+    filter: drop-shadow(0 0 8px rgba(255,165,0,0.7));
+    animation: flameFlicker 0.3s ease-in-out infinite;
+    margin-top: -8px;
+}}
+.exhaust-trail {{
+    width: 4px;
+    height: 30px;
+    background: linear-gradient(to bottom, rgba(255,165,0,0.4), rgba(107,92,231,0.2), transparent);
+    filter: blur(2px);
+    margin: 0 auto;
+    animation: exhaustTrail 0.8s ease-out infinite;
+}}
+.mission-progress-track {{
+    height: 6px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 3px;
+    margin: 1.2rem 0;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+}}
+.mission-progress-fill {{
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #6B5CE7, #9B8AFF, #E8638B, #6B5CE7);
+    background-size: 200% 100%;
+    animation: progressGlow 2s linear infinite;
+    transition: width 0.6s ease;
+    position: relative;
+}}
+.mission-progress-fill::after {{
+    content: '';
+    position: absolute;
+    right: 0; top: 50%;
+    transform: translateY(-50%);
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 10px rgba(155,138,255,0.8), 0 0 20px rgba(107,92,231,0.4);
+}}
+.mission-phases {{
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    position: relative;
+    z-index: 1;
+}}
+.mission-phase {{
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.6rem 1rem;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}}
+.mission-phase-active {{
+    background: rgba(107,92,231,0.1);
+    border: 1px solid rgba(107,92,231,0.25);
+    animation: missionPulse 2s ease-in-out infinite;
+}}
+.mission-phase-complete {{
+    background: rgba(16,185,129,0.06);
+    border: 1px solid rgba(16,185,129,0.15);
+}}
+.mission-phase-pending {{
+    opacity: 0.4;
+    border: 1px solid transparent;
+}}
+.phase-indicator {{
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
     font-weight: 700;
-    color: #F9FAFB;
-    margin-bottom: 0.75rem;
-}
-
-.feature-desc {
-    font-size: 0.875rem;
-    color: #9CA3AF;
-    line-height: 1.6;
-}
-
-/* Animations */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes shimmer {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .splash-title {
-        font-size: 3rem;
-    }
-    
-    .splash-subtitle {
-        font-size: 1rem;
-    }
-    
-    .splash-stats {
-        gap: 2rem;
-    }
-    
-    .splash-stat-value {
-        font-size: 2rem;
-    }
-    
-    .feature-grid {
-        grid-template-columns: 1fr;
-        padding: 0 1rem;
-    }
-}
+    flex-shrink: 0;
+}}
+.phase-indicator-active {{
+    border: 2px solid rgba(107,92,231,0.5);
+    color: #9B8AFF;
+    position: relative;
+}}
+.phase-indicator-active::after {{
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    border-top-color: #9B8AFF;
+    animation: spin 1s linear infinite;
+}}
+.phase-indicator-complete {{
+    background: rgba(16,185,129,0.2);
+    color: #10B981;
+    animation: checkPop 0.4s ease-out both;
+}}
+.phase-indicator-pending {{
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #555;
+}}
+.phase-label {{
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #E0DCF5;
+}}
+.phase-sublabel {{
+    font-size: 0.68rem;
+    color: #8A85AD;
+    margin-top: 0.1rem;
+}}
+.mission-stats {{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.8rem;
+    margin-top: 1.2rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    position: relative;
+    z-index: 1;
+}}
+.mission-stats span {{
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #9B8AFF;
+    letter-spacing: 1px;
+}}
+.mission-stats .mission-x {{
+    font-size: 1.2rem;
+    color: #E8638B;
+    font-weight: 300;
+}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -3329,7 +4309,7 @@ def _build_peer_radar_chart(cd):
         theta=metrics + [metrics[0]],
         fill='toself', name=cd.ticker,
         fillcolor='rgba(107,92,231,0.15)',
-        line=dict(color='#2563EB', width=3),
+        line=dict(color='#6B5CE7', width=3),
         marker=dict(size=8, line=dict(color="#fff", width=1.5)),
     ))
     fig.add_trace(go.Scatterpolar(
@@ -3404,7 +4384,7 @@ def _build_revenue_margin_chart(cd, key="rev_margin"):
 def _build_cashflow_chart(cd, key="cashflow"):
     """Grouped bars: OCF, CapEx (negative), FCF, dividends."""
     series_map = [
-        (cd.operating_cashflow_series, "Operating CF", "#2563EB"),
+        (cd.operating_cashflow_series, "Operating CF", "#6B5CE7"),
         (cd.capital_expenditure, "CapEx", "#EF4444"),
         (cd.free_cashflow_series, "Free CF", "#10B981"),
         (cd.dividends_paid, "Dividends", "#F5A623"),
@@ -3516,7 +4496,7 @@ def _build_peer_valuation_chart(cd, key="peer_val"):
     fig = go.Figure()
     fig.add_trace(go.Bar(
         y=labels, x=company_vals, orientation="h", name=cd.ticker,
-        marker=dict(color="#2563EB", line=dict(color="rgba(255,255,255,0.15)", width=1)),
+        marker=dict(color="#6B5CE7", line=dict(color="rgba(255,255,255,0.15)", width=1)),
         text=[f"{v:.1f}x" for v in company_vals],
         textposition="outside", textfont=dict(size=10, color="#B8B3D7"),
     ))
@@ -3629,14 +4609,14 @@ def _build_accretion_waterfall(pro_forma, key="accretion_waterfall"):
     colors = []
     for i, (v, t) in enumerate(zip(values, types)):
         if t == "absolute":
-            colors.append("#2563EB")
+            colors.append("#6B5CE7")
         elif t == "total":
-            colors.append("#60A5FA" if v >= values[0] else "#EF4444")
+            colors.append("#9B8AFF" if v >= values[0] else "#EF4444")
         else:
             colors.append("#10B981" if v >= 0 else "#EF4444")
 
     # Determine totals marker outline
-    totals_color = "#60A5FA" if values[-1] >= values[0] else "#EF4444"
+    totals_color = "#9B8AFF" if values[-1] >= values[0] else "#EF4444"
     fig = go.Figure(go.Waterfall(
         x=labels, y=values, measure=measures,
         text=[f"${v:.2f}" for v in values],
@@ -3674,7 +4654,7 @@ def _build_football_field_chart(football_field, currency_symbol="$", key="footba
     lows = [methods[m]["low"] for m in labels]
     highs = [methods[m]["high"] for m in labels]
 
-    colors = ["#2563EB", "#10B981", "#F5A623", "#E8638B", "#3B82F6"]
+    colors = ["#6B5CE7", "#10B981", "#F5A623", "#E8638B", "#3B82F6"]
 
     fig = go.Figure()
     for i, label in enumerate(labels):
@@ -3730,7 +4710,7 @@ def _build_deal_structure_donut(assumptions, key="deal_donut"):
         hole=0.55,
         pull=pull_vals,
         marker=dict(
-            colors=["#2563EB", "#E8638B"],
+            colors=["#6B5CE7", "#E8638B"],
             line=dict(color="#fff", width=1.5),
         ),
         textinfo="label+percent",
@@ -3767,7 +4747,7 @@ def _build_company_comparison_bars(acq_cd, tgt_cd, key="company_compare"):
     fig = go.Figure()
     fig.add_trace(go.Bar(
         y=metrics, x=acq_vals, orientation="h", name=acq_cd.ticker,
-        marker=dict(color="#2563EB", line=dict(color="rgba(255,255,255,0.15)", width=1)),
+        marker=dict(color="#6B5CE7", line=dict(color="rgba(255,255,255,0.15)", width=1)),
         text=[f"{v:.1f}%" for v in acq_vals],
         textposition="outside", textfont=dict(size=10, color="#B8B3D7"),
     ))
@@ -3806,7 +4786,7 @@ def _render_swot_grid(swot):
     quadrants = [
         ("Strengths", swot.get("strengths", []), "#10B981", "rgba(16,185,129,0.08)", "rgba(16,185,129,0.25)"),
         ("Weaknesses", swot.get("weaknesses", []), "#EF4444", "rgba(239,68,68,0.08)", "rgba(239,68,68,0.25)"),
-        ("Opportunities", swot.get("opportunities", []), "#2563EB", "rgba(107,92,231,0.08)", "rgba(107,92,231,0.25)"),
+        ("Opportunities", swot.get("opportunities", []), "#6B5CE7", "rgba(107,92,231,0.08)", "rgba(107,92,231,0.25)"),
         ("Threats", swot.get("threats", []), "#F5A623", "rgba(245,166,35,0.08)", "rgba(245,166,35,0.25)"),
     ]
     html = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">'
@@ -3852,7 +4832,7 @@ def _render_growth_outlook(growth, cd):
                 clean = clean[2:]
             st.markdown(
                 f'<div style="margin-bottom:0.8rem;">'
-                f'<div style="font-size:0.8rem; font-weight:700; color:#60A5FA; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.2rem;">{title}</div>'
+                f'<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.2rem;">{title}</div>'
                 f'<div style="font-size:0.85rem; color:#B8B3D7; line-height:1.7;">{clean}</div>'
                 f'</div>',
                 unsafe_allow_html=True,
@@ -3877,7 +4857,7 @@ def _render_capital_allocation(ca, cd):
         st.info("Capital allocation analysis not available.")
         return
     grade = ca.get("capital_allocation_grade", "B")
-    grade_colors = {"A": "#10B981", "B": "#2563EB", "C": "#F5A623", "D": "#EF4444"}
+    grade_colors = {"A": "#10B981", "B": "#6B5CE7", "C": "#F5A623", "D": "#EF4444"}
     grade_color = grade_colors.get(grade, "#8A85AD")
     grade_bg = {"A": "rgba(16,185,129,0.12)", "B": "rgba(107,92,231,0.12)", "C": "rgba(245,166,35,0.12)", "D": "rgba(239,68,68,0.12)"}
 
@@ -3889,7 +4869,7 @@ def _render_capital_allocation(ca, cd):
     )
 
     sections = [
-        ("Strategy Summary", ca.get("strategy_summary", ""), "#2563EB"),
+        ("Strategy Summary", ca.get("strategy_summary", ""), "#6B5CE7"),
         ("CapEx Assessment", ca.get("capex_assessment", ""), "#E8638B"),
         ("Shareholder Returns", ca.get("shareholder_returns", ""), "#10B981"),
         ("M&A Strategy", ca.get("ma_strategy", ""), "#F5A623"),
@@ -3987,7 +4967,7 @@ with st.sidebar:
     st.markdown('<div style="height:0.5rem;"></div>', unsafe_allow_html=True)
 
     # What's New expander
-    with st.expander("🆕 What's New in v7.0"):
+    with st.expander("🆕 What's New in v5.8"):
         st.markdown(
             "- 🔍 **VMS Screener** — Acquisition attractiveness scoring & Rule of 40 analysis\n"
             "- 📊 **Options P/L Simulator** — Visual payoff diagrams for calls & puts\n"
@@ -3999,7 +4979,7 @@ with st.sidebar:
 
     # Mode Toggle - Enhanced with colored indicators and hover effects
     _mode_colors = {
-        "📊 Company Profile": "#2563EB",
+        "📊 Company Profile": "#6B5CE7",
         "📈 Comps Analysis": "#10B981",
         "💹 DCF Valuation": "#F5A623",
         "⚖️ Quick Compare": "#3B82F6",
@@ -4020,12 +5000,12 @@ with st.sidebar:
         '}'
         '[data-testid="stSidebar"] .stRadio > div > label:hover {'
         '  background: rgba(107,92,231,0.12);'
-        '  border-left-color: #2563EB;'
+        '  border-left-color: #6B5CE7;'
         '}'
         '[data-testid="stSidebar"] .stRadio > div > label[data-checked="true"],'
         '[data-testid="stSidebar"] .stRadio > div > label:has(input:checked) {'
         '  background: rgba(107,92,231,0.15);'
-        '  border-left-color: #2563EB;'
+        '  border-left-color: #6B5CE7;'
         '  border-left-width: 3px;'
         '}'
         '</style>',
@@ -4168,7 +5148,7 @@ with st.sidebar:
             # ── Watchlist Heat Map & Correlation (3+ items) ──
             if len(watchlist) >= 3:
                 st.markdown(
-                    '<div style="font-size:0.75rem; font-weight:700; color:#60A5FA; margin:0.5rem 0 0.3rem;">📊 WATCHLIST INTELLIGENCE</div>',
+                    '<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF; margin:0.5rem 0 0.3rem;">📊 WATCHLIST INTELLIGENCE</div>',
                     unsafe_allow_html=True,
                 )
 
@@ -4293,7 +5273,7 @@ with st.sidebar:
                     _sr_color = "#10B981" if _sharpe > 1 else "#F59E0B" if _sharpe > 0.5 else "#EF4444"
                     st.markdown(
                         f'<div style="background:rgba(107,92,231,0.06); border-radius:8px; padding:0.6rem; margin:0.3rem 0; font-size:0.72rem;">'
-                        f'<div style="color:#60A5FA; font-weight:700; margin-bottom:0.3rem;">PORTFOLIO METRICS</div>'
+                        f'<div style="color:#9B8AFF; font-weight:700; margin-bottom:0.3rem;">PORTFOLIO METRICS</div>'
                         f'<div style="color:#B8B3D7;">Expected Return: <b style="color:#10B981;">{_port_ret*100:.1f}%</b></div>'
                         f'<div style="color:#B8B3D7;">Volatility: <b style="color:#F59E0B;">{_port_vol*100:.1f}%</b></div>'
                         f'<div style="color:#B8B3D7;">Sharpe Ratio: <b style="color:{_sr_color};">{_sharpe:.2f}</b></div>'
@@ -4314,7 +5294,7 @@ with st.sidebar:
                     fig_ps.add_trace(go.Scatter(
                         x=[_port_vol * 100], y=[_port_ret * 100],
                         mode="markers+text", name="Portfolio", text=["Portfolio"], textposition="top center",
-                        marker=dict(size=14, color="#2563EB", symbol="star", line=dict(width=2, color="#fff")),
+                        marker=dict(size=14, color="#6B5CE7", symbol="star", line=dict(width=2, color="#fff")),
                         textfont=dict(size=9, color="#E0DCF5", weight="bold" if hasattr(dict, 'weight') else None),
                     ))
                     fig_ps.update_layout(
@@ -4482,7 +5462,7 @@ with st.sidebar:
                     f'<div style="background:rgba(107,92,231,0.1); border:1px solid rgba(107,92,231,0.2); '
                     f'border-radius:8px; padding:0.5rem 0.8rem; margin-bottom:0.5rem;">'
                     f'<span style="font-size:0.75rem; color:#B8B3D7;">Did you mean:</span><br>'
-                    f'<span style="font-size:0.85rem; font-weight:700; color:#60A5FA;">'
+                    f'<span style="font-size:0.85rem; font-weight:700; color:#9B8AFF;">'
                     f'{_nl_suggestions[0][0]} ({_nl_suggestions[0][1]})</span></div>',
                     unsafe_allow_html=True,
                 )
@@ -4735,7 +5715,7 @@ with st.sidebar:
 
                 if _sps_suggestions:
                     if _sps_sector:
-                        st.markdown(f'<div style="font-size:0.65rem; color:#60A5FA; margin-bottom:0.4rem;">Sector: {_sps_sector} · Industry: {_sps_industry or "N/A"}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div style="font-size:0.65rem; color:#9B8AFF; margin-bottom:0.4rem;">Sector: {_sps_sector} · Industry: {_sps_industry or "N/A"}</div>', unsafe_allow_html=True)
 
                     # Initialize session state
                     _sps_key = f"smart_peers_{comps_ticker_input}"
@@ -4921,7 +5901,7 @@ with st.sidebar:
                             _fcf_cagr = (_fcf_latest / _fcf_oldest) ** (1 / _n_yrs) - 1
                             st.markdown(
                                 f'<div style="font-size:0.65rem; color:#8A85AD; margin:0.2rem 0;">'
-                                f'📈 Suggested FCF Growth: <b style="color:#60A5FA;">{_fcf_cagr*100:.1f}%</b> '
+                                f'📈 Suggested FCF Growth: <b style="color:#9B8AFF;">{_fcf_cagr*100:.1f}%</b> '
                                 f'({_n_yrs}Y CAGR)</div>',
                                 unsafe_allow_html=True,
                             )
@@ -4965,7 +5945,7 @@ with st.sidebar:
         
         if compare_tickers:
             st.markdown(
-                f'<div style="font-size:0.75rem; color:#60A5FA; margin:0.5rem 0;">'
+                f'<div style="font-size:0.75rem; color:#9B8AFF; margin:0.5rem 0;">'
                 f'📊 Comparing {len(compare_tickers)} companies: {", ".join(compare_tickers[:5])}'
                 f'{"..." if len(compare_tickers) > 5 else ""}'
                 f'</div>',
@@ -5250,7 +6230,7 @@ with st.sidebar:
         if vms_target_profile != "Custom":
             st.markdown(
                 f'<div style="background:rgba(107,92,231,0.08); border-radius:8px; padding:0.6rem; '
-                f'font-size:0.72rem; color:#60A5FA; margin-bottom:0.5rem;">'
+                f'font-size:0.72rem; color:#9B8AFF; margin-bottom:0.5rem;">'
                 f'🎯 <b>{vms_target_profile}</b> preset applied. Adjust sliders to customize.</div>',
                 unsafe_allow_html=True,
             )
@@ -5362,9 +6342,9 @@ with st.sidebar:
     st.markdown('<div class="sb-divider" style="margin-top:1.5rem;"></div>', unsafe_allow_html=True)
     st.markdown(
         '<div style="text-align:center; padding: 0.5rem 0;">'
-        '<div style="font-size:0.55rem; font-weight:800; background:linear-gradient(135deg, #2563EB, #E8638B); '
+        '<div style="font-size:0.55rem; font-weight:800; background:linear-gradient(135deg, #6B5CE7, #E8638B); '
         '-webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:2px; margin-bottom:0.3rem;">'
-        'ORBITAL v7.0</div>'
+        'ORBITAL v5.8</div>'
         '<div style="font-size:0.55rem; color:#4B5563; letter-spacing:0.5px; line-height:1.8;">'
         'DATA: YAHOO FINANCE • CHARTS: PLOTLY<br>'
         'AI: OPENAI (OPT.) • LOGOS: CLEARBIT'
@@ -5372,11 +6352,11 @@ with st.sidebar:
         '<div style="margin-top:0.5rem; padding:0.3rem 0.5rem; background:rgba(107,92,231,0.08); '
         'border:1px solid rgba(107,92,231,0.15); border-radius:6px; display:inline-block;">'
         '<span style="font-size:0.5rem; color:#8A85AD; letter-spacing:0.5px;">'
-        'ProfileBuilder v7.0 • 16,689 lines • 150+ data points</span>'
+        'ProfileBuilder v5.8 • 16,689 lines • 150+ data points</span>'
         '</div>'
         '<div style="margin-top:0.4rem;">'
         '<a href="https://github.com/rajkcho/profilebuilder" target="_blank" '
-        'style="font-size:0.55rem; color:#2563EB; text-decoration:none; font-weight:600;">GitHub ↗</a>'
+        'style="font-size:0.55rem; color:#6B5CE7; text-decoration:none; font-weight:600;">GitHub ↗</a>'
         '</div>'
         '</div>',
         unsafe_allow_html=True,
@@ -5419,7 +6399,7 @@ def render_options_pl_page(ticker):
                     pnl = [max(0, s - atm_call["strike"]) - premium for s in strikes_range]
                     import plotly.graph_objects as go
                     fig = go.Figure()
-                    fig.add_trace(go.Scatter(x=strikes_range, y=pnl, mode='lines', name='P/L', line=dict(color='#2563EB', width=2)))
+                    fig.add_trace(go.Scatter(x=strikes_range, y=pnl, mode='lines', name='P/L', line=dict(color='#6B5CE7', width=2)))
                     fig.add_hline(y=0, line_dash="dash", line_color="#8A85AD")
                     fig.add_vline(x=spot, line_dash="dash", line_color="#10B981", annotation_text="Spot")
                     fig.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
@@ -5643,7 +6623,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             f'border-radius:16px; padding:1.5rem; margin:1rem 0;">'
             f'<div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">'
             f'<div style="font-size:1.6rem; font-weight:900; color:#fff;">{cd.name}</div>'
-            f'<span style="background:#2563EB; color:white; padding:0.2rem 0.8rem; border-radius:20px; '
+            f'<span style="background:#6B5CE7; color:white; padding:0.2rem 0.8rem; border-radius:20px; '
             f'font-size:0.7rem; font-weight:700;">{cd.ticker}</span>'
             f'</div>'
             f'<div style="font-size:2rem; font-weight:800; color:#fff;">{cs}{cd.current_price:,.2f}</div>'
@@ -5723,7 +6703,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 _ed_fig = go.Figure()
                 _ed_fig.add_trace(go.Scatter(
                     x=_ed_hist.index, y=_ed_hist["Close"], mode="lines",
-                    line=dict(color="#2563EB", width=2), fill="tozeroy",
+                    line=dict(color="#6B5CE7", width=2), fill="tozeroy",
                     fillcolor="rgba(107,92,231,0.1)", showlegend=False,
                 ))
                 _ed_fig.update_layout(
@@ -5773,14 +6753,14 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             f'background:white; padding:4px; margin-right:1.2rem; flex-shrink:0;" '
             f'onerror="{logo_fallback}">'
             f'<div class="logo-fallback" style="display:none; width:48px; height:48px; border-radius:50%; '
-            f'background:linear-gradient(135deg, #2563EB, #E8638B); color:white; font-size:1.4rem; font-weight:800; '
+            f'background:linear-gradient(135deg, #6B5CE7, #E8638B); color:white; font-size:1.4rem; font-weight:800; '
             f'align-items:center; justify-content:center; margin-right:1.2rem; flex-shrink:0;">{_logo_initial}</div>'
         )
     else:
         _logo_initial = (cd.name or "?")[0].upper()
         logo_html = (
             f'<div style="width:48px; height:48px; border-radius:50%; '
-            f'background:linear-gradient(135deg, #2563EB, #E8638B); color:white; font-size:1.4rem; font-weight:800; '
+            f'background:linear-gradient(135deg, #6B5CE7, #E8638B); color:white; font-size:1.4rem; font-weight:800; '
             f'display:flex; align-items:center; justify-content:center; margin-right:1.2rem; flex-shrink:0;">{_logo_initial}</div>'
         )
 
@@ -5791,14 +6771,14 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         try:
             # Sector-derived accent colors
             _sector_colors = {
-                "Technology": ("#2563EB", "#60A5FA"), "Healthcare": ("#E8638B", "#F093B0"),
+                "Technology": ("#6B5CE7", "#9B8AFF"), "Healthcare": ("#E8638B", "#F093B0"),
                 "Financial Services": ("#F5A623", "#F7C574"), "Financials": ("#F5A623", "#F7C574"),
                 "Consumer Cyclical": ("#10B981", "#6EE7B7"), "Consumer Defensive": ("#34D399", "#A7F3D0"),
                 "Energy": ("#EF4444", "#FCA5A5"), "Industrials": ("#3B82F6", "#93C5FD"),
                 "Real Estate": ("#8B5CF6", "#C4B5FD"), "Communication Services": ("#EC4899", "#F9A8D4"),
                 "Basic Materials": ("#D97706", "#FCD34D"), "Utilities": ("#06B6D4", "#67E8F9"),
             }
-            _sc_accent1, _sc_accent2 = _sector_colors.get(cd.sector, ("#2563EB", "#60A5FA"))
+            _sc_accent1, _sc_accent2 = _sector_colors.get(cd.sector, ("#6B5CE7", "#9B8AFF"))
 
             # Logo or initials
             _sc_initial = (cd.name or "?")[0].upper()
@@ -5829,7 +6809,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             if cd.sector:
                 _sc_badges.append(f'<span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:20px; font-size:0.65rem; font-weight:600; background:rgba({int(_sc_accent1[1:3],16)},{int(_sc_accent1[3:5],16)},{int(_sc_accent1[5:7],16)},0.15); color:{_sc_accent2}; letter-spacing:0.3px;">⚡ {cd.sector}</span>')
             if cd.industry:
-                _sc_badges.append(f'<span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:20px; font-size:0.65rem; font-weight:600; background:rgba(107,92,231,0.1); color:#60A5FA; letter-spacing:0.3px;">🏭 {cd.industry}</span>')
+                _sc_badges.append(f'<span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:20px; font-size:0.65rem; font-weight:600; background:rgba(107,92,231,0.1); color:#9B8AFF; letter-spacing:0.3px;">🏭 {cd.industry}</span>')
             _sc_country = getattr(cd, 'country', '') or ''
             if _sc_country:
                 _sc_badges.append(f'<span style="display:inline-block; padding:0.2rem 0.6rem; border-radius:20px; font-size:0.65rem; font-weight:600; background:rgba(16,185,129,0.1); color:#34D399; letter-spacing:0.3px;">🌍 {_sc_country}</span>')
@@ -5998,7 +6978,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     _pill_style = ('display:inline-block; padding:0.2rem 0.6rem; border-radius:20px; '
                    'font-size:0.65rem; font-weight:600; margin-right:0.4rem; margin-bottom:0.3rem;')
     if cd.sector:
-        _qf_pills.append(f'<span style="{_pill_style} background:rgba(107,92,231,0.15); color:#60A5FA;">🏢 {cd.sector}</span>')
+        _qf_pills.append(f'<span style="{_pill_style} background:rgba(107,92,231,0.15); color:#9B8AFF;">🏢 {cd.sector}</span>')
     if cd.industry:
         _qf_pills.append(f'<span style="{_pill_style} background:rgba(232,99,139,0.15); color:#E8638B;">⚙️ {cd.industry}</span>')
     if cd.exchange:
@@ -6050,13 +7030,13 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 _ind_peers_html += (
                     f'<div style="display:flex; justify-content:space-between; padding:0.15rem 0; '
                     f'font-size:0.72rem; color:#B8B3D7;">'
-                    f'<span>{_ip_name}</span><span style="color:#60A5FA;">{_ip_mcap_fmt}</span></div>'
+                    f'<span>{_ip_name}</span><span style="color:#9B8AFF;">{_ip_mcap_fmt}</span></div>'
                 )
 
             st.markdown(
                 f'<div style="background:rgba(107,92,231,0.04); border:1px solid rgba(107,92,231,0.12); '
                 f'border-radius:12px; padding:0.8rem 1rem; margin:0.3rem 0 0.6rem 0;">'
-                f'<div style="font-size:0.65rem; font-weight:700; color:#2563EB; text-transform:uppercase; '
+                f'<div style="font-size:0.65rem; font-weight:700; color:#6B5CE7; text-transform:uppercase; '
                 f'letter-spacing:1.5px; margin-bottom:0.5rem;">🏭 Industry Snapshot</div>'
                 f'<div style="display:grid; grid-template-columns:1fr 1fr; gap:0.3rem 1rem; font-size:0.75rem;">'
                 f'<div style="color:#8A85AD;">Sector</div><div style="color:#E0DCF5;">{_ind_sector}</div>'
@@ -6068,7 +7048,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 f'<div style="color:#8A85AD;">Tracked Peers</div><div style="color:#E0DCF5;">{_ind_peer_count} companies</div>'
                 f'</div>'
                 + (f'<div style="margin-top:0.5rem; border-top:1px solid rgba(107,92,231,0.1); padding-top:0.4rem;">'
-                   f'<div style="font-size:0.62rem; color:#2563EB; font-weight:600; margin-bottom:0.2rem;">Top Peers by Market Cap</div>'
+                   f'<div style="font-size:0.62rem; color:#6B5CE7; font-weight:600; margin-bottom:0.2rem;">Top Peers by Market Cap</div>'
                    f'{_ind_peers_html}</div>' if _ind_peers_html else '')
                 + f'</div>',
                 unsafe_allow_html=True,
@@ -6152,7 +7132,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     )
 
     # Quick KPI strip with sparklines
-    def _make_sparkline(data, color="#2563EB", height=40):
+    def _make_sparkline(data, color="#6B5CE7", height=40):
         """Create a minimal sparkline figure."""
         if data is None or (hasattr(data, '__len__') and len(data) < 2):
             return None
@@ -6221,7 +7201,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
 
     # Sparkline row under KPIs
     _price_hist = getattr(cd, 'price_history', None)
-    _spark_price = _make_sparkline(_price_hist, color="#2563EB") if _price_hist is not None else None
+    _spark_price = _make_sparkline(_price_hist, color="#6B5CE7") if _price_hist is not None else None
     _spark_rev = _make_sparkline(cd.revenue[::-1] if cd.revenue is not None and len(cd.revenue) > 1 else None, color="#10B981")
     if _spark_price or _spark_rev:
         sp1, sp2 = st.columns(2)
@@ -6307,7 +7287,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                             # Actual P/E line
                             fig_hv.add_trace(go.Scatter(
                                 x=_hv_pe_clean.index, y=_hv_pe_clean.values,
-                                mode="lines", line=dict(color="#2563EB", width=2),
+                                mode="lines", line=dict(color="#6B5CE7", width=2),
                                 name=f"Trailing {_hv_label}",
                             ))
 
@@ -6435,7 +7415,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         f'<div style="background:rgba(107,92,231,0.05); border:1px solid rgba(107,92,231,0.1); '
         f'border-radius:12px; padding:0.8rem; text-align:center;">'
         f'<div style="font-size:0.6rem; color:#8A85AD; font-weight:600; text-transform:uppercase; letter-spacing:1px;">Sector</div>'
-        f'<div style="font-size:0.85rem; font-weight:700; color:#2563EB; margin-top:0.2rem;">{cd.sector or "N/A"}</div>'
+        f'<div style="font-size:0.85rem; font-weight:700; color:#6B5CE7; margin-top:0.2rem;">{cd.sector or "N/A"}</div>'
         f'</div>'
         f'</div>',
         unsafe_allow_html=True,
@@ -6496,10 +7476,10 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 _sb_table = (
                     '<table style="width:100%; border-collapse:collapse; font-size:0.78rem;">'
                     '<tr style="border-bottom:1px solid rgba(107,92,231,0.2);">'
-                    '<th style="text-align:left; padding:0.4rem; color:#60A5FA; font-weight:700;">Metric</th>'
-                    '<th style="text-align:center; padding:0.4rem; color:#60A5FA; font-weight:700;">Company</th>'
-                    '<th style="text-align:center; padding:0.4rem; color:#60A5FA; font-weight:700;">Sector (Low–Med–High)</th>'
-                    '<th style="text-align:center; padding:0.4rem; color:#60A5FA; font-weight:700;">Position</th>'
+                    '<th style="text-align:left; padding:0.4rem; color:#9B8AFF; font-weight:700;">Metric</th>'
+                    '<th style="text-align:center; padding:0.4rem; color:#9B8AFF; font-weight:700;">Company</th>'
+                    '<th style="text-align:center; padding:0.4rem; color:#9B8AFF; font-weight:700;">Sector (Low–Med–High)</th>'
+                    '<th style="text-align:center; padding:0.4rem; color:#9B8AFF; font-weight:700;">Position</th>'
                     '</tr>'
                 )
                 for metric, company_val, sector_range, position, color in _sb_rows:
@@ -6516,7 +7496,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 st.markdown(
                     f'<div style="background:rgba(107,92,231,0.05); border:1px solid rgba(107,92,231,0.15); '
                     f'border-radius:12px; padding:1rem 1.2rem; margin:0.8rem 0;">'
-                    f'<div style="font-size:0.7rem; font-weight:800; color:#60A5FA; text-transform:uppercase; '
+                    f'<div style="font-size:0.7rem; font-weight:800; color:#9B8AFF; text-transform:uppercase; '
                     f'letter-spacing:2px; margin-bottom:0.6rem;">📊 Sector Benchmark Comparison — {cd.sector}</div>'
                     f'{_sb_table}'
                     f'</div>',
@@ -6595,9 +7575,9 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 _hvt_has_data = False
 
                 if _hvt_pe_series is not None and len(_hvt_pe_series) > 10:
-                    _hvt_fig.add_trace(go.Scatter(x=_hvt_pe_series.index, y=_hvt_pe_series.values, name="P/E (TTM)", line=dict(color="#2563EB", width=2)))
+                    _hvt_fig.add_trace(go.Scatter(x=_hvt_pe_series.index, y=_hvt_pe_series.values, name="P/E (TTM)", line=dict(color="#6B5CE7", width=2)))
                     if _hvt_current_pe:
-                        _hvt_fig.add_trace(go.Scatter(x=[_hvt_pe_series.index[-1]], y=[_hvt_current_pe], name=f"Current P/E: {_hvt_current_pe:.1f}x", mode="markers", marker=dict(color="#2563EB", size=10, symbol="diamond")))
+                        _hvt_fig.add_trace(go.Scatter(x=[_hvt_pe_series.index[-1]], y=[_hvt_current_pe], name=f"Current P/E: {_hvt_current_pe:.1f}x", mode="markers", marker=dict(color="#6B5CE7", size=10, symbol="diamond")))
                     _hvt_has_data = True
 
                 if _hvt_ev_ebitda_series is not None and len(_hvt_ev_ebitda_series) > 10:
@@ -6627,7 +7607,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     _hvt_pctiles = []
                     if _hvt_pe_series is not None and len(_hvt_pe_series) > 10 and _hvt_current_pe:
                         _pct = ((_hvt_pe_series < _hvt_current_pe).sum() / len(_hvt_pe_series)) * 100
-                        _hvt_pctiles.append(("P/E", _hvt_current_pe, _pct, "#2563EB"))
+                        _hvt_pctiles.append(("P/E", _hvt_current_pe, _pct, "#6B5CE7"))
                     if _hvt_ev_ebitda_series is not None and len(_hvt_ev_ebitda_series) > 10 and _hvt_current_ev_ebitda:
                         _pct = ((_hvt_ev_ebitda_series < _hvt_current_ev_ebitda).sum() / len(_hvt_ev_ebitda_series)) * 100
                         _hvt_pctiles.append(("EV/EBITDA", _hvt_current_ev_ebitda, _pct, "#E8638B"))
@@ -6636,7 +7616,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         _hvt_pctiles.append(("P/S", _hvt_current_ps, _pct, "#10B981"))
 
                     if _hvt_pctiles:
-                        st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#60A5FA; margin:0.8rem 0 0.5rem 0;">📊 Valuation Percentile (vs Own 5Y History)</div>', unsafe_allow_html=True)
+                        st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; margin:0.8rem 0 0.5rem 0;">📊 Valuation Percentile (vs Own 5Y History)</div>', unsafe_allow_html=True)
                         _pct_cols = st.columns(len(_hvt_pctiles))
                         for _pi, (_p_label, _p_val, _p_pct, _p_color) in enumerate(_hvt_pctiles):
                             _p_interp = "Cheap" if _p_pct < 25 else "Below Avg" if _p_pct < 40 else "Fair" if _p_pct < 60 else "Above Avg" if _p_pct < 75 else "Expensive"
@@ -6752,7 +7732,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 f'<div style="background:linear-gradient(135deg, rgba(107,92,231,0.08), rgba(16,185,129,0.06)); '
                 f'border:2px solid transparent; border-image:linear-gradient(135deg, rgba(107,92,231,0.4), rgba(16,185,129,0.3)) 1; '
                 f'border-radius:0px; padding:1.2rem 1.5rem; margin:1rem 0;">'
-                f'<div style="font-size:0.7rem; font-weight:800; color:#60A5FA; text-transform:uppercase; '
+                f'<div style="font-size:0.7rem; font-weight:800; color:#9B8AFF; text-transform:uppercase; '
                 f'letter-spacing:2px; margin-bottom:0.6rem;">Executive Summary</div>'
                 f'{_es_html}'
                 f'</div>',
@@ -6811,7 +7791,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             st.markdown(
                 f'<div style="background:rgba(107,92,231,0.04); border:1px solid rgba(107,92,231,0.12); '
                 f'border-radius:12px; padding:1rem 1.2rem; margin:0.5rem 0 1rem 0;">'
-                f'<div style="font-size:0.65rem; font-weight:700; color:#2563EB; text-transform:uppercase; '
+                f'<div style="font-size:0.65rem; font-weight:700; color:#6B5CE7; text-transform:uppercase; '
                 f'letter-spacing:1.5px; margin-bottom:0.4rem;">Key Takeaways</div>'
                 f'{bullets}'
                 f'</div>',
@@ -7423,7 +8403,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         _wif_fig = go.Figure()
                         _wif_labels = ["Bear Case", "Current", "Your Scenario", "Bull Case"]
                         _wif_values = [_wif_bear_price, cd.current_price, _wif_implied_price, _wif_bull_price]
-                        _wif_colors = ["#EF4444", "#8A85AD", "#2563EB", "#10B981"]
+                        _wif_colors = ["#EF4444", "#8A85AD", "#6B5CE7", "#10B981"]
                         _wif_fig.add_trace(go.Bar(
                             x=_wif_labels, y=_wif_values,
                             marker_color=_wif_colors,
@@ -7645,7 +8625,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
 
                         # Stacked bar chart
                         fig_sotp = go.Figure()
-                        _sotp_colors = ["#2563EB", "#10B981", "#F59E0B", "#EF4444"]
+                        _sotp_colors = ["#6B5CE7", "#10B981", "#F59E0B", "#EF4444"]
                         for idx, sr in enumerate(_sotp_results):
                             fig_sotp.add_trace(go.Bar(
                                 x=["SOTP Valuation"], y=[sr["ev"]],
@@ -8065,7 +9045,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         else:
             fig = go.Figure()
             # Glow underlay + main price line
-            _glow_line_traces(fig, plot_hist.index, plot_hist["Close"], "#2563EB", "Close")
+            _glow_line_traces(fig, plot_hist.index, plot_hist["Close"], "#6B5CE7", "Close")
             # Area fill
             fig.add_trace(go.Scatter(
                 x=plot_hist.index, y=plot_hist["Close"],
@@ -8158,7 +9138,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             fib_low = plot_hist["Close"].min()
             fib_diff = fib_high - fib_low
             fib_levels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0]
-            fib_colors = ["#EF4444", "#F59E0B", "#F5A623", "#8A85AD", "#10B981", "#3B82F6", "#2563EB"]
+            fib_colors = ["#EF4444", "#F59E0B", "#F5A623", "#8A85AD", "#10B981", "#3B82F6", "#6B5CE7"]
             for lvl, clr in zip(fib_levels, fib_colors):
                 fib_price = fib_high - fib_diff * lvl
                 fig.add_hline(
@@ -8290,7 +9270,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             fig_rsi = go.Figure()
             fig_rsi.add_trace(go.Scatter(
                 x=ta_hist.index, y=rsi, mode="lines",
-                line=dict(color="#2563EB", width=2), name="RSI (14)"
+                line=dict(color="#6B5CE7", width=2), name="RSI (14)"
             ))
             fig_rsi.add_hline(y=70, line_dash="dash", line_color="rgba(239,68,68,0.5)", line_width=1,
                              annotation_text="Overbought (70)", annotation_font=dict(size=9, color="#EF4444"))
@@ -8338,7 +9318,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             ))
             fig_macd.add_trace(go.Scatter(
                 x=ta_hist.index, y=macd_line, mode="lines",
-                line=dict(color="#2563EB", width=2), name="MACD"
+                line=dict(color="#6B5CE7", width=2), name="MACD"
             ))
             fig_macd.add_trace(go.Scatter(
                 x=ta_hist.index, y=signal_line, mode="lines",
@@ -8570,7 +9550,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
 
                 # Chart with levels
                 fig_sr = go.Figure()
-                _glow_line_traces(fig_sr, ta_hist.index, close, "#2563EB", "Price")
+                _glow_line_traces(fig_sr, ta_hist.index, close, "#6B5CE7", "Price")
 
                 for s in supports[-5:]:
                     fig_sr.add_hline(y=s, line_dash="dash", line_color="rgba(16,185,129,0.5)", line_width=1,
@@ -8645,7 +9625,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 inst_holders = tk_own.institutional_holders if tk_own else None
                 if inst_holders is not None and not inst_holders.empty:
                     st.markdown(
-                        '<div style="font-size:0.8rem; font-weight:700; color:#60A5FA; margin-bottom:0.5rem;">'
+                        '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; margin-bottom:0.5rem;">'
                         '🏛️ Top 10 Institutional Holders</div>',
                         unsafe_allow_html=True,
                     )
@@ -8665,8 +9645,8 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                             f'border-bottom:1px solid rgba(255,255,255,0.04); font-size:0.72rem;">'
                             f'<span style="color:#E0DCF5; flex:2.5;">{holder}</span>'
                             f'<span style="color:#8A85AD; flex:1; text-align:right;">{shares:,.0f}</span>'
-                            f'<span style="color:#60A5FA; flex:0.8; text-align:right;">{val_str}</span>'
-                            f'<span style="color:#2563EB; flex:0.5; text-align:right; font-weight:600;">{pct_str}</span>'
+                            f'<span style="color:#9B8AFF; flex:0.8; text-align:right;">{val_str}</span>'
+                            f'<span style="color:#6B5CE7; flex:0.5; text-align:right; font-weight:600;">{pct_str}</span>'
                             f'</div>',
                             unsafe_allow_html=True,
                         )
@@ -8709,7 +9689,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                                         f'<div style="text-align:center; padding:0.5rem; margin-top:0.5rem; '
                                         f'background:rgba(107,92,231,0.08); border-radius:8px;">'
                                         f'<span style="font-size:0.7rem; color:#8A85AD;">Total Institutional Ownership: </span>'
-                                        f'<span style="font-size:0.9rem; font-weight:700; color:#2563EB;">{val}</span>'
+                                        f'<span style="font-size:0.9rem; font-weight:700; color:#6B5CE7;">{val}</span>'
                                         f'</div>',
                                         unsafe_allow_html=True,
                                     )
@@ -8727,7 +9707,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 major = tk_own.major_holders if tk_own else None
                 if major is not None and not major.empty:
                     st.markdown(
-                        '<div style="font-size:0.8rem; font-weight:700; color:#60A5FA; margin-bottom:0.5rem;">'
+                        '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; margin-bottom:0.5rem;">'
                         '📊 Ownership Breakdown</div>',
                         unsafe_allow_html=True,
                     )
@@ -8752,7 +9732,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 mf_holders = tk_own.mutualfund_holders if tk_own else None
                 if mf_holders is not None and not mf_holders.empty:
                     st.markdown(
-                        '<div style="font-size:0.8rem; font-weight:700; color:#60A5FA; margin-top:1rem; margin-bottom:0.5rem;">'
+                        '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; margin-top:1rem; margin-bottom:0.5rem;">'
                         '💼 Top 5 Mutual Fund Holders</div>',
                         unsafe_allow_html=True,
                     )
@@ -8764,7 +9744,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                             f'<div style="display:flex; justify-content:space-between; padding:0.25rem 0; '
                             f'border-bottom:1px solid rgba(255,255,255,0.04); font-size:0.72rem;">'
                             f'<span style="color:#E0DCF5; flex:3;">{holder}</span>'
-                            f'<span style="color:#2563EB; flex:0.5; text-align:right; font-weight:600;">{pct_str}</span>'
+                            f'<span style="color:#6B5CE7; flex:0.5; text-align:right; font-weight:600;">{pct_str}</span>'
                             f'</div>',
                             unsafe_allow_html=True,
                         )
@@ -8786,7 +9766,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
 
                         _labels = [n[:25] for n in _top5_names] + ["Other Institutions"]
                         _values = _top5_pct + [_rest]
-                        _colors_donut = ["#2563EB", "#E8638B", "#10B981", "#F5A623", "#3B82F6", "#8A85AD"]
+                        _colors_donut = ["#6B5CE7", "#E8638B", "#10B981", "#F5A623", "#3B82F6", "#8A85AD"]
 
                         fig_donut = go.Figure(data=[go.Pie(
                             labels=_labels, values=_values,
@@ -8802,7 +9782,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                                        yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
                         )
                         st.markdown(
-                            '<div style="font-size:0.75rem; font-weight:700; color:#60A5FA; margin-top:1rem; margin-bottom:0.3rem;">'
+                            '<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF; margin-top:1rem; margin-bottom:0.3rem;">'
                             '🍩 Ownership Concentration (Top 5)</div>',
                             unsafe_allow_html=True,
                         )
@@ -8860,7 +9840,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             _sha_cols = st.columns(4)
             with _sha_cols[0]:
                 _v = f"{_sha_inst_pct*100:.1f}%" if _sha_inst_pct else "N/A"
-                st.markdown(f'<div style="background:rgba(107,92,231,0.06); border:1px solid rgba(107,92,231,0.15); border-radius:12px; padding:0.8rem; text-align:center;"><div style="font-size:0.6rem; color:#8A85AD; text-transform:uppercase; letter-spacing:0.5px;">Institutional</div><div style="font-size:1.2rem; font-weight:700; color:#2563EB;">{_v}</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="background:rgba(107,92,231,0.06); border:1px solid rgba(107,92,231,0.15); border-radius:12px; padding:0.8rem; text-align:center;"><div style="font-size:0.6rem; color:#8A85AD; text-transform:uppercase; letter-spacing:0.5px;">Institutional</div><div style="font-size:1.2rem; font-weight:700; color:#6B5CE7;">{_v}</div></div>', unsafe_allow_html=True)
             with _sha_cols[1]:
                 _v = f"{_sha_insider_pct*100:.1f}%" if _sha_insider_pct else "N/A"
                 st.markdown(f'<div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.15); border-radius:12px; padding:0.8rem; text-align:center;"><div style="font-size:0.6rem; color:#8A85AD; text-transform:uppercase; letter-spacing:0.5px;">Insider Ownership</div><div style="font-size:1.2rem; font-weight:700; color:#10B981;">{_v}</div></div>', unsafe_allow_html=True)
@@ -8883,7 +9863,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             try:
                 _sha_inst = _sha_tk.institutional_holders
                 if _sha_inst is not None and not _sha_inst.empty:
-                    st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#60A5FA; margin:1rem 0 0.5rem 0;">🏛️ Top 10 Institutional Holders</div>', unsafe_allow_html=True)
+                    st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; margin:1rem 0 0.5rem 0;">🏛️ Top 10 Institutional Holders</div>', unsafe_allow_html=True)
                     _sha_header = (
                         '<div style="display:flex; padding:0.4rem 0; border-bottom:2px solid rgba(107,92,231,0.2); font-size:0.65rem; color:#8A85AD; text-transform:uppercase; letter-spacing:0.5px;">'
                         '<span style="flex:2.5;">Holder</span><span style="flex:1.2; text-align:right;">Shares</span>'
@@ -8901,8 +9881,8 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                             f'<div style="display:flex; padding:0.35rem 0; border-bottom:1px solid rgba(255,255,255,0.04); font-size:0.75rem;">'
                             f'<span style="color:#E0DCF5; flex:2.5;">{_h_name}</span>'
                             f'<span style="color:#B8B3D7; flex:1.2; text-align:right;">{_h_shares:,.0f}</span>'
-                            f'<span style="color:#60A5FA; flex:1; text-align:right;">{_h_val_s}</span>'
-                            f'<span style="color:#2563EB; flex:0.8; text-align:right; font-weight:600;">{_h_pct_s}</span></div>'
+                            f'<span style="color:#9B8AFF; flex:1; text-align:right;">{_h_val_s}</span>'
+                            f'<span style="color:#6B5CE7; flex:0.8; text-align:right; font-weight:600;">{_h_pct_s}</span></div>'
                         )
                     st.markdown(_sha_rows_html, unsafe_allow_html=True)
             except Exception:
@@ -8979,7 +9959,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         _rd_seg_data = _rd_seg_data.sort_index()
                         _rd_seg_data.columns = [str(c).replace("Revenue", "").strip() or str(c) for c in _rd_seg_data.columns]
                         fig_rd = go.Figure()
-                        _rd_colors = ["#2563EB", "#E8638B", "#10B981", "#F5A623", "#3B82F6", "#8B5CF6"]
+                        _rd_colors = ["#6B5CE7", "#E8638B", "#10B981", "#F5A623", "#3B82F6", "#8B5CF6"]
                         for i, col in enumerate(_rd_seg_data.columns):
                             fig_rd.add_trace(go.Bar(
                                 x=_rd_seg_data.index.strftime("%Y"), y=_rd_seg_data[col],
@@ -9022,7 +10002,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         labels=[r[0] for r in _rd_regions],
                         values=[r[1] for r in _rd_regions],
                         hole=0.5,
-                        marker=dict(colors=["#2563EB", "#E8638B", "#10B981", "#F5A623", "#3B82F6"]),
+                        marker=dict(colors=["#6B5CE7", "#E8638B", "#10B981", "#F5A623", "#3B82F6"]),
                         textinfo="label+percent", textfont=dict(size=11, color="#E0DCF5"),
                     ))
                     fig_rd_geo.update_layout(**_CHART_LAYOUT_BASE, height=300, margin=dict(t=20, b=20, l=20, r=20),
@@ -9198,7 +10178,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             for p in cd.peer_data:
                 st.markdown(
                     f"<div style='font-size:0.82rem; color:#B8B3D7; padding:0.2rem 0;'>"
-                    f"<span style='font-weight:600; color:#60A5FA;'>{p['ticker']}</span> &mdash; {p.get('name', '')}"
+                    f"<span style='font-weight:600; color:#9B8AFF;'>{p['ticker']}</span> &mdash; {p.get('name', '')}"
                     f"</div>",
                     unsafe_allow_html=True,
                 )
@@ -9335,7 +10315,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 _trend_data[k].reverse()
 
             # Build styled HTML table
-            _th_html = "".join(f'<th style="padding:0.4rem 0.6rem; font-weight:700; color:#2563EB; font-size:0.75rem; '
+            _th_html = "".join(f'<th style="padding:0.4rem 0.6rem; font-weight:700; color:#6B5CE7; font-size:0.75rem; '
                                f'text-align:right; border-bottom:2px solid rgba(107,92,231,0.3);">{yr}</th>'
                                for yr in _trend_cols)
 
@@ -9359,7 +10339,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 f'border-radius:10px; overflow:hidden; margin-bottom:1rem;">'
                 f'<div style="padding:0.6rem 0.8rem; background:rgba(107,92,231,0.06); '
                 f'border-bottom:1px solid rgba(107,92,231,0.1);">'
-                f'<span style="font-size:0.7rem; font-weight:700; color:#2563EB; text-transform:uppercase; '
+                f'<span style="font-size:0.7rem; font-weight:700; color:#6B5CE7; text-transform:uppercase; '
                 f'letter-spacing:1px;">📊 Financial Summary (Annual)</span></div>'
                 f'<table style="width:100%; border-collapse:collapse;">'
                 f'<thead><tr><th style="padding:0.4rem 0.6rem; text-align:left; font-size:0.7rem; '
@@ -9655,7 +10635,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                             connector=dict(line=dict(color="rgba(107,92,231,0.2)", width=1, dash="dot")),
                             increasing=dict(marker=dict(color="#10B981")),
                             decreasing=dict(marker=dict(color="#EF4444")),
-                            totals=dict(marker=dict(color="#2563EB")),
+                            totals=dict(marker=dict(color="#6B5CE7")),
                         ))
                         fig_mw.update_layout(
                             **_CHART_LAYOUT_BASE, height=400,
@@ -9706,7 +10686,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                                 connector=dict(line=dict(color="rgba(107,92,231,0.2)", width=1, dash="dot")),
                                 increasing=dict(marker=dict(color="#10B981")),
                                 decreasing=dict(marker=dict(color="#EF4444")),
-                                totals=dict(marker=dict(color="#2563EB")),
+                                totals=dict(marker=dict(color="#6B5CE7")),
                             ))
                             fig_cfb.update_layout(
                                 **_CHART_LAYOUT_BASE, height=400,
@@ -9800,7 +10780,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     connector=dict(line=dict(color="rgba(107,92,231,0.2)", width=1, dash="dot")),
                     increasing=dict(marker=dict(color="#10B981")),
                     decreasing=dict(marker=dict(color="#EF4444")),
-                    totals=dict(marker=dict(color="#2563EB")),
+                    totals=dict(marker=dict(color="#6B5CE7")),
                 ))
                 fig_ca.update_layout(
                     **_CHART_LAYOUT_BASE, height=400,
@@ -9932,7 +10912,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         f'<div style="text-align:center; padding:0.8rem; background:rgba(107,92,231,0.06); '
                         f'border-radius:12px; border:1px solid rgba(107,92,231,0.2);">'
                         f'<div style="font-size:0.6rem; color:#8A85AD; font-weight:600; text-transform:uppercase;">Est. WACC</div>'
-                        f'<div style="font-size:1.2rem; font-weight:800; color:#60A5FA;">{_svc_wacc*100:.1f}%</div>'
+                        f'<div style="font-size:1.2rem; font-weight:800; color:#9B8AFF;">{_svc_wacc*100:.1f}%</div>'
                         f'<div style="font-size:0.6rem; color:#8A85AD;">Cost of Capital</div>'
                         f'</div>',
                         unsafe_allow_html=True,
@@ -10091,7 +11071,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         _wc_dpo_vals.insert(0, _wc_dpo_prev or 0)
 
                     fig_wc = go.Figure()
-                    fig_wc.add_trace(go.Bar(name="DSO", x=_wc_years, y=_wc_dso_vals, marker_color="#2563EB"))
+                    fig_wc.add_trace(go.Bar(name="DSO", x=_wc_years, y=_wc_dso_vals, marker_color="#6B5CE7"))
                     fig_wc.add_trace(go.Bar(name="DIO", x=_wc_years, y=_wc_dio_vals, marker_color="#10B981"))
                     fig_wc.add_trace(go.Bar(name="DPO", x=_wc_years, y=_wc_dpo_vals, marker_color="#EF4444"))
                     fig_wc.update_layout(
@@ -10191,7 +11171,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 # E / S / G gauge charts
                 _esg_scores_list = [
                     ("Environmental", _env_score, "#10B981"),
-                    ("Social", _soc_score, "#2563EB"),
+                    ("Social", _soc_score, "#6B5CE7"),
                     ("Governance", _gov_score, "#F59E0B"),
                 ]
                 _has_esg_scores = any(s is not None for _, s, _ in _esg_scores_list)
@@ -10593,9 +11573,9 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 # Mean marker
                 fig_pt.add_trace(go.Scatter(
                     x=[pt_mean], y=["Target"], mode="markers+text",
-                    marker=dict(size=18, color="#2563EB", symbol="star"),
+                    marker=dict(size=18, color="#6B5CE7", symbol="star"),
                     text=[f"Mean: {cs}{pt_mean:,.0f}"], textposition="top center",
-                    textfont=dict(size=11, color="#2563EB", weight="bold" if hasattr(dict, 'weight') else None),
+                    textfont=dict(size=11, color="#6B5CE7", weight="bold" if hasattr(dict, 'weight') else None),
                     name="Mean Target", showlegend=False,
                 ))
                 
@@ -10767,7 +11747,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                                 line=dict(color="#EF4444", width=2), marker=dict(size=4),
                             ))
                         # Mark current price
-                        fig_iv.add_vline(x=cd.current_price, line_dash="dash", line_color="#2563EB",
+                        fig_iv.add_vline(x=cd.current_price, line_dash="dash", line_color="#6B5CE7",
                                          annotation_text=f"Current: {cs}{cd.current_price:,.2f}")
                         fig_iv.update_layout(
                             **_CHART_LAYOUT_BASE,
@@ -10779,7 +11759,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         )
                         _apply_space_grid(fig_iv)
                         st.markdown(
-                            '<div style="font-size:0.75rem; font-weight:700; color:#60A5FA; margin-top:0.8rem; margin-bottom:0.3rem; '
+                            '<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF; margin-top:0.8rem; margin-bottom:0.3rem; '
                             'text-transform:uppercase; letter-spacing:1px;">📈 Volatility Smile</div>',
                             unsafe_allow_html=True,
                         )
@@ -10916,7 +11896,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
 
             if divs_dd is not None and len(divs_dd) > 4:
                 st.markdown(
-                    '<div style="font-size:0.8rem; font-weight:700; color:#60A5FA; text-transform:uppercase; '
+                    '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
                     'letter-spacing:0.5px; margin:1.2rem 0 0.5rem;">📈 Dividend Growth Analysis</div>',
                     unsafe_allow_html=True,
                 )
@@ -10992,7 +11972,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                             fig_pr = go.Figure(go.Bar(x=_pr_df["Year"], y=_pr_df["Payout Ratio"],
                                 marker_color=["#EF4444" if v > 80 else "#F59E0B" if v > 60 else "#10B981" for v in _pr_df["Payout Ratio"]]))
                             fig_pr.update_layout(**_CHART_LAYOUT_BASE, height=220, margin=dict(t=25, b=25, l=40, r=15),
-                                title=dict(text="Payout Ratio %", font=dict(size=11, color="#60A5FA")),
+                                title=dict(text="Payout Ratio %", font=dict(size=11, color="#9B8AFF")),
                                 yaxis=dict(ticksuffix="%", tickfont=dict(size=9, color="#8A85AD")),
                                 xaxis=dict(tickfont=dict(size=9, color="#8A85AD")), showlegend=False)
                             _apply_space_grid(fig_pr)
@@ -11003,7 +11983,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                             fig_fc = go.Figure(go.Bar(x=_fc_df["Year"], y=_fc_df["FCF Coverage"],
                                 marker_color=["#10B981" if v > 2 else "#F59E0B" if v > 1 else "#EF4444" for v in _fc_df["FCF Coverage"]]))
                             fig_fc.update_layout(**_CHART_LAYOUT_BASE, height=220, margin=dict(t=25, b=25, l=40, r=15),
-                                title=dict(text="FCF Coverage (x)", font=dict(size=11, color="#60A5FA")),
+                                title=dict(text="FCF Coverage (x)", font=dict(size=11, color="#9B8AFF")),
                                 yaxis=dict(ticksuffix="x", tickfont=dict(size=9, color="#8A85AD")),
                                 xaxis=dict(tickfont=dict(size=9, color="#8A85AD")), showlegend=False)
                             _apply_space_grid(fig_fc)
@@ -11011,7 +11991,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
 
                 # ── Dividend Discount Model (DDM) ──
                 st.markdown(
-                    '<div style="font-size:0.8rem; font-weight:700; color:#60A5FA; text-transform:uppercase; '
+                    '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
                     'letter-spacing:0.5px; margin:1.2rem 0 0.5rem;">🧮 Dividend Discount Model (Gordon Growth)</div>',
                     unsafe_allow_html=True,
                 )
@@ -11035,7 +12015,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     with ddm_m1:
                         st.markdown(f'<div style="text-align:center; padding:0.6rem; background:rgba(107,92,231,0.05); border-radius:10px;">'
                             f'<div style="font-size:0.6rem; color:#8A85AD; font-weight:600;">DDM INTRINSIC VALUE</div>'
-                            f'<div style="font-size:1.3rem; font-weight:800; color:#2563EB;">{cs}{ddm_value:.2f}</div></div>', unsafe_allow_html=True)
+                            f'<div style="font-size:1.3rem; font-weight:800; color:#6B5CE7;">{cs}{ddm_value:.2f}</div></div>', unsafe_allow_html=True)
                     with ddm_m2:
                         st.markdown(f'<div style="text-align:center; padding:0.6rem; background:rgba(107,92,231,0.05); border-radius:10px;">'
                             f'<div style="font-size:0.6rem; color:#8A85AD; font-weight:600;">CURRENT PRICE</div>'
@@ -11066,7 +12046,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
 
                 # ── Yield Comparison ──
                 st.markdown(
-                    '<div style="font-size:0.8rem; font-weight:700; color:#60A5FA; text-transform:uppercase; '
+                    '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
                     'letter-spacing:0.5px; margin:1.2rem 0 0.5rem;">📊 Yield Comparison</div>',
                     unsafe_allow_html=True,
                 )
@@ -11079,7 +12059,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 }
                 fig_yc = go.Figure(go.Bar(
                     x=list(_yield_data.keys()), y=list(_yield_data.values()),
-                    marker_color=["#2563EB", "#3B82F6", "#F59E0B", "#8B5CF6"],
+                    marker_color=["#6B5CE7", "#3B82F6", "#F59E0B", "#8B5CF6"],
                     text=[f"{v:.2f}%" for v in _yield_data.values()],
                     textposition="outside", textfont=dict(size=10, color="#B8B3D7"),
                 ))
@@ -11458,7 +12438,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 if _final_idx <= 3:
                     _badge_color = "#10B981"  # Green - Investment Grade High
                 elif _final_idx <= 9:
-                    _badge_color = "#2563EB"  # Purple - Investment Grade
+                    _badge_color = "#6B5CE7"  # Purple - Investment Grade
                 elif _final_idx <= 14:
                     _badge_color = "#F5A623"  # Orange - Speculative
                 else:
@@ -11708,7 +12688,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 ]
                 
                 st.markdown(
-                    '<div style="font-size:0.75rem; font-weight:700; color:#60A5FA; margin-bottom:0.5rem;">Component Breakdown</div>',
+                    '<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF; margin-bottom:0.5rem;">Component Breakdown</div>',
                     unsafe_allow_html=True,
                 )
                 for comp_label, comp_val, comp_desc in z_components:
@@ -11946,7 +12926,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             if _ms_rev and _ms_employees and _ms_employees > 0:
                 _ms_rev_per_emp = _ms_rev / _ms_employees
                 _ms_cards.append(("Revenue / Employee", format_number(_ms_rev_per_emp, currency_symbol=cs),
-                                  "#2563EB", f"{_ms_employees:,} employees"))
+                                  "#6B5CE7", f"{_ms_employees:,} employees"))
 
             if _ms_cards:
                 _ms_cols = st.columns(len(_ms_cards))
@@ -11988,8 +12968,8 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                                     x=_roe_years, y=_roe_vals, mode="lines+markers+text",
                                     text=[f"{v:.1f}%" for v in _roe_vals], textposition="top center",
                                     textfont=dict(size=10, color="#C4B5FD"),
-                                    line=dict(color="#2563EB", width=2),
-                                    marker=dict(size=8, color="#2563EB"),
+                                    line=dict(color="#6B5CE7", width=2),
+                                    marker=dict(size=8, color="#6B5CE7"),
                                 ))
                                 fig_roe.update_layout(
                                     **_CHART_LAYOUT_BASE, height=250,
@@ -12272,7 +13252,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     _section("M&A History")
     if cd.ma_deals:
         deal_count = len(cd.ma_deals)
-        source_link = f' &middot; <a href="{cd.ma_source}" target="_blank" style="color:#2563EB; text-decoration:none; font-weight:500;">View on Wikipedia &rarr;</a>' if cd.ma_source else ""
+        source_link = f' &middot; <a href="{cd.ma_source}" target="_blank" style="color:#6B5CE7; text-decoration:none; font-weight:500;">View on Wikipedia &rarr;</a>' if cd.ma_source else ""
         st.markdown(
             f'<div style="margin-bottom:0.8rem;">'
             f'<span class="pill pill-purple">{deal_count} Acquisitions</span>'
@@ -12359,7 +13339,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     if _key_events:
         _ke_html = ""
         for ke in _key_events:
-            _ke_color = "#2563EB" if ke["type"] == "earnings" else "#F59E0B"
+            _ke_color = "#6B5CE7" if ke["type"] == "earnings" else "#F59E0B"
             _ke_html += (
                 f'<div style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.3rem 0.7rem; '
                 f'background:rgba({",".join(str(int(_ke_color[i:i+2], 16)) for i in (1,3,5))},0.1); '
@@ -12437,7 +13417,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         _ed_date = _ed_idx
                         if hasattr(_ed_date, 'strftime'):
                             _ed_label = "Earnings"
-                            _ed_color = "#2563EB"
+                            _ed_color = "#6B5CE7"
                             _is_future = _ed_date > pd.Timestamp.now(tz=_ed_date.tzinfo) if _ed_date.tzinfo else _ed_date > pd.Timestamp.now()
                             if _is_future:
                                 _ed_label = "📢 Next Earnings"
@@ -12664,7 +13644,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
 
                 # Timeline chart
                 st.markdown(
-                    '<div style="font-size:0.8rem; font-weight:700; color:#60A5FA; text-transform:uppercase; '
+                    '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
                     'letter-spacing:0.5px; margin:1rem 0 0.5rem;">📅 Insider Transaction Timeline</div>',
                     unsafe_allow_html=True,
                 )
@@ -12714,7 +13694,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
 
                 # Ownership summary
                 st.markdown(
-                    '<div style="font-size:0.8rem; font-weight:700; color:#60A5FA; text-transform:uppercase; '
+                    '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
                     'letter-spacing:0.5px; margin:1rem 0 0.5rem;">📊 Insider Ownership Summary</div>',
                     unsafe_allow_html=True,
                 )
@@ -12859,7 +13839,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     fig_itp.add_trace(go.Scatter(
                         x=_price_hist.index, y=_price_hist["Close"],
                         mode="lines", name="Price",
-                        line=dict(color="#2563EB", width=2),
+                        line=dict(color="#6B5CE7", width=2),
                     ))
                     # Parse insider transactions
                     _itdf = _ins_txn.reset_index() if _ins_txn.index.name else _ins_txn.copy()
@@ -13004,9 +13984,9 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 st.markdown(
                     f'<table style="width:100%; border-collapse:collapse; background:rgba(107,92,231,0.04); border-radius:12px; overflow:hidden;">'
                     f'<thead><tr style="border-bottom:2px solid rgba(107,92,231,0.2);">'
-                    f'<th style="text-align:left; padding:0.7rem 1rem; color:#60A5FA; font-size:0.75rem; text-transform:uppercase;">Metric</th>'
-                    f'<th style="text-align:center; padding:0.7rem 1rem; color:#60A5FA; font-size:0.75rem; text-transform:uppercase;">{cd.ticker}</th>'
-                    f'<th style="text-align:center; padding:0.7rem 1rem; color:#60A5FA; font-size:0.75rem; text-transform:uppercase;">S&P 500</th>'
+                    f'<th style="text-align:left; padding:0.7rem 1rem; color:#9B8AFF; font-size:0.75rem; text-transform:uppercase;">Metric</th>'
+                    f'<th style="text-align:center; padding:0.7rem 1rem; color:#9B8AFF; font-size:0.75rem; text-transform:uppercase;">{cd.ticker}</th>'
+                    f'<th style="text-align:center; padding:0.7rem 1rem; color:#9B8AFF; font-size:0.75rem; text-transform:uppercase;">S&P 500</th>'
                     f'</tr></thead>'
                     f'<tbody style="font-size:0.85rem;">{_rows}</tbody></table>',
                     unsafe_allow_html=True,
@@ -13056,7 +14036,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         _r_colors = ["#10B981" if v >= 0 else "#EF4444" for v in _r_vals]
 
                         fig_sp.add_trace(go.Bar(x=_p_labels, y=_s_vals, name=cd.ticker,
-                            marker=dict(color="#2563EB", line=dict(width=0)), width=0.25, offset=-0.15))
+                            marker=dict(color="#6B5CE7", line=dict(width=0)), width=0.25, offset=-0.15))
                         fig_sp.add_trace(go.Bar(x=_p_labels, y=_e_vals, name=_sector_etf,
                             marker=dict(color="rgba(138,133,173,0.4)", line=dict(color="#8A85AD", width=1)), width=0.25, offset=0.15))
                         # Relative performance markers
@@ -13098,7 +14078,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             else:
                 st.info("Executive summary not available.")
             if cd.product_overview:
-                st.markdown('<div style="margin-top:1rem;"><div style="font-size:0.8rem; font-weight:700; color:#60A5FA; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Product Overview</div></div>', unsafe_allow_html=True)
+                st.markdown('<div style="margin-top:1rem;"><div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Product Overview</div></div>', unsafe_allow_html=True)
                 for line in cd.product_overview.split("\n"):
                     line = line.strip()
                     if line.startswith("- "):
@@ -13115,16 +14095,16 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
     with ai_tab2:
         ft_c1, ft_c2 = st.columns(2)
         with ft_c1:
-            st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#60A5FA; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Revenue & Margins</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Revenue & Margins</div>', unsafe_allow_html=True)
             st.markdown('<div class="profile-chart-wrapper">', unsafe_allow_html=True)
             _build_revenue_margin_chart(cd)
             st.markdown('</div>', unsafe_allow_html=True)
         with ft_c2:
-            st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#60A5FA; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Cash Flow</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Cash Flow</div>', unsafe_allow_html=True)
             st.markdown('<div class="profile-chart-wrapper">', unsafe_allow_html=True)
             _build_cashflow_chart(cd)
             st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#60A5FA; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem; margin-top:0.5rem;">Balance Sheet</div>', unsafe_allow_html=True)
+        st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem; margin-top:0.5rem;">Balance Sheet</div>', unsafe_allow_html=True)
         st.markdown('<div class="profile-chart-wrapper">', unsafe_allow_html=True)
         _build_balance_sheet_chart(cd)
         st.markdown('</div>', unsafe_allow_html=True)
@@ -13139,7 +14119,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         with go_left:
             _render_growth_outlook(cd.growth_outlook, cd)
         with go_right:
-            st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#60A5FA; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Revenue & Margin Trends</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Revenue & Margin Trends</div>', unsafe_allow_html=True)
             st.markdown('<div class="profile-chart-wrapper">', unsafe_allow_html=True)
             _build_revenue_margin_chart(cd, key="rev_margin_growth")
             st.markdown('</div>', unsafe_allow_html=True)
@@ -13150,7 +14130,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         with ca_left:
             _render_capital_allocation(cd.capital_allocation_analysis, cd)
         with ca_right:
-            st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#60A5FA; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Cash Flow Trends</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.3rem;">Cash Flow Trends</div>', unsafe_allow_html=True)
             st.markdown('<div class="profile-chart-wrapper">', unsafe_allow_html=True)
             _build_cashflow_chart(cd, key="cashflow_capalloc")
             st.markdown('</div>', unsafe_allow_html=True)
@@ -13359,7 +14339,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     _vol_flag = "🔴 UNUSUAL" if _vol_ratio > 2.0 else "🟡 ELEVATED" if _vol_ratio > 1.5 else "🟢 NORMAL"
                     st.markdown(
                         f'<div style="background:rgba(107,92,231,0.06); border-radius:10px; padding:0.8rem; margin-bottom:0.5rem;">'
-                        f'<div style="font-size:0.75rem; font-weight:700; color:#60A5FA; margin-bottom:0.4rem;">📊 Volume Analysis</div>'
+                        f'<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF; margin-bottom:0.4rem;">📊 Volume Analysis</div>'
                         f'<div style="font-size:0.78rem; color:#B8B3D7;">Today: <b>{_vol_today:,.0f}</b></div>'
                         f'<div style="font-size:0.78rem; color:#B8B3D7;">30d Avg: <b>{_vol_avg:,.0f}</b></div>'
                         f'<div style="font-size:0.78rem; color:#B8B3D7;">Ratio: <b>{_vol_ratio:.2f}x</b> {_vol_flag}</div>'
@@ -13384,14 +14364,14 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     if _si_html:
                         st.markdown(
                             f'<div style="background:rgba(107,92,231,0.06); border-radius:10px; padding:0.8rem; margin-bottom:0.5rem;">'
-                            f'<div style="font-size:0.75rem; font-weight:700; color:#60A5FA; margin-bottom:0.4rem;">📉 Short Interest</div>'
+                            f'<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF; margin-bottom:0.4rem;">📉 Short Interest</div>'
                             f'{_si_html}</div>',
                             unsafe_allow_html=True,
                         )
                     else:
                         st.markdown(
                             '<div style="background:rgba(107,92,231,0.06); border-radius:10px; padding:0.8rem;">'
-                            '<div style="font-size:0.75rem; font-weight:700; color:#60A5FA;">📉 Short Interest</div>'
+                            '<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF;">📉 Short Interest</div>'
                             '<div style="font-size:0.78rem; color:#8A85AD;">Data not available</div></div>',
                             unsafe_allow_html=True,
                         )
@@ -13407,7 +14387,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     _sentiment = "🟢 BULLISH" if _buys > _sells else "🔴 BEARISH" if _sells > _buys else "🟡 NEUTRAL"
                     st.markdown(
                         f'<div style="background:rgba(107,92,231,0.06); border-radius:10px; padding:0.8rem; margin-bottom:0.5rem;">'
-                        f'<div style="font-size:0.75rem; font-weight:700; color:#60A5FA; margin-bottom:0.4rem;">👤 Insider Activity</div>'
+                        f'<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF; margin-bottom:0.4rem;">👤 Insider Activity</div>'
                         f'<div style="font-size:0.78rem; color:#B8B3D7;">Buys: <b style="color:#10B981;">{_buys}</b> | Sells: <b style="color:#EF4444;">{_sells}</b></div>'
                         f'<div style="font-size:0.78rem; color:#B8B3D7;">Net Sentiment: <b>{_sentiment}</b></div>'
                         f'</div>',
@@ -13416,14 +14396,14 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 else:
                     st.markdown(
                         '<div style="background:rgba(107,92,231,0.06); border-radius:10px; padding:0.8rem; margin-bottom:0.5rem;">'
-                        '<div style="font-size:0.75rem; font-weight:700; color:#60A5FA;">👤 Insider Activity</div>'
+                        '<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF;">👤 Insider Activity</div>'
                         '<div style="font-size:0.78rem; color:#8A85AD;">No recent insider transactions</div></div>',
                         unsafe_allow_html=True,
                     )
             except Exception:
                 st.markdown(
                     '<div style="background:rgba(107,92,231,0.06); border-radius:10px; padding:0.8rem; margin-bottom:0.5rem;">'
-                    '<div style="font-size:0.75rem; font-weight:700; color:#60A5FA;">👤 Insider Activity</div>'
+                    '<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF;">👤 Insider Activity</div>'
                     '<div style="font-size:0.78rem; color:#8A85AD;">Data not available</div></div>',
                     unsafe_allow_html=True,
                 )
@@ -13458,7 +14438,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     if _earn_html:
                         st.markdown(
                             f'<div style="background:rgba(107,92,231,0.06); border-radius:10px; padding:0.8rem;">'
-                            f'<div style="font-size:0.75rem; font-weight:700; color:#60A5FA; margin-bottom:0.4rem;">📅 Earnings Surprises (Last 4)</div>'
+                            f'<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF; margin-bottom:0.4rem;">📅 Earnings Surprises (Last 4)</div>'
                             f'{_earn_html}</div>',
                             unsafe_allow_html=True,
                         )
@@ -13583,8 +14563,8 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     theta=_rm_categories + [_rm_categories[0]],
                     fill='toself',
                     fillcolor='rgba(107,92,231,0.15)',
-                    line=dict(color='#2563EB', width=2),
-                    marker=dict(size=6, color='#2563EB'),
+                    line=dict(color='#6B5CE7', width=2),
+                    marker=dict(size=6, color='#6B5CE7'),
                     name='Risk Profile',
                 ))
                 fig_rm.update_layout(
@@ -13616,7 +14596,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     _rm_comm_html = "".join(f'<div style="font-size:0.78rem; color:#B8B3D7; margin:0.2rem 0;">• {c}</div>' for c in _rm_commentary)
                     st.markdown(
                         f'<div style="background:rgba(107,92,231,0.04); border-radius:10px; padding:0.8rem; margin-top:0.5rem;">'
-                        f'<div style="font-size:0.75rem; font-weight:700; color:#60A5FA; margin-bottom:0.4rem;">Risk Commentary</div>'
+                        f'<div style="font-size:0.75rem; font-weight:700; color:#9B8AFF; margin-bottom:0.4rem;">Risk Commentary</div>'
                         f'{_rm_comm_html}</div>',
                         unsafe_allow_html=True,
                     )
@@ -13920,7 +14900,7 @@ Write in this format:
                 _qa_html_content = (
                     f"<html><head><title>{cd.name} ({cd.ticker}) Analysis</title>"
                     f"<style>body{{font-family:Arial,sans-serif;background:#0F0E1A;color:#E0DCF5;padding:2rem;}}"
-                    f"h1{{color:#2563EB;}}h2{{color:#60A5FA;}}table{{border-collapse:collapse;width:100%;}}"
+                    f"h1{{color:#6B5CE7;}}h2{{color:#9B8AFF;}}table{{border-collapse:collapse;width:100%;}}"
                     f"td,th{{border:1px solid #333;padding:8px;text-align:right;}}th{{background:#1A1830;}}</style></head><body>"
                     f"<h1>{cd.name} ({cd.ticker})</h1>"
                     f"<p>Sector: {cd.sector or 'N/A'} | Industry: {cd.industry or 'N/A'}</p>"
@@ -13977,7 +14957,7 @@ Write in this format:
                 _sp_norm = (_sp_hist['Close'] / _sp_hist['Close'].iloc[0] - 1) * 100
                 _co_norm = (_co_hist['Close'] / _co_hist['Close'].iloc[0] - 1) * 100
                 _sp_fig = go.Figure()
-                _sp_fig.add_trace(go.Scatter(x=_co_norm.index, y=_co_norm.values, name=cd.ticker, line=dict(color="#2563EB", width=2.5)))
+                _sp_fig.add_trace(go.Scatter(x=_co_norm.index, y=_co_norm.values, name=cd.ticker, line=dict(color="#6B5CE7", width=2.5)))
                 _sp_fig.add_trace(go.Scatter(x=_sp_norm.index, y=_sp_norm.values, name="S&P 500", line=dict(color="#8A85AD", width=1.5, dash="dash")))
                 _sp_fig.add_hline(y=0, line_dash="dot", line_color="rgba(255,255,255,0.15)")
                 _sp_fig.update_layout(
@@ -14253,7 +15233,7 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
                 
                 names = [m[0] for m in ff_methods]
                 values = [m[1] for m in ff_methods]
-                colors = ["#2563EB", "#E8638B", "#10B981", "#F5A623", "#3B82F6"][:len(ff_methods)]
+                colors = ["#6B5CE7", "#E8638B", "#10B981", "#F5A623", "#3B82F6"][:len(ff_methods)]
                 
                 fig_ff.add_trace(go.Bar(
                     y=names, x=values, orientation="h",
@@ -14459,7 +15439,7 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
                     _out_html += (
                         f'<div style="background:rgba(107,92,231,0.05); border:1px solid rgba(107,92,231,0.15); '
                         f'border-radius:10px; padding:0.8rem;">'
-                        f'<div style="font-size:0.72rem; font-weight:700; color:#60A5FA;">{_or["metric"]}</div>'
+                        f'<div style="font-size:0.72rem; font-weight:700; color:#9B8AFF;">{_or["metric"]}</div>'
                         f'<div style="display:grid; grid-template-columns:1fr 1fr; gap:0.3rem; margin-top:0.3rem; font-size:0.7rem;">'
                         f'<div style="color:#8A85AD;">Mean: <b style="color:#E0DCF5;">{_or["mean"]:.1f}x</b></div>'
                         f'<div style="color:#8A85AD;">Median: <b style="color:#E0DCF5;">{_or["median"]:.1f}x</b></div>'
@@ -14561,14 +15541,14 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
                             f'<div style="background:rgba(255,255,255,0.04); border:1px solid rgba(107,92,231,0.15); '
                             f'border-radius:14px; padding:1.2rem; margin-bottom:0.8rem; position:relative; overflow:hidden;">'
                             f'<div style="display:flex; align-items:center; gap:0.7rem; margin-bottom:0.6rem;">'
-                            f'<div style="width:38px; height:38px; border-radius:10px; background:linear-gradient(135deg, #2563EB, #E8638B); '
+                            f'<div style="width:38px; height:38px; border-radius:10px; background:linear-gradient(135deg, #6B5CE7, #E8638B); '
                             f'display:flex; align-items:center; justify-content:center; font-weight:800; color:white; font-size:1rem;">{_pic_initial}</div>'
                             f'<div>'
                             f'<div style="font-size:0.85rem; font-weight:700; color:#E0DCF5;">{_pic_peer.name or _pic_peer.ticker}</div>'
                             f'<div style="font-size:0.65rem; color:#8A85AD;">{_pic_peer.ticker} · {_pic_mcap_str}</div>'
                             f'</div></div>'
                             f'<div style="font-size:0.7rem; color:#B8B3D7; margin-bottom:0.4rem; line-height:1.4;">{_pic_desc}</div>'
-                            f'<div style="font-size:0.68rem; color:#60A5FA; font-weight:600; margin-bottom:0.5rem;">💡 {_pic_diff}</div>'
+                            f'<div style="font-size:0.68rem; color:#9B8AFF; font-weight:600; margin-bottom:0.5rem;">💡 {_pic_diff}</div>'
                             f'<div style="display:flex; justify-content:space-between; align-items:center; '
                             f'padding-top:0.5rem; border-top:1px solid rgba(255,255,255,0.06);">'
                             f'<div style="font-size:0.68rem; color:#8A85AD;">EV/EBITDA: {_pic_peer.ev_ebitda:.1f}x</div>'
@@ -14816,7 +15796,7 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
                 if ff_price_data:
                     fig_ff2 = go.Figure()
                     labels = list(ff_price_data.keys())
-                    colors_ff = ["#2563EB", "#E8638B", "#10B981", "#F5A623"]
+                    colors_ff = ["#6B5CE7", "#E8638B", "#10B981", "#F5A623"]
 
                     for i, label in enumerate(labels):
                         d = ff_price_data[label]
@@ -15132,7 +16112,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         f'<p class="company-name" style="font-size:1.5rem;">{acq_cd.name}</p>'
         f'<p class="company-meta"><span>{acq_cd.ticker}</span> &middot; {acq_cd.sector}</p>'
         f'</div>'
-        f'<div style="font-size:2rem; font-weight:300; color:#2563EB; margin:0 1rem;">+</div>'
+        f'<div style="font-size:2rem; font-weight:300; color:#6B5CE7; margin:0 1rem;">+</div>'
         f'{tgt_logo}'
         f'<div>'
         f'<p class="company-name" style="font-size:1.5rem;">{tgt_cd.name}</p>'
@@ -15321,7 +16301,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
             f'<tr>'
             f'<td style="font-weight:600;">{name}</td>'
             f'<td>{curr:.1f}x</td>'
-            f'<td style="color:#2563EB; font-weight:700;">{implied:.1f}x</td>'
+            f'<td style="color:#6B5CE7; font-weight:700;">{implied:.1f}x</td>'
             f'<td style="color:{prem_color}; font-weight:700;">+{prem:.0f}%</td>'
             f'</tr>'
         )
@@ -15376,7 +16356,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
             f'</div>'
             f'<div style="display:flex; height:24px; border-radius:6px; overflow:hidden; '
             f'border:1px solid rgba(255,255,255,0.05);">'
-            f'<div style="width:{acq_pct}%; background:linear-gradient(90deg, #2563EB, #60A5FA); '
+            f'<div style="width:{acq_pct}%; background:linear-gradient(90deg, #6B5CE7, #9B8AFF); '
             f'display:flex; align-items:center; justify-content:center; font-size:0.6rem; color:#fff; font-weight:700;">'
             f'{acq_pct:.0f}%</div>'
             f'<div style="width:{tgt_pct}%; background:linear-gradient(90deg, #E8638B, #F5A0B8); '
@@ -15424,7 +16404,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
             measure=["absolute", "relative", "total"],
             connector=dict(line=dict(color="rgba(107,92,231,0.3)")),
             increasing=dict(marker_color="#E8638B"),
-            totals=dict(marker_color="#2563EB"),
+            totals=dict(marker_color="#6B5CE7"),
             text=[format_number(tgt_total_equity, currency_symbol=acq_cs),
                   format_number(goodwill, currency_symbol=acq_cs),
                   format_number(offer_equity_value, currency_symbol=acq_cs)],
@@ -15494,8 +16474,8 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         y=[s["pv"] for s in syn_timeline],
         mode="lines+markers",
         name="PV of Synergies",
-        line=dict(color="#2563EB", width=2),
-        marker=dict(size=8, color="#2563EB"),
+        line=dict(color="#6B5CE7", width=2),
+        marker=dict(size=8, color="#6B5CE7"),
     ))
     fig_syn.update_layout(
         **_CHART_LAYOUT_BASE, height=300,
@@ -15698,7 +16678,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         _eps_header = '<table style="width:100%; border-collapse:collapse; font-size:0.75rem;">'
         _eps_header += '<thead><tr><th style="padding:0.4rem; color:#8A85AD; text-align:left; border-bottom:2px solid rgba(107,92,231,0.3);">Cash %</th>'
         for _ep in _eps_premiums:
-            _eps_header += f'<th style="padding:0.4rem; color:#2563EB; text-align:center; border-bottom:2px solid rgba(107,92,231,0.3);">{_ep}% Premium</th>'
+            _eps_header += f'<th style="padding:0.4rem; color:#6B5CE7; text-align:center; border-bottom:2px solid rgba(107,92,231,0.3);">{_ep}% Premium</th>'
         _eps_header += '</tr></thead><tbody>'
 
         for _ec in _eps_cash_splits:
@@ -15754,7 +16734,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
             st.markdown(
                 f'<div style="text-align:center; padding:1.5rem; background:rgba(255,255,255,0.04); border-radius:10px;">'
                 f'<div style="font-size:0.65rem; font-weight:600; color:#8A85AD; text-transform:uppercase;">Stock (remainder)</div>'
-                f'<div style="font-size:2rem; font-weight:800; color:#2563EB;">{fm_stock}%</div></div>',
+                f'<div style="font-size:2rem; font-weight:800; color:#6B5CE7;">{fm_stock}%</div></div>',
                 unsafe_allow_html=True,
             )
 
@@ -15787,7 +16767,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
             fm_df = pd.DataFrame(matrix_data)
             # Build styled HTML table
             fm_th = "".join(
-                f'<th style="padding:0.4rem 0.5rem; font-weight:700; color:#2563EB; font-size:0.7rem; '
+                f'<th style="padding:0.4rem 0.5rem; font-weight:700; color:#6B5CE7; font-size:0.7rem; '
                 f'text-align:center; border-bottom:2px solid rgba(107,92,231,0.3);">{c}</th>'
                 for c in fm_df.columns
             )
@@ -15808,7 +16788,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
                 f'border-radius:10px; overflow:hidden; margin-bottom:1rem;">'
                 f'<div style="padding:0.6rem 0.8rem; background:rgba(107,92,231,0.06); '
                 f'border-bottom:1px solid rgba(107,92,231,0.1);">'
-                f'<span style="font-size:0.7rem; font-weight:700; color:#2563EB; text-transform:uppercase; '
+                f'<span style="font-size:0.7rem; font-weight:700; color:#6B5CE7; text-transform:uppercase; '
                 f'letter-spacing:1px;">Cash % vs Cost Synergy % → EPS Accretion/Dilution</span></div>'
                 f'<table style="width:100%; border-collapse:collapse;">'
                 f'<thead><tr>{fm_th}</tr></thead>'
@@ -15885,7 +16865,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
             )
         source_note = ""
         if precedent.source_url:
-            source_note = f'<div style="font-size:0.7rem; color:#8A85AD; margin-top:0.5rem;">Source: {precedent.source} — <a href="{precedent.source_url}" style="color:#60A5FA;" target="_blank">Filing</a></div>'
+            source_note = f'<div style="font-size:0.7rem; color:#8A85AD; margin-top:0.5rem;">Source: {precedent.source} — <a href="{precedent.source_url}" style="color:#9B8AFF;" target="_blank">Filing</a></div>'
         elif precedent.source:
             source_note = f'<div style="font-size:0.7rem; color:#8A85AD; margin-top:0.5rem;">Source: {precedent.source}</div>'
         _mhtml(
@@ -15941,7 +16921,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
                     x=[d for d, v, n in _valid_eb], y=[v for d, v, n in _valid_eb],
                     mode="markers+lines", name="EV/EBITDA",
                     text=[n for d, v, n in _valid_eb], hovertemplate="%{text}<br>%{x|%Y-%m}<br>%{y:.1f}x",
-                    marker=dict(color="#2563EB", size=8), line=dict(color="#2563EB", width=1, dash="dot"),
+                    marker=dict(color="#6B5CE7", size=8), line=dict(color="#6B5CE7", width=1, dash="dot"),
                 ))
                 # Trendline
                 if len(_valid_eb) >= 3:
@@ -15953,7 +16933,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
                     fig_trend.add_trace(go.Scatter(
                         x=[d for d, v, n in _valid_eb], y=_eb_trend_y,
                         mode="lines", name="EV/EBITDA Trend",
-                        line=dict(color="#2563EB", width=2), showlegend=True,
+                        line=dict(color="#6B5CE7", width=2), showlegend=True,
                     ))
             if _has_rev:
                 _valid_rev = [(d, v, n) for d, v, n in zip(_t_dates, _t_ev_rev, _t_names) if v is not None]
@@ -16016,7 +16996,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
             fig_ds = go.Figure(data=[go.Pie(
                 labels=list(_ds.keys()), values=list(_ds.values()),
                 hole=0.45, textinfo="label+percent",
-                marker=dict(colors=["#2563EB", "#10B981", "#F59E0B"]),
+                marker=dict(colors=["#6B5CE7", "#10B981", "#F59E0B"]),
                 textfont=dict(size=11, color="#E0DCF5"),
             )])
             fig_ds.update_layout(
@@ -16226,7 +17206,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
 
             fig_dp.add_trace(go.Bar(
                 x=dp_years, y=dp_remaining, name="Remaining Debt",
-                marker_color="#2563EB",
+                marker_color="#6B5CE7",
                 text=[format_number(r, currency_symbol=acq_cs) for r in dp_remaining],
                 textposition="outside", textfont=dict(size=9, color="#B8B3D7"),
             ))
@@ -16310,7 +17290,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     _section("Strategic Rationale")
 
     _sr_tag_config = [
-        ("[DEAL LOGIC]", "Deal Logic", "#2563EB", "rgba(107,92,231,0.06)", "rgba(107,92,231,0.3)"),
+        ("[DEAL LOGIC]", "Deal Logic", "#6B5CE7", "rgba(107,92,231,0.06)", "rgba(107,92,231,0.3)"),
         ("[FINANCIAL MERIT]", "Financial Merit", "#E8638B", "rgba(232,99,139,0.06)", "rgba(232,99,139,0.3)"),
         ("[STRATEGIC FIT]", "Strategic Fit", "#10B981", "rgba(16,185,129,0.06)", "rgba(16,185,129,0.3)"),
         ("[COMPETITIVE POSITIONING]", "Competitive Positioning", "#F5A623", "rgba(245,166,35,0.06)", "rgba(245,166,35,0.3)"),
@@ -16352,7 +17332,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
         ("[VALUATION]", "Valuation", "#EF4444", "rgba(239,68,68,0.06)", "rgba(239,68,68,0.3)"),
         ("[FINANCIAL]", "Financial", "#E8638B", "rgba(232,99,139,0.06)", "rgba(232,99,139,0.3)"),
         ("[INTEGRATION]", "Integration", "#F5A623", "rgba(245,166,35,0.06)", "rgba(245,166,35,0.3)"),
-        ("[EXECUTION]", "Execution", "#2563EB", "rgba(107,92,231,0.06)", "rgba(107,92,231,0.3)"),
+        ("[EXECUTION]", "Execution", "#6B5CE7", "rgba(107,92,231,0.06)", "rgba(107,92,231,0.3)"),
         ("[MARKET]", "Market", "#10B981", "rgba(16,185,129,0.06)", "rgba(16,185,129,0.3)"),
         # Legacy tag support
         ("[ANTITRUST]", "Antitrust", "#EF4444", "rgba(239,68,68,0.06)", "rgba(239,68,68,0.3)"),
@@ -16419,7 +17399,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     # ══════════════════════════════════════════════════════
     _section("Deal Verdict")
 
-    grade_colors = {"A": "#10B981", "B": "#2563EB", "C": "#F5A623", "D": "#EF4444", "F": "#EF4444"}
+    grade_colors = {"A": "#10B981", "B": "#6B5CE7", "C": "#F5A623", "D": "#EF4444", "F": "#EF4444"}
     grade_c = grade_colors.get(merger_insights.deal_grade, "#8A85AD")
     grade_bg = {"A": "rgba(16,185,129,0.12)", "B": "rgba(107,92,231,0.12)",
                 "C": "rgba(245,166,35,0.12)", "D": "rgba(239,68,68,0.12)", "F": "rgba(239,68,68,0.12)"}
@@ -16597,9 +17577,9 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
 <html><head><meta charset="utf-8"><title>{acq_ticker} + {tgt_ticker} Deal Book</title>
 <style>
 body {{ font-family: 'Inter', 'Segoe UI', sans-serif; max-width: 900px; margin: 0 auto; padding: 2rem; color: #1a1a2e; line-height: 1.6; }}
-h1 {{ color: #1a1a2e; border-bottom: 3px solid #2563EB; padding-bottom: 0.5rem; font-size: 1.8rem; }}
-h2 {{ color: #2563EB; margin-top: 2rem; font-size: 1.3rem; border-bottom: 1px solid #e0e0e0; padding-bottom: 0.3rem; }}
-.header {{ text-align: center; padding: 2rem; background: linear-gradient(135deg, #2563EB, #E8638B); color: white; border-radius: 12px; margin-bottom: 2rem; }}
+h1 {{ color: #1a1a2e; border-bottom: 3px solid #6B5CE7; padding-bottom: 0.5rem; font-size: 1.8rem; }}
+h2 {{ color: #6B5CE7; margin-top: 2rem; font-size: 1.3rem; border-bottom: 1px solid #e0e0e0; padding-bottom: 0.3rem; }}
+.header {{ text-align: center; padding: 2rem; background: linear-gradient(135deg, #6B5CE7, #E8638B); color: white; border-radius: 12px; margin-bottom: 2rem; }}
 .header h1 {{ color: white; border: none; font-size: 2rem; margin: 0; }}
 .header p {{ margin: 0.3rem 0; opacity: 0.9; }}
 .metric-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1rem 0; }}
@@ -16695,7 +17675,7 @@ Generated by Orbital M&A Intelligence Platform</p>
                 f'{acq_ticker} + {tgt_ticker} — Deal Book</div>'
                 f'<div style="text-align:center; font-size:0.8rem; color:#8A85AD; margin-bottom:1.5rem;">'
                 f'Confidential · M&A Analysis Summary</div>'
-                f'<div style="font-size:0.9rem; font-weight:700; color:#2563EB; margin-bottom:0.5rem;">Executive Summary</div>'
+                f'<div style="font-size:0.9rem; font-weight:700; color:#6B5CE7; margin-bottom:0.5rem;">Executive Summary</div>'
                 f'<div style="font-size:0.8rem; color:#B8B3D7; margin-bottom:1rem;">{_mi_exec}</div>'
                 f'<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:0.8rem; margin-bottom:1rem;">'
                 f'<div style="background:rgba(107,92,231,0.1); border-radius:8px; padding:0.8rem; text-align:center;">'
@@ -16888,7 +17868,7 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
             _wacc_build_html = (
                 '<div style="background:rgba(107,92,231,0.05); border:1px solid rgba(107,92,231,0.15); '
                 'border-radius:12px; padding:1rem; margin-top:0.5rem;">'
-                '<div style="font-size:0.72rem; font-weight:700; color:#60A5FA; text-transform:uppercase; '
+                '<div style="font-size:0.72rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
                 'letter-spacing:1px; margin-bottom:0.5rem;">WACC Build-Up</div>'
                 '<div style="display:grid; grid-template-columns:1fr 1fr; gap:0.3rem 2rem;">'
             )
@@ -16914,8 +17894,8 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
             _wacc_build_html += (
                 f'<div style="display:flex; justify-content:space-between; padding:0.5rem 0; margin-top:0.3rem; '
                 f'border-top:2px solid rgba(107,92,231,0.3); font-size:0.82rem;">'
-                f'<span style="color:#2563EB; font-weight:700;">WACC = E/V×Ke + D/V×Kd×(1-t)</span>'
-                f'<span style="color:#2563EB; font-weight:700;">{_dcf_wacc_data["wacc"]*100:.2f}%</span></div>'
+                f'<span style="color:#6B5CE7; font-weight:700;">WACC = E/V×Ke + D/V×Kd×(1-t)</span>'
+                f'<span style="color:#6B5CE7; font-weight:700;">{_dcf_wacc_data["wacc"]*100:.2f}%</span></div>'
                 f'</div>'
             )
             st.markdown(_wacc_build_html, unsafe_allow_html=True)
@@ -16934,7 +17914,7 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
             f'<div style="display:grid; grid-template-columns:repeat(4,1fr); gap:1rem;">'
             f'<div style="background:rgba(107,92,231,0.1); border-radius:12px; padding:1rem; text-align:center;">'
             f'<div style="font-size:0.7rem; color:#8A85AD; margin-bottom:0.3rem;">Sum of PV (FCF)</div>'
-            f'<div style="font-size:1.2rem; font-weight:700; color:#2563EB;">{format_number(sum(dcf_result["pv_fcf"]), currency_symbol=cs)}</div></div>'
+            f'<div style="font-size:1.2rem; font-weight:700; color:#6B5CE7;">{format_number(sum(dcf_result["pv_fcf"]), currency_symbol=cs)}</div></div>'
             f'<div style="background:rgba(232,99,139,0.1); border-radius:12px; padding:1rem; text-align:center;">'
             f'<div style="font-size:0.7rem; color:#8A85AD; margin-bottom:0.3rem;">PV of Terminal Value</div>'
             f'<div style="font-size:1.2rem; font-weight:700; color:#E8638B;">{format_number(dcf_result["pv_terminal"], currency_symbol=cs)}</div></div>'
@@ -16998,7 +17978,7 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
                 connector=dict(line=dict(color="rgba(107,92,231,0.3)", width=1)),
                 increasing=dict(marker_color="#10B981"),
                 decreasing=dict(marker_color="#EF4444"),
-                totals=dict(marker_color="#2563EB"),
+                totals=dict(marker_color="#6B5CE7"),
                 text=[format_number(dcf_result["enterprise_value"], currency_symbol=cs),
                       f"({format_number(_dcf_gross_debt, currency_symbol=cs)})",
                       format_number(_dcf_cash, currency_symbol=cs),
@@ -17333,7 +18313,7 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
                             connector=dict(line=dict(color="rgba(138,133,173,0.3)", width=1)),
                             increasing=dict(marker=dict(color="#10B981")),
                             decreasing=dict(marker=dict(color="#EF4444")),
-                            totals=dict(marker=dict(color="#2563EB")),
+                            totals=dict(marker=dict(color="#6B5CE7")),
                             textposition="outside",
                             text=[f"{cs}{v / 1e9:.2f}B" if abs(v) > 1e9 else f"{cs}{v / 1e6:.0f}M" for v in
                                   [lbo_entry_equity, _ebitda_growth_val, _mult_expansion_val, lbo_total_debt_paydown, lbo_exit_equity]],
@@ -17465,7 +18445,7 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
                 st.markdown(
                     f'<div style="text-align:center; padding:1rem; margin-top:0.8rem; '
                     f'background:rgba(107,92,231,0.06); border:1px solid rgba(107,92,231,0.15); border-radius:12px;">'
-                    f'<div style="font-size:0.65rem; font-weight:700; color:#2563EB; text-transform:uppercase; '
+                    f'<div style="font-size:0.65rem; font-weight:700; color:#6B5CE7; text-transform:uppercase; '
                     f'letter-spacing:1.5px;">Probability-Weighted Fair Value</div>'
                     f'<div style="font-size:2rem; font-weight:800; color:{w_color};">{cs}{weighted_price:,.2f}</div>'
                     f'<div style="font-size:0.9rem; color:{w_color};">{weighted_upside:+.1f}% vs Current ({cs}{dcf_cd.current_price:,.2f})</div>'
@@ -17477,7 +18457,7 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
                 fig_scen = go.Figure()
                 scen_names = list(scen_results.keys())
                 scen_prices = [scen_results[n].get("implied_share_price", 0) for n in scen_names if "error" not in scen_results[n]]
-                scen_colors = ["#EF4444", "#2563EB", "#10B981"][:len(scen_prices)]
+                scen_colors = ["#EF4444", "#6B5CE7", "#10B981"][:len(scen_prices)]
                 fig_scen.add_trace(go.Bar(
                     x=scen_names[:len(scen_prices)], y=scen_prices,
                     marker_color=scen_colors,
@@ -17549,7 +18529,7 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
                     if scen_results:
                         _all_scen_names = list(scen_results.keys()) + ["🔧 Custom"]
                         _all_scen_prices = [scen_results[n].get("implied_share_price", 0) for n in scen_results if "error" not in scen_results[n]] + [_cs_price]
-                        _all_scen_colors = ["#EF4444", "#2563EB", "#10B981", "#F59E0B"][:len(_all_scen_prices)]
+                        _all_scen_colors = ["#EF4444", "#6B5CE7", "#10B981", "#F59E0B"][:len(_all_scen_prices)]
                         _cs_fig = go.Figure()
                         _cs_fig.add_trace(go.Bar(
                             x=_all_scen_names[:len(_all_scen_prices)], y=_all_scen_prices,
@@ -17630,7 +18610,7 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
                     is_wacc = label == "WACC"
                     bg = "rgba(107,92,231,0.15)" if is_wacc else "transparent"
                     fw = "800" if is_wacc else "600"
-                    fc = "#60A5FA" if is_wacc else "#E0DCF5"
+                    fc = "#9B8AFF" if is_wacc else "#E0DCF5"
                     st.markdown(
                         f'<div style="display:flex; justify-content:space-between; padding:0.35rem 0.5rem; '
                         f'background:{bg}; border-radius:6px; border-bottom:1px solid rgba(255,255,255,0.03);">'
@@ -17727,7 +18707,7 @@ elif analysis_mode == "DCF Valuation" and dcf_btn and dcf_ticker_input:
             # Three column display
             _sc1, _sc2, _sc3 = st.columns(3)
             _sc_cols = [_sc1, _sc2, _sc3]
-            _sc_colors = ["#10B981", "#2563EB", "#EF4444"]
+            _sc_colors = ["#10B981", "#6B5CE7", "#EF4444"]
             _sc_bg = ["rgba(16,185,129,0.1)", "rgba(107,92,231,0.1)", "rgba(239,68,68,0.1)"]
             _sc_border = ["rgba(16,185,129,0.3)", "rgba(107,92,231,0.3)", "rgba(239,68,68,0.3)"]
 
@@ -17912,7 +18892,7 @@ elif analysis_mode == "Quick Compare" and compare_btn and compare_tickers:
             x=[d[0] for d in mc_data],
             y=[d[1] for d in mc_data],
             marker=dict(
-                color=["#2563EB", "#E8638B", "#10B981", "#F5A623", "#3B82F6", 
+                color=["#6B5CE7", "#E8638B", "#10B981", "#F5A623", "#3B82F6", 
                        "#8B5CF6", "#EC4899", "#14B8A6", "#F59E0B", "#6366F1"][:len(mc_data)],
                 line=dict(color="rgba(255,255,255,0.15)", width=1),
             ),
@@ -17952,7 +18932,7 @@ elif analysis_mode == "Quick Compare" and compare_btn and compare_tickers:
         prof_df = pd.DataFrame(prof_data)
         
         fig2 = go.Figure()
-        colors = ["#2563EB", "#E8638B", "#10B981", "#F5A623"]
+        colors = ["#6B5CE7", "#E8638B", "#10B981", "#F5A623"]
         for i, metric in enumerate(prof_metrics):
             fig2.add_trace(go.Bar(
                 x=prof_df["Company"],
@@ -18010,7 +18990,7 @@ elif analysis_mode == "Quick Compare" and compare_btn and compare_tickers:
         val_df = pd.DataFrame(val_data)
         
         fig3 = go.Figure()
-        colors_val = ["#2563EB", "#E8638B", "#10B981", "#F5A623"]
+        colors_val = ["#6B5CE7", "#E8638B", "#10B981", "#F5A623"]
         for i, metric in enumerate(val_metrics):
             fig3.add_trace(go.Bar(
                 x=val_df["Company"],
@@ -18137,7 +19117,7 @@ elif analysis_mode == "Quick Compare" and compare_btn and compare_tickers:
 
                 # Build radar chart
                 fig_radar = go.Figure()
-                radar_colors = ["#2563EB", "#E8638B", "#10B981", "#F5A623", "#3B82F6"]
+                radar_colors = ["#6B5CE7", "#E8638B", "#10B981", "#F5A623", "#3B82F6"]
 
                 for i, (ticker, scores) in enumerate(company_scores.items()):
                     vals = [scores[d] for d in dimensions]
@@ -18204,7 +19184,7 @@ elif analysis_mode == "Quick Compare" and compare_btn and compare_tickers:
                         f'background:rgba(107,92,231,0.08); border-radius:6px; font-size:0.75rem;">'
                         f'<span style="color:#8A85AD;">{dim}:</span> '
                         f'<span style="color:#E0DCF5; font-weight:700;">{dim_best[0]}</span> '
-                        f'<span style="color:#2563EB;">({dim_best[1][dim]:.0f})</span></span>'
+                        f'<span style="color:#6B5CE7;">({dim_best[1][dim]:.0f})</span></span>'
                     )
                 st.markdown(
                     f'<div style="text-align:center; margin-top:0.8rem;">{dim_winners_html}</div>',
@@ -18264,7 +19244,7 @@ elif analysis_mode == "Quick Compare" and compare_btn and compare_tickers:
                         _verdict = "📊 Balanced profile"
 
                     _mc_str = f"${_m['market_cap']/1e9:.1f}B" if _m['market_cap'] >= 1e9 else f"${_m['market_cap']/1e6:.0f}M" if _m['market_cap'] >= 1e6 else "N/A"
-                    _border_c = ["#2563EB", "#E8638B", "#10B981", "#F5A623", "#3B82F6"][i % 5]
+                    _border_c = ["#6B5CE7", "#E8638B", "#10B981", "#F5A623", "#3B82F6"][i % 5]
                     st.markdown(
                         f'<div style="padding:0.8rem; background:rgba(255,255,255,0.03); border-radius:10px; '
                         f'border-left:3px solid {_border_c}; margin-bottom:0.5rem;">'
@@ -18298,8 +19278,8 @@ elif analysis_mode == "VMS Screener" and vms_screen_btn:
     with _safe_section("VMS Screening Philosophy"):
         st.markdown(
             '<div style="background:rgba(107,92,231,0.06); border-radius:12px; padding:1.2rem; '
-            'border-left:4px solid #2563EB; margin-bottom:1rem;">'
-            '<div style="font-size:0.85rem; font-weight:700; color:#60A5FA; margin-bottom:0.5rem;">🏛️ Constellation Software Philosophy</div>'
+            'border-left:4px solid #6B5CE7; margin-bottom:1rem;">'
+            '<div style="font-size:0.85rem; font-weight:700; color:#9B8AFF; margin-bottom:0.5rem;">🏛️ Constellation Software Philosophy</div>'
             '<div style="font-size:0.78rem; color:#B8B3D7; line-height:1.6;">'
             'Vertical Market Software (VMS) companies serve niche industries with mission-critical software. '
             'These businesses exhibit high switching costs, recurring revenue, and durable competitive moats. '
@@ -18347,7 +19327,7 @@ elif analysis_mode == "VMS Screener" and vms_screen_btn:
             n_pass = mask.sum()
             st.markdown(
                 f'<div style="text-align:center; margin-bottom:1rem;">'
-                f'<span style="font-size:1.5rem; font-weight:800; color:#2563EB;">{n_pass}</span>'
+                f'<span style="font-size:1.5rem; font-weight:800; color:#6B5CE7;">{n_pass}</span>'
                 f'<span style="font-size:0.85rem; color:#8A85AD;"> / {len(df)} companies pass your criteria</span></div>',
                 unsafe_allow_html=True,
             )
@@ -18829,7 +19809,7 @@ else:
             '</div>'
             '<p style="font-size:0.72rem; color:#8A85AD; margin-top:2rem; text-align:center;">'
             'Enter Acquirer &amp; Target tickers in the sidebar to begin<br>'
-            'Set <code style="color:#60A5FA;">OPENAI_API_KEY</code> for AI-powered deal insights'
+            'Set <code style="color:#9B8AFF;">OPENAI_API_KEY</code> for AI-powered deal insights'
             '</p>'
             '</div>',
             unsafe_allow_html=True,
@@ -18908,7 +19888,7 @@ else:
             '</div>'
             '<p style="font-size:0.72rem; color:#8A85AD; margin-top:2rem; text-align:center;">'
             'M&amp;A history scraped from Wikipedia &mdash; no API key needed<br>'
-            'Set <code style="color:#60A5FA;">OPENAI_API_KEY</code> for enhanced insights'
+            'Set <code style="color:#9B8AFF;">OPENAI_API_KEY</code> for enhanced insights'
             '</p>'
             '</div>',
             unsafe_allow_html=True,
@@ -18938,7 +19918,7 @@ else:
                 st.markdown(
                     '<div style="background:rgba(107,92,231,0.05); border-radius:16px; padding:1.5rem; '
                     'border:1px solid rgba(107,92,231,0.15);">'
-                    '<div style="font-size:0.8rem; font-weight:700; color:#60A5FA; text-transform:uppercase; '
+                    '<div style="font-size:0.8rem; font-weight:700; color:#9B8AFF; text-transform:uppercase; '
                     'letter-spacing:1.5px; margin-bottom:1rem; text-align:center;">📊 Market Overview</div>',
                     unsafe_allow_html=True,
                 )
@@ -19123,62 +20103,19 @@ def render_due_diligence_page(ticker):
             
             st.markdown('</div>', unsafe_allow_html=True)
     
-    # Summary metrics with export
+    # Summary metrics
     st.markdown('<div style="margin-top:2rem;"></div>', unsafe_allow_html=True)
     
     total_items = sum(len(items) for items in dd_categories.values())
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown(
-            f'<div style="background:rgba(16, 185, 129, 0.1); border:1px solid rgba(16, 185, 129, 0.3); '
-            f'border-radius:12px; padding:1.5rem; text-align:center;">'
-            f'<div style="font-size:0.875rem; color:#9CA3AF; margin-bottom:0.5rem;">Total DD Items</div>'
-            f'<div style="font-size:2rem; font-weight:700; color:#10B981;">{total_items}</div>'
-            f'<div style="font-size:0.75rem; color:#9CA3AF; margin-top:0.5rem;">Across {len(dd_categories)} categories</div>'
-            f'</div>',
-            unsafe_allow_html=True
-        )
-    
-    with col2:
-        st.markdown(
-            f'<div style="background:rgba(37, 99, 235, 0.1); border:1px solid rgba(37, 99, 235, 0.3); '
-            f'border-radius:12px; padding:1.5rem; text-align:center;">'
-            f'<div style="font-size:0.875rem; color:#9CA3AF; margin-bottom:0.5rem;">DD Score</div>'
-            f'<div style="font-size:2rem; font-weight:700; color:#2563EB;">0%</div>'
-            f'<div style="font-size:0.75rem; color:#9CA3AF; margin-top:0.5rem;">Complete when all items checked</div>'
-            f'</div>',
-            unsafe_allow_html=True
-        )
-    
-    # Export button
-    st.markdown('<div style="margin-top:1.5rem;"></div>', unsafe_allow_html=True)
-    if st.button("📥 Export DD Checklist to CSV", use_container_width=True):
-        import pandas as pd
-        import io
-        
-        # Create export data
-        export_data = []
-        for category, items in dd_categories.items():
-            for item in items:
-                export_data.append({
-                    "Category": category,
-                    "Item": item,
-                    "Status": "Not Started",
-                    "Owner": "",
-                    "Notes": ""
-                })
-        
-        df = pd.DataFrame(export_data)
-        csv = df.to_csv(index=False)
-        
-        st.download_button(
-            label="⬇ Download CSV",
-            data=csv,
-            file_name=f"DD_Checklist_{ticker}_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv",
-            use_container_width=True
-        )
+    st.markdown(
+        f'<div style="background:rgba(16, 185, 129, 0.1); border:1px solid rgba(16, 185, 129, 0.3); '
+        f'border-radius:12px; padding:1.5rem; text-align:center;">'
+        f'<div style="font-size:0.875rem; color:#9CA3AF; margin-bottom:0.5rem;">Total DD Items</div>'
+        f'<div style="font-size:2rem; font-weight:700; color:#10B981;">{total_items}</div>'
+        f'<div style="font-size:0.75rem; color:#9CA3AF; margin-top:0.5rem;">Across {len(dd_categories)} categories</div>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
 
 
 def render_synergy_model_page(acquirer, target):
@@ -19296,59 +20233,6 @@ def render_synergy_model_page(acquirer, target):
         )
         
         st.plotly_chart(fig, use_container_width=True)
-        
-        # Sensitivity Analysis
-        st.markdown('<div style="margin-top:2rem;"></div>', unsafe_allow_html=True)
-        st.markdown("### Sensitivity Analysis")
-        st.markdown('<div style="font-size:0.875rem; color:#9CA3AF; margin-bottom:1rem;">Total synergies at different assumption levels</div>', unsafe_allow_html=True)
-        
-        # Create sensitivity table
-        import pandas as pd
-        cost_scenarios = [10, 15, 20, 25]
-        rev_scenarios = [1, 3, 5, 7]
-        
-        sensitivity_data = []
-        for cost_pct in cost_scenarios:
-            row = []
-            for rev_pct in rev_scenarios:
-                cost_syn = tgt_opex * (cost_pct / 100)
-                rev_syn = (tgt_rev * (rev_pct / 100)) * (rev_syn_margin / 100)
-                total = cost_syn + rev_syn
-                row.append(f"${total:.2f}B")
-            sensitivity_data.append(row)
-        
-        sens_df = pd.DataFrame(
-            sensitivity_data,
-            columns=[f"Rev: {r}%" for r in rev_scenarios],
-            index=[f"Cost: {c}%" for c in cost_scenarios]
-        )
-        
-        st.dataframe(sens_df, use_container_width=True)
-        
-        # NPV calculation
-        st.markdown('<div style="margin-top:2rem;"></div>', unsafe_allow_html=True)
-        st.markdown("### Net Present Value of Synergies")
-        
-        discount_rate = st.slider("Discount Rate (%)", 5.0, 15.0, 10.0, 0.5)
-        
-        # Calculate NPV (simplified - assume linear ramp-up)
-        total_years = max(cost_syn_years, rev_syn_years)
-        npv = 0
-        for year in range(1, total_years + 1):
-            cost_syn_year = cost_syn_annual * min(year / cost_syn_years, 1.0)
-            rev_syn_year = rev_syn_annual * min(year / rev_syn_years, 1.0)
-            yearly_syn = cost_syn_year + rev_syn_year
-            npv += yearly_syn / ((1 + discount_rate/100) ** year)
-        
-        st.markdown(
-            f'<div style="background:rgba(16, 185, 129, 0.1); border:1px solid rgba(16, 185, 129, 0.3); '
-            f'border-radius:12px; padding:1.5rem; text-align:center;">'
-            f'<div style="font-size:0.875rem; color:#9CA3AF; margin-bottom:0.5rem;">NPV of Synergies ({total_years} years @ {discount_rate:.1f}%)</div>'
-            f'<div style="font-size:2rem; font-weight:700; color:#10B981;">${npv:.2f}B</div>'
-            f'<div style="font-size:0.75rem; color:#9CA3AF; margin-top:0.5rem;">Discounted cash flow value</div>'
-            f'</div>',
-            unsafe_allow_html=True
-        )
         
     except Exception as e:
         st.error(f"Error loading synergy model: {e}")
