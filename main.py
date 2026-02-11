@@ -21013,7 +21013,7 @@ def render_synergy_model_page(acquirer, target):
         
         st.markdown('<div style="margin-top:2rem;"></div>', unsafe_allow_html=True)
         st.markdown(
-            f'<div style="background:rgba(17, 24, 39, 0.6); backdrop-filter:blur(12px); '
+            f'<div style="background:rgba(17, 24, 39, 0.7); backdrop-filter:blur(16px); '
             f'border:2px solid #2563EB; border-radius:12px; padding:2rem; text-align:center;">'
             f'<div style="font-size:1rem; color:#9CA3AF; margin-bottom:0.5rem;">Total Annual Run-Rate Synergies</div>'
             f'<div style="font-size:3rem; font-weight:900; color:#F9FAFB;">${total_syn:.2f}B</div>'
