@@ -3294,8 +3294,8 @@ section[data-testid="stSidebar"] .stSlider label p {{
 
 /* ── GRADIENT DIVIDER ────────────────────────────────────── */
 .gradient-divider {{
-    height: 1px; border: none; margin: 1.5rem 0;
-    background: linear-gradient(90deg, transparent, rgba(37,99,235,0.3), rgba(16,185,129,0.2), transparent);
+    height: 1px; border: none; margin: 2rem 0;
+    background: linear-gradient(90deg, transparent, rgba(37,99,235,0.4), rgba(16,185,129,0.25), transparent);
     position: relative;
 }}
 .gradient-divider::after {{
@@ -3303,7 +3303,7 @@ section[data-testid="stSidebar"] .stSlider label p {{
     position: absolute;
     top: -2px; left: 0; right: 0;
     height: 5px;
-    background: linear-gradient(90deg, transparent, rgba(37,99,235,0.15), rgba(16,185,129,0.1), transparent);
+    background: linear-gradient(90deg, transparent, rgba(37,99,235,0.18), rgba(16,185,129,0.12), transparent);
     filter: blur(4px);
     animation: glowPulse 3s ease-in-out infinite;
 }}
