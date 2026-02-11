@@ -638,9 +638,12 @@ def _render_earnings_calendar(earnings: list):
                 eps_str = f'<span style="color:#9CA3AF; font-size:0.65rem;"> Est EPS: ${item["estimate_eps"]:.2f}</span>'
             st.markdown(
                 f'<div style="display:flex; justify-content:space-between; align-items:center; '
-                f'padding:0.35rem 0.5rem; border-radius:6px; margin:0.15rem 0; '
-                f'background:rgba(255,255,255,0.02); transition:background 0.2s;">'
-                f'<span style="color:#F9FAFB; font-weight:600; font-size:0.8rem;">{item["ticker"]}</span>'
+                f'padding:0.5rem 0.75rem; border-radius:8px; margin:0.2rem 0; '
+                f'background:rgba(17,24,39,0.5); backdrop-filter:blur(8px); border:1px solid rgba(37,99,235,0.08); '
+                f'transition:all 0.2s ease; cursor:pointer;" '
+                f'onmouseover="this.style.background=\'rgba(37,99,235,0.12)\'; this.style.borderColor=\'rgba(37,99,235,0.25)\';" '
+                f'onmouseout="this.style.background=\'rgba(17,24,39,0.5)\'; this.style.borderColor=\'rgba(37,99,235,0.08)\';">'
+                f'<span style="color:#F9FAFB; font-weight:600; font-size:0.82rem;">{item["ticker"]}</span>'
                 f'{eps_str}'
                 f'</div>',
                 unsafe_allow_html=True,
@@ -719,13 +722,16 @@ def _render_news_feed(news: list):
         link_html = f'href="{item["link"]}" target="_blank"' if item.get("link") else ""
         
         st.markdown(
-            f'<a {link_html} style="display:block; padding:0.6rem 0.5rem; border-radius:8px; '
-            f'margin:0.2rem 0; background:rgba(255,255,255,0.02); text-decoration:none; '
-            f'transition:background 0.2s; border-bottom:1px solid rgba(255,255,255,0.03);">'
-            f'<div style="font-size:0.78rem; color:#F9FAFB; font-weight:500; line-height:1.35;">{item["title"]}</div>'
-            f'<div style="display:flex; justify-content:space-between; margin-top:0.25rem;">'
-            f'<span style="font-size:0.65rem; color:#2563EB; font-weight:600;">{item["ticker"]}</span>'
-            f'<span style="font-size:0.6rem; color:#9CA3AF;">{item.get("publisher", "")} · {time_str}</span>'
+            f'<a {link_html} style="display:block; padding:0.75rem; border-radius:10px; '
+            f'margin:0.3rem 0; background:rgba(17,24,39,0.6); backdrop-filter:blur(12px); '
+            f'border:1px solid rgba(37,99,235,0.1); text-decoration:none; '
+            f'transition:all 0.25s cubic-bezier(0.34,1.56,0.64,1);" '
+            f'onmouseover="this.style.background=\'rgba(37,99,235,0.12)\'; this.style.borderColor=\'rgba(37,99,235,0.3)\'; this.style.transform=\'translateX(4px)\';" '
+            f'onmouseout="this.style.background=\'rgba(17,24,39,0.6)\'; this.style.borderColor=\'rgba(37,99,235,0.1)\'; this.style.transform=\'translateX(0)\';">'
+            f'<div style="font-size:0.82rem; color:#F9FAFB; font-weight:600; line-height:1.4;">{item["title"]}</div>'
+            f'<div style="display:flex; justify-content:space-between; margin-top:0.3rem;">'
+            f'<span style="font-size:0.68rem; color:#60A5FA; font-weight:700;">{item["ticker"]}</span>'
+            f'<span style="font-size:0.64rem; color:#9CA3AF;">{item.get("publisher", "")} · {time_str}</span>'
             f'</div>'
             f'</a>',
             unsafe_allow_html=True,
@@ -7580,10 +7586,11 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             _bdr, _glow = _kpi_color(label, raw_val, sector=cd.sector)
             with _ed_cols[i]:
                 st.markdown(
-                    f'<div style="background:linear-gradient(135deg, {_glow}, rgba(255,255,255,0.04)); border:1px solid {_bdr}; '
-                    f'border-radius:12px; padding:0.8rem; text-align:center; transition: transform 0.2s ease;">'
-                    f'<div style="font-size:0.65rem; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.5px;">{label}</div>'
-                    f'<div style="font-size:1.3rem; font-weight:700; color:#F9FAFB; margin-top:0.2rem;">{val}</div>'
+                    f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid {_bdr}; '
+                    f'border-radius:12px; padding:1.25rem; text-align:center; transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); '
+                    f'box-shadow:0 2px 12px {_glow};">'
+                    f'<div style="font-size:0.7rem; color:#9CA3AF; text-transform:uppercase; letter-spacing:0.5px; font-weight:600;">{label}</div>'
+                    f'<div style="font-size:1.5rem; font-weight:800; color:#F9FAFB; margin-top:0.4rem; letter-spacing:-0.02em;">{val}</div>'
                     f'</div>',
                     unsafe_allow_html=True,
                 )
@@ -10681,10 +10688,10 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         val = row.iloc[0] if len(row) > 0 else ""
                         label = row.iloc[1] if len(row) > 1 else ""
                         st.markdown(
-                            f'<div style="display:flex; justify-content:space-between; padding:0.4rem 0; '
-                            f'border-bottom:1px solid rgba(255,255,255,0.04);">'
-                            f'<span style="color:#9CA3AF; font-size:0.75rem;">{label}</span>'
-                            f'<span style="color:#F9FAFB; font-weight:700; font-size:0.85rem;">{val}</span>'
+                            f'<div style="display:flex; justify-content:space-between; padding:0.5rem 0; '
+                            f'border-bottom:1px solid rgba(37,99,235,0.08); transition:all 0.2s ease;">'
+                            f'<span style="color:#9CA3AF; font-size:0.75rem; font-weight:500;">{label}</span>'
+                            f'<span style="color:#F9FAFB; font-weight:700; font-size:0.88rem;">{val}</span>'
                             f'</div>',
                             unsafe_allow_html=True,
                         )
@@ -10707,10 +10714,10 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         pct = row.get("% Out", row.get("pctHeld", 0))
                         pct_str = f"{pct:.2%}" if isinstance(pct, float) and pct < 1 else f"{pct}"
                         st.markdown(
-                            f'<div style="display:flex; justify-content:space-between; padding:0.25rem 0; '
-                            f'border-bottom:1px solid rgba(255,255,255,0.04); font-size:0.72rem;">'
-                            f'<span style="color:#F9FAFB; flex:3;">{holder}</span>'
-                            f'<span style="color:#2563EB; flex:0.5; text-align:right; font-weight:600;">{pct_str}</span>'
+                            f'<div style="display:flex; justify-content:space-between; padding:0.4rem 0; '
+                            f'border-bottom:1px solid rgba(37,99,235,0.08); font-size:0.75rem; transition:all 0.2s ease;">'
+                            f'<span style="color:#E5E7EB; flex:3; font-weight:500;">{holder}</span>'
+                            f'<span style="color:#60A5FA; flex:0.5; text-align:right; font-weight:700;">{pct_str}</span>'
                             f'</div>',
                             unsafe_allow_html=True,
                         )
@@ -11295,21 +11302,21 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     _fw = "600"
                     _cells += f'<td style="padding:0.35rem 0.6rem; text-align:right; font-size:0.78rem; color:{_c}; font-weight:{_fw};">{v}</td>'
                 _tbody_html += (
-                    f'<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">'
-                    f'<td style="padding:0.35rem 0.6rem; font-size:0.78rem; color:#D1D5DB; font-weight:600;">{metric}</td>'
+                    f'<tr style="border-bottom:1px solid rgba(37,99,235,0.08); transition:all 0.2s ease;">'
+                    f'<td style="padding:0.5rem 0.75rem; font-size:0.8rem; color:#E5E7EB; font-weight:600;">{metric}</td>'
                     f'{_cells}</tr>'
                 )
 
             st.markdown(
-                f'<div style="background:rgba(255,255,255,0.02); border:1px solid rgba(37,99,235,0.1); '
-                f'border-radius:10px; overflow:hidden; margin-bottom:1rem;">'
-                f'<div style="padding:0.6rem 0.8rem; background:rgba(37,99,235,0.06); '
-                f'border-bottom:1px solid rgba(37,99,235,0.1);">'
-                f'<span style="font-size:0.7rem; font-weight:700; color:#2563EB; text-transform:uppercase; '
+                f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(37,99,235,0.15); '
+                f'border-radius:12px; overflow:hidden; margin-bottom:1rem; box-shadow:0 2px 12px rgba(0,0,0,0.1);">'
+                f'<div style="padding:0.75rem 1rem; background:rgba(37,99,235,0.1); '
+                f'border-bottom:1px solid rgba(37,99,235,0.2);">'
+                f'<span style="font-size:0.75rem; font-weight:700; color:#60A5FA; text-transform:uppercase; '
                 f'letter-spacing:1px;">📊 Financial Summary (Annual)</span></div>'
                 f'<table style="width:100%; border-collapse:collapse;">'
-                f'<thead><tr><th style="padding:0.4rem 0.6rem; text-align:left; font-size:0.7rem; '
-                f'color:#9CA3AF; border-bottom:2px solid rgba(37,99,235,0.3);">Metric</th>{_th_html}</tr></thead>'
+                f'<thead><tr><th style="padding:0.5rem 0.75rem; text-align:left; font-size:0.72rem; '
+                f'color:#9CA3AF; border-bottom:2px solid rgba(37,99,235,0.3); font-weight:700;">Metric</th>{_th_html}</tr></thead>'
                 f'<tbody>{_tbody_html}</tbody></table></div>',
                 unsafe_allow_html=True,
             )
