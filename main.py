@@ -2031,7 +2031,15 @@ html, body, [class*="css"] {{
 
 /* ── GLOBAL TEXT OVERRIDES FOR NATIVE STREAMLIT ELEMENTS ─ */
 [data-testid="stAppViewContainer"] {{ color: #F9FAFB; }}
-[data-testid="stAlert"] {{ background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.1) !important; color: #F9FAFB !important; }}
+[data-testid="stAlert"] {{ 
+    background: rgba(17, 24, 39, 0.7) !important;
+    backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
+    border-left: 3px solid rgba(37,99,235,0.5) !important;
+    color: #F9FAFB !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+}}
 [data-testid="stAlert"] p {{ color: #F9FAFB !important; }}
 [data-testid="stExpanderDetails"] {{ background: rgba(255,255,255,0.02) !important; }}
 
