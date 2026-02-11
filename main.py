@@ -2187,8 +2187,12 @@ footer {{ visibility: hidden; }}
 [data-testid="stDataFrame"] tbody tr:nth-child(even) {{
     background: rgba(255, 255, 255, 0.02) !important;
 }}
+[data-testid="stDataFrame"] tbody tr {{
+    transition: all 0.2s ease !important;
+}}
 [data-testid="stDataFrame"] tbody tr:hover {{
-    background: rgba(37, 99, 235, 0.05) !important;
+    background: rgba(37, 99, 235, 0.08) !important;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1) !important;
 }}
 
 /* ── SECTION HEADERS (with left accent bar) ───────────────── */
