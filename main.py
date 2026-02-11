@@ -4442,6 +4442,140 @@ st.markdown(f"""
     color: #10B981;
     font-weight: 300;
 }}
+
+/* ── ADDITIONAL MICRO-INTERACTIONS & POLISH ──────────────── */
+
+/* Smooth transitions for all interactive elements */
+button, a, input, select, textarea {{
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}}
+
+/* Enhanced focus states */
+input:focus, select:focus, textarea:focus {{
+    outline: none !important;
+    border-color: rgba(37,99,235,0.5) !important;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.15) !important;
+    transform: scale(1.01) !important;
+}}
+
+/* Checkbox and radio button animations */
+input[type="checkbox"], input[type="radio"] {{
+    transition: all 0.2s ease !important;
+    cursor: pointer !important;
+}}
+input[type="checkbox"]:checked, input[type="radio"]:checked {{
+    animation: checkPop 0.3s ease-out !important;
+}}
+
+/* Select dropdown enhancements */
+select {{
+    cursor: pointer !important;
+}}
+select:hover {{
+    border-color: rgba(37,99,235,0.3) !important;
+    background: rgba(17,24,39,0.8) !important;
+}}
+
+/* Expander arrow animation */
+[data-testid="stExpander"] summary svg {{
+    transition: transform 0.3s ease !important;
+}}
+[data-testid="stExpander"][open] summary svg {{
+    transform: rotate(90deg) !important;
+}}
+
+/* Image hover effects */
+img {{
+    transition: all 0.3s ease !important;
+}}
+img:hover {{
+    transform: scale(1.02) !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2) !important;
+}}
+
+/* Badge pulse animation on hover */
+[class*="badge"]:hover, [class*="pill"]:hover {{
+    animation: gentlePulse 1.5s ease-in-out infinite !important;
+}}
+
+/* Plotly chart container enhancement */
+.js-plotly-plot .plotly {{
+    transition: all 0.3s ease !important;
+}}
+
+/* Loading spinner enhancement */
+[data-testid="stSpinner"] > div {{
+    animation: spin 1s linear infinite, pulse-glow 2s ease-in-out infinite !important;
+}}
+
+/* Section divider enhancement */
+hr {{
+    border: none !important;
+    height: 1px !important;
+    background: linear-gradient(90deg, transparent, rgba(37,99,235,0.3), transparent) !important;
+    margin: 2rem 0 !important;
+    animation: shimmer 2s linear infinite !important;
+}}
+
+/* Code block enhancements */
+code {{
+    background: rgba(17,24,39,0.8) !important;
+    border: 1px solid rgba(37,99,235,0.2) !important;
+    border-radius: 4px !important;
+    padding: 0.2rem 0.4rem !important;
+    font-family: 'Fira Code', 'Courier New', monospace !important;
+    transition: all 0.2s ease !important;
+}}
+code:hover {{
+    background: rgba(37,99,235,0.1) !important;
+    border-color: rgba(37,99,235,0.4) !important;
+}}
+
+/* Alert box enhancements */
+[data-testid="stAlert"] {{
+    animation: fadeInScale 0.4s ease-out !important;
+}}
+
+/* Metric delta (change) styling */
+[data-testid="stMetric"] [data-testid="stMetricDelta"] {{
+    font-weight: 700 !important;
+    font-size: 0.85rem !important;
+}}
+
+/* Tab indicator animation */
+[data-testid="stTabs"] button[role="tab"]::before {{
+    content: '' !important;
+    position: absolute !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 0 !important;
+    height: 3px !important;
+    background: linear-gradient(90deg, #2563EB, #60A5FA) !important;
+    transition: width 0.3s ease !important;
+}}
+[data-testid="stTabs"] button[role="tab"]:hover::before {{
+    width: 100% !important;
+}}
+
+/* Sidebar enhancements */
+[data-testid="stSidebar"] {{
+    background: linear-gradient(180deg, #0F1419 0%, #111827 100%) !important;
+    border-right: 1px solid rgba(37,99,235,0.15) !important;
+}}
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {{
+    transition: all 0.2s ease !important;
+}}
+
+/* Toast/notification animations */
+[data-testid="stToast"] {{
+    animation: slideInRight 0.3s ease-out !important;
+}}
+
+/* Column gap consistency */
+[data-testid="column"] {{
+    padding: 0 0.5rem !important;
+}}
+
 </style>
 """, unsafe_allow_html=True)
 
