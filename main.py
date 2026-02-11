@@ -3162,7 +3162,7 @@ section[data-testid="stSidebar"] .stSlider label p {{
     border-radius: 12px;
     backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
     padding: 1.8rem 2rem;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
     margin-bottom: 1.2rem;
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-left: 3px solid #2563EB;
@@ -3170,6 +3170,12 @@ section[data-testid="stSidebar"] .stSlider label p {{
     position: relative;
     overflow: hidden;
     animation: cardReveal 0.4s ease-out both;
+}}
+.company-card:hover {{
+    border-color: rgba(37,99,235,0.15);
+    border-left-color: #60A5FA;
+    box-shadow: 0 6px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(37,99,235,0.1);
+    transform: translateY(-2px);
 }}
 .company-card::before {{
     content: '';
