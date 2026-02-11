@@ -3968,9 +3968,9 @@ st.markdown(f"""
 .space-section {{
     background: rgba(11,14,26,0.5);
     border-radius: 0;
-    padding: 2.5rem 3rem;
+    padding: 3.5rem 3rem;
     margin: 0 calc(-50vw + 50%); width: 100vw;
-    margin-bottom: 2rem;
+    margin-bottom: 2.5rem;
     position: relative;
     overflow: hidden;
 }}
