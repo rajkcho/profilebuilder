@@ -4032,14 +4032,15 @@ st.markdown(f"""
 }}
 .step-card {{
     flex: 1;
-    background: rgba(17,24,39,0.7); backdrop-filter: blur(16px);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(17,24,39,0.75); backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.1);
     border-radius: 18px; padding: 1.5rem; text-align: center;
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     position: relative; overflow: hidden;
     animation: fadeInUp 0.6s ease-out both;
     cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.03);
 }}
 .step-card:nth-child(1) {{ animation-delay: 0.1s; }}
 .step-card:nth-child(2) {{ animation-delay: 0.2s; }}
@@ -4090,14 +4091,15 @@ st.markdown(f"""
     gap: 1rem; margin-top: 0.5rem;
 }}
 .feature-card {{
-    background: rgba(17, 24, 39, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 12px; padding: 1.5rem 1.2rem; text-align: center;
+    background: rgba(17, 24, 39, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px; padding: 1.5rem 1.2rem; text-align: center;
     transition: all 0.3s ease;
-    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
     animation: fadeInScale 0.4s ease-out both;
     position: relative; overflow: hidden;
     cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.02);
 }}
 .feature-card:nth-child(1) {{ animation-delay: 0.05s; }}
 .feature-card:nth-child(2) {{ animation-delay: 0.1s; }}
