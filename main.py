@@ -3471,9 +3471,10 @@ header {{ visibility: hidden; }}
 .precedent-table td, .insider-table td {{
     padding: 0.55rem 0.8rem; font-size: 0.8rem; color: #C8C3E3;
     border-bottom: 1px solid rgba(255,255,255,0.05);
+    transition: background 0.2s ease;
 }}
 .precedent-table tr:hover td, .insider-table tr:hover td {{
-    background: rgba(37,99,235,0.08);
+    background: rgba(37,99,235,0.12);
 }}
 
 /* ── NEWS SENTIMENT CARDS ──────────────────────────────── */
@@ -3482,12 +3483,13 @@ header {{ visibility: hidden; }}
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 12px; padding: 0.8rem 1rem; margin-bottom: 0.6rem;
     animation: slideUpBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
+    cursor: pointer;
 }}
 .news-card:hover {{
-    border-color: rgba(37,99,235,0.3);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(37,99,235,0.15);
+    border-color: rgba(37,99,235,0.35);
+    transform: translateY(-3px) scale(1.01);
+    box-shadow: 0 8px 24px rgba(37,99,235,0.2), 0 0 0 1px rgba(37,99,235,0.08);
 }}
 .news-sentiment-bullish {{ border-left: 3px solid #10B981; }}
 .news-sentiment-bearish {{ border-left: 3px solid #EF4444; }}
