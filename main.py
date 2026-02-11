@@ -2178,20 +2178,38 @@ footer {{ visibility: hidden; }}
     background: linear-gradient(135deg, #2563EB, #1D4ED8) !important;
     color: white !important;
     border: none !important;
-    border-radius: 8px !important;
+    border-radius: 10px !important;
     font-weight: 600 !important;
-    padding: 0.5rem 1.5rem !important;
-    transition: all 0.2s ease !important;
+    padding: 0.6rem 1.6rem !important;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
     font-size: 0.9rem !important;
+    position: relative !important;
+    overflow: hidden !important;
+}}
+.stButton > button::before {{
+    content: '' !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    width: 0 !important;
+    height: 0 !important;
+    border-radius: 50% !important;
+    background: rgba(255,255,255,0.2) !important;
+    transform: translate(-50%, -50%) !important;
+    transition: width 0.6s, height 0.6s !important;
 }}
 .stButton > button:hover {{
-    transform: translateY(-1px) !important;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.5) !important;
     background: linear-gradient(135deg, #1D4ED8, #1E40AF) !important;
 }}
+.stButton > button:hover::before {{
+    width: 300px !important;
+    height: 300px !important;
+}}
 .stButton > button:active {{
-    transform: translateY(0) scale(0.98) !important;
-    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3) !important;
+    transform: translateY(0) scale(0.97) !important;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35) !important;
 }}
 
 /* ── DATAFRAME / TABLE STYLING ──────────────────────────── */
