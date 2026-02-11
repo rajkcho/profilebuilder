@@ -8833,12 +8833,12 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 for icon, text in _es_bullets
             )
             st.markdown(
-                f'<div style="background:linear-gradient(135deg, rgba(37,99,235,0.08), rgba(16,185,129,0.06)); '
+                f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
                 f'border:2px solid rgba(37,99,235,0.35); '
-                f'border-radius:12px; padding:1.2rem 1.5rem; margin:1rem 0; '
-                f'box-shadow:0 0 0 1px rgba(16,185,129,0.15);">'
+                f'border-radius:12px; padding:1.25rem 1.5rem; margin:1rem 0; '
+                f'box-shadow:0 0 20px rgba(37,99,235,0.15);">'
                 f'<div style="font-size:0.7rem; font-weight:800; color:#60A5FA; text-transform:uppercase; '
-                f'letter-spacing:2px; margin-bottom:0.6rem;">Executive Summary</div>'
+                f'letter-spacing:2px; margin-bottom:0.7rem;">Executive Summary</div>'
                 f'{_es_html}'
                 f'</div>',
                 unsafe_allow_html=True,
@@ -8894,10 +8894,10 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         if takeaways:
             bullets = "".join(f'<div style="padding:0.2rem 0; font-size:0.82rem; color:#D1D5DB; line-height:1.6;">• {t}</div>' for t in takeaways[:4])
             st.markdown(
-                f'<div style="background:rgba(37,99,235,0.04); border:1px solid rgba(37,99,235,0.12); '
-                f'border-radius:12px; padding:1rem 1.2rem; margin:0.5rem 0 1rem 0;">'
+                f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); '
+                f'border-radius:12px; padding:1.25rem; margin:0.5rem 0 1rem 0;">'
                 f'<div style="font-size:0.65rem; font-weight:700; color:#2563EB; text-transform:uppercase; '
-                f'letter-spacing:1.5px; margin-bottom:0.4rem;">Key Takeaways</div>'
+                f'letter-spacing:1.5px; margin-bottom:0.5rem;">Key Takeaways</div>'
                 f'{bullets}'
                 f'</div>',
                 unsafe_allow_html=True,
