@@ -2136,13 +2136,15 @@ footer {{ visibility: hidden; }}
     border: 1px solid rgba(255, 255, 255, 0.06) !important;
     border-left: 3px solid rgba(37,99,235,0.5) !important;
     border-radius: 12px !important;
-    padding: 0.75rem 1rem !important;
-    transition: all 0.2s ease !important;
+    padding: 0.85rem 1.1rem !important;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    position: relative !important;
 }}
 [data-testid="stMetric"]:hover {{
-    border-color: rgba(37, 99, 235, 0.2) !important;
+    border-color: rgba(37, 99, 235, 0.25) !important;
     border-left-color: #2563EB !important;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3) !important;
+    box-shadow: 0 6px 28px rgba(37, 99, 235, 0.2), 0 0 0 1px rgba(37,99,235,0.1) !important;
+    transform: translateY(-2px) !important;
 }}
 [data-testid="stMetric"] label {{
     color: #9CA3AF !important;
