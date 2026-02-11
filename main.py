@@ -2892,10 +2892,12 @@ section[data-testid="stSidebar"] .stButton > button {{
     box-shadow: 0 4px 20px rgba(37,99,235,0.3);
     animation: sb-btn-pulse 2s ease-in-out infinite;
     margin-top: 0.5rem !important;
+    transition: all 0.3s ease !important;
 }}
 section[data-testid="stSidebar"] .stButton > button:hover {{
-    transform: translateY(-2px);
-    box-shadow: 0 8px 30px rgba(37,99,235,0.5);
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 10px 36px rgba(37,99,235,0.6);
+    background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%) !important;
 }}
 /* ── SIDEBAR SELECTBOX ──────────────────────────────── */
 section[data-testid="stSidebar"] .stSelectbox > div > div {{
@@ -3207,8 +3209,22 @@ section[data-testid="stSidebar"] .stSlider label p {{
     padding: 0.15rem 0.5rem; border-radius: 6px;
     display: inline-block; margin-left: 0.5rem;
 }}
-.change-up {{ background: rgba(16,185,129,0.15); color: #10B981; }}
-.change-down {{ background: rgba(239,68,68,0.15); color: #EF4444; }}
+.change-up {{ 
+    background: rgba(16,185,129,0.15); 
+    color: #10B981; 
+    font-weight: 700;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid rgba(16,185,129,0.3);
+}}
+.change-down {{ 
+    background: rgba(239,68,68,0.15); 
+    color: #EF4444; 
+    font-weight: 700;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid rgba(239,68,68,0.3);
+}}
 
 /* ── SECTION STYLING ─────────────────────────────────────── */
 .section-header {{
