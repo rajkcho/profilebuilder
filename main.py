@@ -1985,13 +1985,48 @@ html, body, [class*="css"] {{
 
 /* ── GLOBAL STARFIELD (subtle, polished) ──────── */
 .global-starfield {{
-    display: none !important;
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 0; pointer-events: none; overflow: hidden;
 }}
-.global-star-1, .global-star-2, .global-star-3 {{
-    display: none !important;
+.global-star-1 {{
+    position: absolute; top: 0; left: 0; width: 1px; height: 1px;
+    box-shadow: {_STARS1};
+    opacity: 0.15;
+    animation: starDrift1 200s linear infinite;
+}}
+.global-star-1::after {{
+    content: ''; position: absolute; top: 2000px; left: 0;
+    width: 1px; height: 1px;
+    box-shadow: {_STARS1};
+}}
+.global-star-2 {{
+    position: absolute; top: 0; left: 0; width: 1.5px; height: 1.5px;
+    box-shadow: {_STARS2};
+    opacity: 0.2;
+    animation: starDrift2 150s linear infinite;
+}}
+.global-star-2::after {{
+    content: ''; position: absolute; top: 2000px; left: 0;
+    width: 1.5px; height: 1.5px;
+    box-shadow: {_STARS2};
+}}
+.global-star-3 {{
+    position: absolute; top: 0; left: 0; width: 2px; height: 2px;
+    box-shadow: {_STARS3};
+    opacity: 0.25;
+    animation: starDrift3 120s linear infinite;
+}}
+.global-star-3::after {{
+    content: ''; position: absolute; top: 2000px; left: 0;
+    width: 2px; height: 2px;
+    box-shadow: {_STARS3};
 }}
 .global-nebula {{
-    display: none !important;
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background:
+        radial-gradient(ellipse at 30% 40%, rgba(37,99,235,0.03) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 60%, rgba(16,185,129,0.02) 0%, transparent 50%);
+    animation: nebulaPulse 40s ease-in-out infinite;
 }}
 
 /* ── GLOBAL TEXT OVERRIDES FOR NATIVE STREAMLIT ELEMENTS ─ */
@@ -2476,19 +2511,19 @@ footer {{ visibility: hidden; }}
     border-top-color: #2563EB;
     border-right-color: rgba(37,99,235,0.4);
     border-bottom-color: rgba(37,99,235,0.1);
-    animation: orbitRotate 8s linear infinite;
+    animation: orbitRotate 12s linear infinite;
 }}
 .orbital-ring-2 {{
     width: 100px; height: 100px;
     border-top-color: #10B981;
     border-right-color: rgba(16,185,129,0.3);
-    animation: orbitRotateReverse 12s linear infinite;
+    animation: orbitRotateReverse 18s linear infinite;
 }}
 .orbital-ring-3 {{
     width: 130px; height: 130px;
     border-top-color: #60A5FA;
     border-left-color: rgba(155,138,255,0.2);
-    animation: orbitRotate 16s linear infinite, ringFlash 4s ease-in-out infinite;
+    animation: orbitRotate 24s linear infinite, ringFlash 6s ease-in-out infinite;
 }}
 .orbital-particle {{
     position: absolute;
@@ -3674,38 +3709,38 @@ st.markdown(f"""
 }}
 .orb-1 {{
     width: 200px; height: 200px;
-    background: rgba(37,99,235,0.08);
+    background: rgba(37,99,235,0.06);
     filter: blur(80px);
     top: 10%; left: 5%;
-    animation: float1 20s ease-in-out infinite;
+    animation: float1 30s ease-in-out infinite;
 }}
 .orb-2 {{
     width: 160px; height: 160px;
-    background: rgba(16,185,129,0.06);
+    background: rgba(16,185,129,0.05);
     filter: blur(70px);
     top: 60%; right: 10%;
-    animation: float2 22s ease-in-out infinite;
+    animation: float2 35s ease-in-out infinite;
 }}
 .orb-3 {{
     width: 120px; height: 120px;
-    background: rgba(59,130,246,0.05);
+    background: rgba(59,130,246,0.04);
     filter: blur(60px);
     top: 30%; right: 25%;
-    animation: float3 18s ease-in-out infinite;
+    animation: float3 28s ease-in-out infinite;
 }}
 
-/* Shooting stars */
+/* Shooting stars (subtle, elegant) */
 .shooting-star {{
     position: absolute;
-    width: 120px; height: 1.5px;
-    background: linear-gradient(90deg, rgba(255,255,255,0.6), transparent);
+    width: 100px; height: 1px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.4), transparent);
     border-radius: 50%;
     pointer-events: none;
     opacity: 0;
 }}
-.shooting-star-1 {{ top: 15%; left: 70%; animation: shootingStar 6s ease-in-out 2s infinite; }}
-.shooting-star-2 {{ top: 35%; left: 85%; animation: shootingStar 8s ease-in-out 5s infinite; }}
-.shooting-star-3 {{ top: 55%; left: 60%; animation: shootingStar 7s ease-in-out 8s infinite; }}
+.shooting-star-1 {{ top: 15%; left: 70%; animation: shootingStar 12s ease-in-out 3s infinite; }}
+.shooting-star-2 {{ top: 35%; left: 85%; animation: shootingStar 15s ease-in-out 7s infinite; }}
+.shooting-star-3 {{ top: 55%; left: 60%; animation: shootingStar 18s ease-in-out 11s infinite; }}
 
 /* Noise/grain overlay */
 .noise-overlay {{
@@ -15610,7 +15645,7 @@ elif analysis_mode == "Company Profile" and generate_btn and not ticker_input:
         unsafe_allow_html=True,
     )
     
-    # Market Pulse - clean pill format
+    # Market Pulse - clean pill format in frosted glass container
     st.markdown('<div style="text-align:center; font-size:1.25rem; font-weight:700; color:#F9FAFB; margin:3rem 0 1.5rem; '
                'letter-spacing:-0.02em;">Market Pulse</div>', unsafe_allow_html=True)
     
@@ -15635,24 +15670,29 @@ elif analysis_mode == "Company Profile" and generate_btn and not ticker_input:
             except Exception:
                 market_data[name] = {"price": 0, "change": 0}
         
-        # Display market pills in a clean row
-        pills_html = '<div style="display:flex; gap:1rem; justify-content:center; flex-wrap:wrap; margin-bottom:3rem;">'
+        # Display market pills in a frosted glass container with better spacing
+        pills_html = (
+            '<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+            'border:1px solid rgba(255,255,255,0.06); border-radius:12px; '
+            'padding:2rem 1.5rem; margin:0 auto 3rem; max-width:900px;">'
+            '<div style="display:flex; gap:1.25rem; justify-content:center; flex-wrap:wrap;">'
+        )
         for name, data in market_data.items():
             price = data["price"]
             change = data["change"]
             color = "#10B981" if change >= 0 else "#EF4444"
             arrow = "↑" if change >= 0 else "↓"
             pills_html += (
-                f'<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
-                f'border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:0.75rem 1.25rem; '
-                f'min-width:140px;">'
+                f'<div style="background:rgba(11,14,26,0.6); border:1px solid rgba(255,255,255,0.04); '
+                f'border-radius:10px; padding:0.9rem 1.4rem; min-width:150px; '
+                f'transition:all 0.2s ease;">'
                 f'<div style="font-size:0.7rem; color:#9CA3AF; font-weight:600; text-transform:uppercase; '
-                f'margin-bottom:0.25rem;">{name}</div>'
-                f'<div style="font-size:1.1rem; font-weight:700; color:#F9FAFB;">{price:,.2f}</div>'
-                f'<div style="font-size:0.8rem; color:{color}; font-weight:600;">{arrow} {abs(change):.2f}%</div>'
+                f'letter-spacing:0.05em; margin-bottom:0.4rem;">{name}</div>'
+                f'<div style="font-size:1.2rem; font-weight:700; color:#F9FAFB; margin-bottom:0.3rem;">{price:,.2f}</div>'
+                f'<div style="font-size:0.85rem; color:{color}; font-weight:600;">{arrow} {abs(change):.2f}%</div>'
                 f'</div>'
             )
-        pills_html += '</div>'
+        pills_html += '</div></div>'
         st.markdown(pills_html, unsafe_allow_html=True)
     except Exception:
         pass
@@ -15661,14 +15701,45 @@ elif analysis_mode == "Company Profile" and generate_btn and not ticker_input:
     st.markdown('<div style="text-align:center; font-size:1.25rem; font-weight:700; color:#F9FAFB; margin:3rem 0 1.5rem; '
                'letter-spacing:-0.02em;">Quick Actions</div>', unsafe_allow_html=True)
     
+    # Add CSS for hover effects on Quick Actions
+    st.markdown("""
+    <style>
+    .qa-card {
+        background: rgba(17,24,39,0.7);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        height: 180px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        cursor: pointer;
+    }
+    .qa-card:hover {
+        transform: translateY(-4px) scale(1.02);
+        border-color: rgba(37,99,235,0.3);
+        box-shadow: 0 8px 32px rgba(37,99,235,0.25), 0 0 0 1px rgba(37,99,235,0.1);
+    }
+    .qa-card-icon {
+        font-size: 2.5rem;
+        margin-bottom: 0.75rem;
+        transition: transform 0.3s ease;
+    }
+    .qa-card:hover .qa-card-icon {
+        transform: scale(1.1);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
     qa_col1, qa_col2, qa_col3, qa_col4 = st.columns(4)
     
     with qa_col1:
         st.markdown(
-            '<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
-            'border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1.5rem; '
-            'text-align:center; transition:all 0.2s ease; height:180px; display:flex; flex-direction:column; justify-content:center;">'
-            '<div style="font-size:2.5rem; margin-bottom:0.75rem;">🔍</div>'
+            '<div class="qa-card">'
+            '<div class="qa-card-icon">🔍</div>'
             '<div style="font-size:1rem; font-weight:700; color:#F9FAFB; margin-bottom:0.5rem;">Company Profile</div>'
             '<div style="font-size:0.75rem; color:#9CA3AF;">Deep dive into any public company</div>'
             '</div>',
@@ -15677,10 +15748,8 @@ elif analysis_mode == "Company Profile" and generate_btn and not ticker_input:
     
     with qa_col2:
         st.markdown(
-            '<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
-            'border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1.5rem; '
-            'text-align:center; transition:all 0.2s ease; height:180px; display:flex; flex-direction:column; justify-content:center;">'
-            '<div style="font-size:2.5rem; margin-bottom:0.75rem;">📈</div>'
+            '<div class="qa-card">'
+            '<div class="qa-card-icon">📈</div>'
             '<div style="font-size:1rem; font-weight:700; color:#F9FAFB; margin-bottom:0.5rem;">Comps Analysis</div>'
             '<div style="font-size:0.75rem; color:#9CA3AF;">Compare with industry peers</div>'
             '</div>',
@@ -15689,10 +15758,8 @@ elif analysis_mode == "Company Profile" and generate_btn and not ticker_input:
     
     with qa_col3:
         st.markdown(
-            '<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
-            'border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1.5rem; '
-            'text-align:center; transition:all 0.2s ease; height:180px; display:flex; flex-direction:column; justify-content:center;">'
-            '<div style="font-size:2.5rem; margin-bottom:0.75rem;">💹</div>'
+            '<div class="qa-card">'
+            '<div class="qa-card-icon">💹</div>'
             '<div style="font-size:1rem; font-weight:700; color:#F9FAFB; margin-bottom:0.5rem;">DCF Model</div>'
             '<div style="font-size:0.75rem; color:#9CA3AF;">Intrinsic value analysis</div>'
             '</div>',
@@ -15701,10 +15768,8 @@ elif analysis_mode == "Company Profile" and generate_btn and not ticker_input:
     
     with qa_col4:
         st.markdown(
-            '<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
-            'border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:1.5rem; '
-            'text-align:center; transition:all 0.2s ease; height:180px; display:flex; flex-direction:column; justify-content:center;">'
-            '<div style="font-size:2.5rem; margin-bottom:0.75rem;">🤝</div>'
+            '<div class="qa-card">'
+            '<div class="qa-card-icon">🤝</div>'
             '<div style="font-size:1rem; font-weight:700; color:#F9FAFB; margin-bottom:0.5rem;">M&A Simulator</div>'
             '<div style="font-size:0.75rem; color:#9CA3AF;">Model merger scenarios</div>'
             '</div>',
