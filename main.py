@@ -11992,7 +11992,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         _val_str = format_number(abs(value), currency_symbol=cs) if is_currency else f"{value:.2f}"
                         _sign = "+" if _creating else "-"
                         st.markdown(
-                            f'<div style="text-align:center; padding:0.8rem; background:{"rgba(16,185,129,0.06)" if _creating else "rgba(239,68,68,0.06)"}; '
+                            f'<div style="text-align:center; padding:1rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
                             f'border-radius:12px; border:1px solid {"rgba(16,185,129,0.2)" if _creating else "rgba(239,68,68,0.2)"};">'
                             f'<div style="font-size:0.6rem; color:#9CA3AF; font-weight:600; text-transform:uppercase;">{title}</div>'
                             f'<div style="font-size:1.2rem; font-weight:800; color:{_color};">{_sign}{_val_str}</div>'
@@ -12002,7 +12002,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         )
                     else:
                         st.markdown(
-                            f'<div style="text-align:center; padding:0.8rem; background:rgba(37,99,235,0.05); border-radius:12px;">'
+                            f'<div style="text-align:center; padding:1rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:12px;">'
                             f'<div style="font-size:0.6rem; color:#9CA3AF; text-transform:uppercase;">{title}</div>'
                             f'<div style="color:#9CA3AF;">N/A</div></div>',
                             unsafe_allow_html=True,
@@ -12016,8 +12016,8 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             with _svc_c4:
                 if _svc_wacc:
                     st.markdown(
-                        f'<div style="text-align:center; padding:0.8rem; background:rgba(37,99,235,0.06); '
-                        f'border-radius:12px; border:1px solid rgba(37,99,235,0.2);">'
+                        f'<div style="text-align:center; padding:1rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+                        f'border-radius:12px; border:1px solid rgba(255,255,255,0.06);">'
                         f'<div style="font-size:0.6rem; color:#9CA3AF; font-weight:600; text-transform:uppercase;">Est. WACC</div>'
                         f'<div style="font-size:1.2rem; font-weight:800; color:#60A5FA;">{_svc_wacc*100:.1f}%</div>'
                         f'<div style="font-size:0.6rem; color:#9CA3AF;">Cost of Capital</div>'
