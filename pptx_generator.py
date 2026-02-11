@@ -31,20 +31,23 @@ from data_engine import (CompanyData, format_number, format_pct, format_multiple
 # GOLDMAN SACHS STYLE PALETTE
 # ══════════════════════════════════════════════════════════════
 
-# Dark theme palette with purple accents (#6B5CE7)
-NAVY = RGBColor(0x0B, 0x0E, 0x1A)  # Dark background
-LIGHT_NAVY = RGBColor(0x15, 0x19, 0x33)  # Lighter dark
-GOLD = RGBColor(0x6B, 0x5C, 0xE7)  # Purple accent (matching #6B5CE7)
-PURPLE = RGBColor(0x6B, 0x5C, 0xE7)
-PURPLE_LIGHT = RGBColor(0x9B, 0x8A, 0xFF)
+# Modern fintech palette (Linear/Vercel/Stripe-inspired)
+NAVY = RGBColor(0x0C, 0x0F, 0x1A)  # Deep charcoal background
+LIGHT_NAVY = RGBColor(0x1F, 0x29, 0x37)  # Lighter dark
+BLUE = RGBColor(0x25, 0x63, 0xEB)  # Electric blue accent (#2563EB)
+EMERALD = RGBColor(0x10, 0xB9, 0x81)  # Emerald accent (#10B981)
 WHITE = RGBColor(0xFF, 0xFF, 0xFF)
 BLACK = RGBColor(0x00, 0x00, 0x00)
-LIGHT_GRAY = RGBColor(0x1E, 0x21, 0x36)  # Dark card bg
-MED_GRAY = RGBColor(0x2A, 0x2D, 0x42)
-DARK_GRAY = RGBColor(0xB8, 0xB3, 0xD7)  # Light text on dark
-TEXT_DIM = RGBColor(0x8A, 0x85, 0xAD)
+LIGHT_GRAY = RGBColor(0x11, 0x18, 0x27)  # Dark card bg
+MED_GRAY = RGBColor(0x37, 0x41, 0x55)
+DARK_GRAY = RGBColor(0xE5, 0xE7, 0xEB)  # Light text on dark
+TEXT_DIM = RGBColor(0x9C, 0xA3, 0xAF)
 GREEN = RGBColor(0x10, 0xB9, 0x81)
 RED = RGBColor(0xEF, 0x44, 0x44)
+# Legacy aliases for compatibility
+GOLD = BLUE
+PURPLE = BLUE
+PURPLE_LIGHT = RGBColor(0x60, 0xA5, 0xFA)
 
 SLIDE_W = Inches(13.333)
 SLIDE_H = Inches(7.5)
