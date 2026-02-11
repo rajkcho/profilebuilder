@@ -3824,12 +3824,15 @@ st.markdown(f"""
     padding: 0.4rem 1.1rem; font-size: 0.75rem; font-weight: 600;
     color: #D1D5DB; background: rgba(37,99,235,0.06);
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
+    cursor: pointer;
 }}
 .feature-pill:hover {{
-    border-color: rgba(155,138,255,0.6);
-    box-shadow: 0 0 15px rgba(37,99,235,0.2);
+    border-color: rgba(37,99,235,0.6);
+    box-shadow: 0 0 20px rgba(37,99,235,0.35), 0 4px 12px rgba(0,0,0,0.2);
     color: #fff;
+    background: rgba(37,99,235,0.12);
+    transform: translateY(-2px) scale(1.02);
 }}
 
 /* ── SPACE SECTION (dark container for glass cards) ──── */
@@ -3911,10 +3914,11 @@ st.markdown(f"""
     background: rgba(17, 24, 39, 0.7);
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 12px; padding: 1.5rem 1.2rem; text-align: center;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
     backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
     animation: fadeInScale 0.4s ease-out both;
     position: relative; overflow: hidden;
+    cursor: pointer;
 }}
 .feature-card:nth-child(1) {{ animation-delay: 0.05s; }}
 .feature-card:nth-child(2) {{ animation-delay: 0.1s; }}
@@ -3937,11 +3941,17 @@ st.markdown(f"""
     pointer-events: none;
 }}
 .feature-card:hover {{
-    border-color: rgba(37,99,235,0.3); transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(37,99,235,0.15);
+    border-color: rgba(37,99,235,0.3); transform: translateY(-6px) scale(1.03);
+    box-shadow: 0 12px 32px rgba(37,99,235,0.25), 0 0 0 1px rgba(37,99,235,0.1);
 }}
 .feature-card:hover::before {{ opacity: 1; }}
-.feature-icon {{ font-size: 2.2rem; margin-bottom: 0.5rem; }}
+.feature-icon {{ 
+    font-size: 2.2rem; margin-bottom: 0.5rem;
+    transition: transform 0.3s ease;
+}}
+.feature-card:hover .feature-icon {{
+    transform: scale(1.15);
+}}
 .feature-title {{ font-size: 0.88rem; font-weight: 700; color: #F9FAFB; margin-bottom: 0.3rem; }}
 .feature-desc {{ font-size: 0.72rem; color: #9CA3AF; line-height: 1.6; }}
 
