@@ -12776,10 +12776,11 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             dy = cd.dividend_yield * 100
             dy_color = "#10B981" if dy > 3 else "#F59E0B" if dy > 1 else "#9CA3AF"
             st.markdown(
-                f'<div style="text-align:center; padding:0.8rem; background:rgba(37,99,235,0.05); '
-                f'border-radius:12px; border:1px solid rgba(37,99,235,0.1);">'
-                f'<div style="font-size:0.65rem; color:#9CA3AF; font-weight:600; text-transform:uppercase;">Dividend Yield</div>'
-                f'<div style="font-size:1.4rem; font-weight:800; color:{dy_color};">{dy:.2f}%</div>'
+                f'<div style="text-align:center; padding:1.25rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+                f'border-radius:12px; border:1px solid rgba(37,99,235,0.15); box-shadow:0 2px 12px rgba(0,0,0,0.1); '
+                f'transition:all 0.3s ease;">'
+                f'<div style="font-size:0.7rem; color:#9CA3AF; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Dividend Yield</div>'
+                f'<div style="font-size:1.6rem; font-weight:800; color:{dy_color}; margin-top:0.3rem; letter-spacing:-0.02em;">{dy:.2f}%</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -12790,10 +12791,11 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 payout_pct = payout * 100 if payout and payout < 5 else payout or 0
                 po_color = "#EF4444" if payout_pct > 80 else "#10B981" if payout_pct < 60 else "#F59E0B"
                 st.markdown(
-                    f'<div style="text-align:center; padding:0.8rem; background:rgba(37,99,235,0.05); '
-                    f'border-radius:12px; border:1px solid rgba(37,99,235,0.1);">'
-                    f'<div style="font-size:0.65rem; color:#9CA3AF; font-weight:600; text-transform:uppercase;">Payout Ratio</div>'
-                    f'<div style="font-size:1.4rem; font-weight:800; color:{po_color};">{payout_pct:.0f}%</div>'
+                    f'<div style="text-align:center; padding:1.25rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+                    f'border-radius:12px; border:1px solid rgba(37,99,235,0.15); box-shadow:0 2px 12px rgba(0,0,0,0.1); '
+                    f'transition:all 0.3s ease;">'
+                    f'<div style="font-size:0.7rem; color:#9CA3AF; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Payout Ratio</div>'
+                    f'<div style="font-size:1.6rem; font-weight:800; color:{po_color}; margin-top:0.3rem; letter-spacing:-0.02em;">{payout_pct:.0f}%</div>'
                     f'</div>',
                     unsafe_allow_html=True,
                 )
@@ -12808,10 +12810,11 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             try:
                 fwd_div = info_div.get("dividendRate", 0) or 0
                 st.markdown(
-                    f'<div style="text-align:center; padding:0.8rem; background:rgba(37,99,235,0.05); '
-                    f'border-radius:12px; border:1px solid rgba(37,99,235,0.1);">'
-                    f'<div style="font-size:0.65rem; color:#9CA3AF; font-weight:600; text-transform:uppercase;">Annual Dividend</div>'
-                    f'<div style="font-size:1.4rem; font-weight:800; color:#F9FAFB;">{cs}{fwd_div:.2f}</div>'
+                    f'<div style="text-align:center; padding:1.25rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+                    f'border-radius:12px; border:1px solid rgba(37,99,235,0.15); box-shadow:0 2px 12px rgba(0,0,0,0.1); '
+                    f'transition:all 0.3s ease;">'
+                    f'<div style="font-size:0.7rem; color:#9CA3AF; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Annual Dividend</div>'
+                    f'<div style="font-size:1.6rem; font-weight:800; color:#F9FAFB; margin-top:0.3rem; letter-spacing:-0.02em;">{cs}{fwd_div:.2f}</div>'
                     f'</div>',
                     unsafe_allow_html=True,
                 )
@@ -12832,10 +12835,11 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 else:
                     ex_str = "N/A"
                 st.markdown(
-                    f'<div style="text-align:center; padding:0.8rem; background:rgba(37,99,235,0.05); '
-                    f'border-radius:12px; border:1px solid rgba(37,99,235,0.1);">'
-                    f'<div style="font-size:0.65rem; color:#9CA3AF; font-weight:600; text-transform:uppercase;">Ex-Dividend Date</div>'
-                    f'<div style="font-size:0.95rem; font-weight:700; color:#F9FAFB; margin-top:0.2rem;">{ex_str}</div>'
+                    f'<div style="text-align:center; padding:1.25rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); '
+                    f'border-radius:12px; border:1px solid rgba(37,99,235,0.15); box-shadow:0 2px 12px rgba(0,0,0,0.1); '
+                    f'transition:all 0.3s ease;">'
+                    f'<div style="font-size:0.7rem; color:#9CA3AF; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Ex-Dividend Date</div>'
+                    f'<div style="font-size:1.05rem; font-weight:700; color:#F9FAFB; margin-top:0.3rem;">{ex_str}</div>'
                     f'</div>',
                     unsafe_allow_html=True,
                 )
