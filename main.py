@@ -13056,14 +13056,14 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         if val is not None:
                             _c = "#10B981" if val > 0.05 else "#F59E0B" if val > 0 else "#EF4444"
                             st.markdown(
-                                f'<div style="text-align:center; padding:0.6rem; background:rgba(37,99,235,0.05); border-radius:10px;">'
+                                f'<div style="text-align:center; padding:1rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:12px;">'
                                 f'<div style="font-size:0.6rem; color:#9CA3AF; font-weight:600; text-transform:uppercase;">{label}</div>'
                                 f'<div style="font-size:1.2rem; font-weight:800; color:{_c};">{val*100:.1f}%</div></div>',
                                 unsafe_allow_html=True,
                             )
                         else:
                             st.markdown(
-                                f'<div style="text-align:center; padding:0.6rem; background:rgba(37,99,235,0.05); border-radius:10px;">'
+                                f'<div style="text-align:center; padding:1rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:12px;">'
                                 f'<div style="font-size:0.6rem; color:#9CA3AF; font-weight:600;">{label}</div>'
                                 f'<div style="font-size:1.2rem; color:#9CA3AF;">N/A</div></div>',
                                 unsafe_allow_html=True,
@@ -13142,15 +13142,15 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
 
                     ddm_m1, ddm_m2, ddm_m3 = st.columns(3)
                     with ddm_m1:
-                        st.markdown(f'<div style="text-align:center; padding:0.6rem; background:rgba(37,99,235,0.05); border-radius:10px;">'
+                        st.markdown(f'<div style="text-align:center; padding:1rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:12px;">'
                             f'<div style="font-size:0.6rem; color:#9CA3AF; font-weight:600;">DDM INTRINSIC VALUE</div>'
                             f'<div style="font-size:1.3rem; font-weight:800; color:#2563EB;">{cs}{ddm_value:.2f}</div></div>', unsafe_allow_html=True)
                     with ddm_m2:
-                        st.markdown(f'<div style="text-align:center; padding:0.6rem; background:rgba(37,99,235,0.05); border-radius:10px;">'
+                        st.markdown(f'<div style="text-align:center; padding:1rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:12px;">'
                             f'<div style="font-size:0.6rem; color:#9CA3AF; font-weight:600;">CURRENT PRICE</div>'
                             f'<div style="font-size:1.3rem; font-weight:800; color:#F9FAFB;">{cs}{_price_now:.2f}</div></div>', unsafe_allow_html=True)
                     with ddm_m3:
-                        st.markdown(f'<div style="text-align:center; padding:0.6rem; background:rgba(37,99,235,0.05); border-radius:10px;">'
+                        st.markdown(f'<div style="text-align:center; padding:1rem; background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:12px;">'
                             f'<div style="font-size:0.6rem; color:#9CA3AF; font-weight:600;">UPSIDE / DOWNSIDE</div>'
                             f'<div style="font-size:1.3rem; font-weight:800; color:{_ud_color};">{_updown:+.1f}%</div></div>', unsafe_allow_html=True)
 
