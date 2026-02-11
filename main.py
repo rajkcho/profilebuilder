@@ -244,31 +244,70 @@ def _fetch_market_indices() -> list:
     return results
 
 def _render_market_ticker(indices: list):
-    """Render a scrolling market ticker."""
+    """Render modern horizontal pill badge ticker."""
     if not indices:
         return
     
     ticker_items = []
     for idx in indices:
         color = "#10B981" if idx["change_pct"] >= 0 else "#EF4444"
-        arrow = "▲" if idx["change_pct"] >= 0 else "▼"
+        bg_color = "rgba(16, 185, 129, 0.12)" if idx["change_pct"] >= 0 else "rgba(239, 68, 68, 0.12)"
+        border_color = "rgba(16, 185, 129, 0.3)" if idx["change_pct"] >= 0 else "rgba(239, 68, 68, 0.3)"
+        arrow = "↑" if idx["change_pct"] >= 0 else "↓"
         ticker_items.append(
-            f'<span style="margin-right:2rem;">'
-            f'<span style="color:#E0DCF5; font-weight:600;">{idx["name"]}</span> '
-            f'<span style="color:{color};">{idx["price"]:,.2f} {arrow} {idx["change_pct"]:+.2f}%</span>'
-            f'</span>'
+            f'<div class="badge" style="background:{bg_color}; border:1px solid {border_color}; '
+            f'display:inline-flex; align-items:center; gap:0.5rem; padding:0.375rem 0.875rem; '
+            f'border-radius:20px; margin-right:0.75rem; margin-bottom:0.5rem;">'
+            f'<span style="color:#F9FAFB; font-weight:700; font-size:0.75rem;">{idx["name"]}</span>'
+            f'<span style="color:{color}; font-weight:600; font-size:0.75rem;">'
+            f'{idx["price"]:,.2f} <span style="font-size:0.65rem;">{arrow} {abs(idx["change_pct"]):.2f}%</span>'
+            f'</span></div>'
         )
     
-    # Duplicate for seamless scroll
-    ticker_html = "".join(ticker_items) * 2
+    ticker_html = "".join(ticker_items)
     
     st.markdown(
-        f'<div style="overflow:hidden; background:rgba(107,92,231,0.05); '
-        f'border-top:1px solid rgba(107,92,231,0.15); border-bottom:1px solid rgba(107,92,231,0.15); '
-        f'padding:0.5rem 0; margin-bottom:1rem;">'
-        f'<div style="display:inline-block; white-space:nowrap; animation:ticker-scroll 30s linear infinite;">'
+        f'<div style="background:rgba(17, 24, 39, 0.4); backdrop-filter:blur(8px); '
+        f'border:1px solid rgba(255,255,255,0.06); border-radius:12px; '
+        f'padding:1rem; margin-bottom:1.5rem; display:flex; flex-wrap:wrap; align-items:center;">'
         f'{ticker_html}'
-        f'</div></div>',
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+def _render_modern_splash(title: str, subtitle: str, stats: list = None, pills: list = None):
+    """Render modern splash page with gradient hero."""
+    pills_html = ""
+    if pills:
+        pills_html = '<div style="display:flex; gap:0.75rem; justify-content:center; flex-wrap:wrap; margin-top:2rem;">'
+        for pill in pills:
+            pills_html += f'<span class="badge badge-blue" style="font-size:0.75rem;">{pill}</span>'
+        pills_html += '</div>'
+    
+    stats_html = ""
+    if stats:
+        stats_html = '<div class="splash-stats">'
+        for stat in stats:
+            stats_html += (
+                f'<div class="splash-stat">'
+                f'<div class="splash-stat-value">{stat["value"]}</div>'
+                f'<div class="splash-stat-label">{stat["label"]}</div>'
+                f'</div>'
+            )
+        stats_html += '</div>'
+    
+    st.markdown(
+        '<div class="splash-hero">'
+        '<div class="geo-accent geo-1"></div>'
+        '<div class="geo-accent geo-2"></div>'
+        '<div class="geo-accent geo-3"></div>'
+        '<div class="splash-content">'
+        f'<h1 class="splash-title"><span class="splash-accent">ORBITAL</span></h1>'
+        f'<p class="splash-subtitle">{subtitle}</p>'
+        f'{pills_html}'
+        f'{stats_html}'
+        '</div>'
+        '</div>',
         unsafe_allow_html=True,
     )
 
@@ -468,35 +507,36 @@ def _render_keyboard_shortcuts():
 # ══════════════════════════════════════════════════════════════
 def _render_metric_with_sparkline(label: str, value: str, sparkline_data: list = None, 
                                    delta: str = None, delta_color: str = None):
-    """Render a metric card with optional sparkline."""
+    """Render a glass-morphism metric card with optional sparkline."""
     sparkline_html = ""
     if sparkline_data and len(sparkline_data) >= 2:
-        sparkline_html = _render_sparkline_svg(sparkline_data)
+        sparkline_html = _render_sparkline_svg(sparkline_data, color="#2563EB")
     
     delta_html = ""
     if delta:
         d_color = delta_color or ("#10B981" if delta.startswith("+") else "#EF4444")
-        delta_html = f'<span style="color:{d_color}; font-size:0.75rem; margin-left:0.5rem;">{delta}</span>'
+        delta_html = f'<span style="color:{d_color}; font-size:0.875rem; font-weight:600; margin-left:0.5rem;">{delta}</span>'
     
     st.markdown(
-        f'<div style="background:rgba(255,255,255,0.04); border:1px solid rgba(107,92,231,0.15); '
-        f'border-radius:12px; padding:1rem; position:relative; overflow:hidden;">'
-        f'<div style="font-size:0.7rem; font-weight:600; color:#8A85AD; text-transform:uppercase; '
-        f'letter-spacing:0.5px; margin-bottom:0.3rem;">{label}</div>'
+        f'<div class="metric-card" style="background:rgba(17, 24, 39, 0.6); backdrop-filter:blur(12px); '
+        f'border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:1.25rem; '
+        f'position:relative; overflow:hidden; transition:all 0.3s ease;">'
+        f'<div class="metric-label" style="font-size:0.75rem; font-weight:600; color:#9CA3AF; '
+        f'text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.5rem;">{label}</div>'
         f'<div style="display:flex; align-items:center; justify-content:space-between;">'
-        f'<div style="font-size:1.3rem; font-weight:700; color:#E0DCF5;">{value}{delta_html}</div>'
+        f'<div class="metric-value" style="font-size:1.875rem; font-weight:700; color:#F9FAFB;">{value}{delta_html}</div>'
         f'{sparkline_html}'
         f'</div></div>',
         unsafe_allow_html=True,
     )
 
 def _render_movers_cards(movers: dict):
-    """Render top gainers and losers cards."""
+    """Render top gainers and losers with modern glass cards."""
     if not movers or (not movers.get("gainers") and not movers.get("losers")):
         return
     
     st.markdown(
-        '<div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:1rem;">',
+        '<div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-top:1.5rem;">',
         unsafe_allow_html=True,
     )
     
@@ -504,18 +544,20 @@ def _render_movers_cards(movers: dict):
     
     with col1:
         st.markdown(
-            '<div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.2); '
-            'border-radius:12px; padding:1rem;">'
-            '<div style="font-size:0.75rem; font-weight:700; color:#10B981; text-transform:uppercase; '
-            'letter-spacing:1px; margin-bottom:0.8rem;">🚀 Top Gainers</div>',
+            '<div style="background:rgba(17, 24, 39, 0.6); backdrop-filter:blur(12px); '
+            'border:1px solid rgba(16,185,129,0.3); border-top:3px solid #10B981; '
+            'border-radius:12px; padding:1.25rem;">'
+            '<div style="font-size:0.75rem; font-weight:700; color:#34D399; text-transform:uppercase; '
+            'letter-spacing:0.05em; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">'
+            '<span>↗</span> Top Gainers</div>',
             unsafe_allow_html=True,
         )
         for stock in movers.get("gainers", [])[:5]:
             st.markdown(
-                f'<div style="display:flex; justify-content:space-between; padding:0.3rem 0; '
-                f'border-bottom:1px solid rgba(255,255,255,0.05);">'
-                f'<span style="color:#E0DCF5; font-weight:600;">{stock["ticker"]}</span>'
-                f'<span style="color:#10B981; font-weight:700;">+{stock["change_pct"]:.2f}%</span>'
+                f'<div style="display:flex; justify-content:space-between; align-items:center; '
+                f'padding:0.625rem 0; border-bottom:1px solid rgba(255,255,255,0.06);">'
+                f'<span style="color:#F9FAFB; font-weight:600; font-size:0.875rem;">{stock["ticker"]}</span>'
+                f'<span style="color:#10B981; font-weight:700; font-size:0.875rem;">+{stock["change_pct"]:.2f}%</span>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -523,18 +565,20 @@ def _render_movers_cards(movers: dict):
     
     with col2:
         st.markdown(
-            '<div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); '
-            'border-radius:12px; padding:1rem;">'
-            '<div style="font-size:0.75rem; font-weight:700; color:#EF4444; text-transform:uppercase; '
-            'letter-spacing:1px; margin-bottom:0.8rem;">📉 Top Losers</div>',
+            '<div style="background:rgba(17, 24, 39, 0.6); backdrop-filter:blur(12px); '
+            'border:1px solid rgba(239,68,68,0.3); border-top:3px solid #EF4444; '
+            'border-radius:12px; padding:1.25rem;">'
+            '<div style="font-size:0.75rem; font-weight:700; color:#F87171; text-transform:uppercase; '
+            'letter-spacing:0.05em; margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">'
+            '<span>↘</span> Top Losers</div>',
             unsafe_allow_html=True,
         )
         for stock in movers.get("losers", [])[:5]:
             st.markdown(
-                f'<div style="display:flex; justify-content:space-between; padding:0.3rem 0; '
-                f'border-bottom:1px solid rgba(255,255,255,0.05);">'
-                f'<span style="color:#E0DCF5; font-weight:600;">{stock["ticker"]}</span>'
-                f'<span style="color:#EF4444; font-weight:700;">{stock["change_pct"]:.2f}%</span>'
+                f'<div style="display:flex; justify-content:space-between; align-items:center; '
+                f'padding:0.625rem 0; border-bottom:1px solid rgba(255,255,255,0.06);">'
+                f'<span style="color:#F9FAFB; font-weight:600; font-size:0.875rem;">{stock["ticker"]}</span>'
+                f'<span style="color:#EF4444; font-weight:700; font-size:0.875rem;">{stock["change_pct"]:.2f}%</span>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
