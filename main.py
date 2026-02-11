@@ -7852,7 +7852,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 "Consumer Cyclical": ("#10B981", "#6EE7B7"), "Consumer Defensive": ("#10B981", "#A7F3D0"),
                 "Energy": ("#EF4444", "#FCA5A5"), "Industrials": ("#60A5FA", "#93C5FD"),
                 "Real Estate": ("#8B5CF6", "#C4B5FD"), "Communication Services": ("#EC4899", "#F9A8D4"),
-                "Basic Materials": ("#D97706", "#FCD34D"), "Utilities": ("#06B6D4", "#67E8F9"),
+                "Basic Materials": ("#D97706", "#FCD34D"), "Utilities": ("#60A5FA", "#67E8F9"),
             }
             _sc_accent1, _sc_accent2 = _sector_colors.get(cd.sector, ("#2563EB", "#60A5FA"))
 
