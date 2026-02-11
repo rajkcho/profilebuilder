@@ -3186,7 +3186,7 @@ section[data-testid="stSidebar"] .stSlider label p {{
     animation: sb-fill 0.6s ease-out;
 }}
 .sb-split-stock {{
-    background: linear-gradient(90deg, #10B981, #F5A4BD);
+    background: linear-gradient(90deg, #10B981, #10B981);
     border-radius: 0 4px 4px 0;
     transition: width 0.4s ease;
     overflow: hidden;
@@ -4559,7 +4559,7 @@ code:hover {{
 
 /* Sidebar enhancements */
 [data-testid="stSidebar"] {{
-    background: linear-gradient(180deg, #0F1419 0%, #111827 100%) !important;
+    background: linear-gradient(180deg, #111827 0%, #111827 100%) !important;
     border-right: 1px solid rgba(37,99,235,0.15) !important;
 }}
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {{
@@ -5837,7 +5837,7 @@ with st.sidebar:
                                 values=_hm_sizes,
                                 marker=dict(
                                     colors=_hm_colors,
-                                    colorscale=[[0, "#EF4444"], [0.5, "#1a1a2e"], [1, "#10B981"]],
+                                    colorscale=[[0, "#EF4444"], [0.5, "#111827"], [1, "#10B981"]],
                                     cmid=0,
                                     line=dict(width=1, color="rgba(255,255,255,0.1)"),
                                 ),
@@ -5873,7 +5873,7 @@ with st.sidebar:
                                 z=_corr_matrix.values,
                                 x=_corr_matrix.columns.tolist(),
                                 y=_corr_matrix.index.tolist(),
-                                colorscale=[[0, "#EF4444"], [0.5, "#1a1a2e"], [1, "#10B981"]],
+                                colorscale=[[0, "#EF4444"], [0.5, "#111827"], [1, "#10B981"]],
                                 zmin=-1, zmax=1,
                                 text=np.round(_corr_matrix.values, 2),
                                 texttemplate="%{text}",
@@ -7543,7 +7543,7 @@ def render_sector_rotation_page():
             z=df[perf_cols].values,
             x=perf_cols,
             y=df["Sector"],
-            colorscale=[[0, "#EF4444"], [0.5, "#1F1D2B"], [1, "#10B981"]],
+            colorscale=[[0, "#EF4444"], [0.5, "#111827"], [1, "#10B981"]],
             text=[[f"{v:.1f}%" if v is not None else "" for v in row] for row in df[perf_cols].values],
             texttemplate="%{text}",
             textfont={"size": 11},
@@ -11701,7 +11701,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                             z=corr_mat.values,
                             x=corr_mat.columns.tolist(),
                             y=corr_mat.index.tolist(),
-                            colorscale=[[0, "#EF4444"], [0.5, "#1a1625"], [1, "#10B981"]],
+                            colorscale=[[0, "#EF4444"], [0.5, "#111827"], [1, "#10B981"]],
                             zmin=-1, zmax=1,
                             text=np.round(corr_mat.values, 2),
                             texttemplate="%{text}",
@@ -14799,7 +14799,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     fig_ins.add_trace(go.Scatter(
                         x=_buys_df["date"], y=_buys_df["value"],
                         mode="markers", name="Buys",
-                        marker=dict(color="#10B981", size=_buy_sizes, opacity=0.7, line=dict(width=1, color="#0D9668")),
+                        marker=dict(color="#10B981", size=_buy_sizes, opacity=0.7, line=dict(width=1, color="#10B981")),
                         text=[f"{r['insider']}<br>{cs}{r['value']:,.0f}" for _, r in _buys_df.iterrows()],
                         hoverinfo="text+x",
                     ))
@@ -17733,7 +17733,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
             f'<div style="width:{acq_pct}%; background:linear-gradient(90deg, #2563EB, #60A5FA); '
             f'display:flex; align-items:center; justify-content:center; font-size:0.6rem; color:#fff; font-weight:700;">'
             f'{acq_pct:.0f}%</div>'
-            f'<div style="width:{tgt_pct}%; background:linear-gradient(90deg, #10B981, #F5A0B8); '
+            f'<div style="width:{tgt_pct}%; background:linear-gradient(90deg, #10B981, #10B981); '
             f'display:flex; align-items:center; justify-content:center; font-size:0.6rem; color:#fff; font-weight:700;">'
             f'{tgt_pct:.0f}%</div>'
             f'</div></div>'
@@ -18951,8 +18951,8 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
 <html><head><meta charset="utf-8"><title>{acq_ticker} + {tgt_ticker} Deal Book</title>
 <style>
 body {{ font-family: 'Inter', 'Segoe UI', sans-serif; max-width: 900px; margin: 0 auto; padding: 2rem; color: #1F2937; line-height: 1.6; }}
-h1 {{ color: #1a1a2e; border-bottom: 3px solid #2563EB; padding-bottom: 0.5rem; font-size: 1.8rem; }}
-h2 {{ color: #2563EB; margin-top: 2rem; font-size: 1.3rem; border-bottom: 1px solid #e0e0e0; padding-bottom: 0.3rem; }}
+h1 {{ color: #111827; border-bottom: 3px solid #2563EB; padding-bottom: 0.5rem; font-size: 1.8rem; }}
+h2 {{ color: #2563EB; margin-top: 2rem; font-size: 1.3rem; border-bottom: 1px solid #E5E7EB; padding-bottom: 0.3rem; }}
 .header {{ text-align: center; padding: 2rem; background: linear-gradient(135deg, #2563EB, #10B981); color: white; border-radius: 12px; margin-bottom: 2rem; }}
 .header h1 {{ color: white; border: none; font-size: 2rem; margin: 0; }}
 .header p {{ margin: 0.3rem 0; opacity: 0.9; }}
