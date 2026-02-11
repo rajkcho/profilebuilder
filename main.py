@@ -443,8 +443,8 @@ def _render_keyboard_shortcuts():
     ]
     
     st.markdown(
-        '<div style="background:rgba(37,99,235,0.05); border:1px solid rgba(37,99,235,0.15); '
-        'border-radius:12px; padding:1rem; margin:1rem 0;">'
+        '<div style="background:rgba(17,24,39,0.7); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); '
+        'border-radius:12px; padding:1.25rem; margin:1rem 0;">'
         '<div style="font-size:0.75rem; font-weight:700; color:#60A5FA; text-transform:uppercase; '
         'letter-spacing:1px; margin-bottom:0.8rem;">⌨️ Keyboard Shortcuts</div>',
         unsafe_allow_html=True,
