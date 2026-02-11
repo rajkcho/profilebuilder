@@ -3861,10 +3861,11 @@ st.markdown(f"""
     background: rgba(17,24,39,0.7); backdrop-filter: blur(16px);
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 18px; padding: 1.5rem; text-align: center;
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
     position: relative; overflow: hidden;
     animation: fadeInUp 0.6s ease-out both;
+    cursor: pointer;
 }}
 .step-card:nth-child(1) {{ animation-delay: 0.1s; }}
 .step-card:nth-child(2) {{ animation-delay: 0.2s; }}
@@ -3883,8 +3884,8 @@ st.markdown(f"""
     pointer-events: none;
 }}
 .step-card:hover {{
-    border-color: rgba(37,99,235,0.3); transform: translateY(-4px);
-    box-shadow: 0 8px 30px rgba(37,99,235,0.15);
+    border-color: rgba(37,99,235,0.4); transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 12px 36px rgba(37,99,235,0.25), 0 0 0 1px rgba(37,99,235,0.1);
 }}
 .step-card:hover::before {{ opacity: 1; }}
 .step-num {{
@@ -3893,6 +3894,10 @@ st.markdown(f"""
     display: inline-flex; align-items: center; justify-content: center;
     font-weight: 800; font-size: 1rem; margin-bottom: 0.6rem;
     box-shadow: 0 4px 15px rgba(37,99,235,0.3);
+    transition: transform 0.3s ease;
+}}
+.step-card:hover .step-num {{
+    transform: scale(1.1);
 }}
 .step-label {{ font-size: 0.88rem; font-weight: 700; color: #F9FAFB; }}
 .step-detail {{ font-size: 0.72rem; color: #9CA3AF; margin-top: 0.3rem; }}
