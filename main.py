@@ -1983,7 +1983,7 @@ html, body, [class*="css"] {{
     z-index: 1;
 }}
 
-/* ── GLOBAL STARFIELD (DISABLED - clean professional look) ──────── */
+/* ── GLOBAL STARFIELD (subtle, polished) ──────── */
 .global-starfield {{
     display: none !important;
 }}
@@ -2476,19 +2476,19 @@ footer {{ visibility: hidden; }}
     border-top-color: #2563EB;
     border-right-color: rgba(37,99,235,0.4);
     border-bottom-color: rgba(37,99,235,0.1);
-    /* animation disabled for clean professional look */
+    animation: orbitRotate 8s linear infinite;
 }}
 .orbital-ring-2 {{
     width: 100px; height: 100px;
     border-top-color: #10B981;
     border-right-color: rgba(16,185,129,0.3);
-    /* animation disabled for clean professional look */
+    animation: orbitRotateReverse 12s linear infinite;
 }}
 .orbital-ring-3 {{
     width: 130px; height: 130px;
     border-top-color: #60A5FA;
     border-left-color: rgba(155,138,255,0.2);
-    /* animation disabled for clean professional look */
+    animation: orbitRotate 16s linear infinite, ringFlash 4s ease-in-out infinite;
 }}
 .orbital-particle {{
     position: absolute;
@@ -3655,29 +3655,74 @@ st.markdown(f"""
     box-shadow: {_STARS3};
 }}
 
-/* Nebula overlay (DISABLED for clean professional look) */
+/* Nebula overlay */
 .nebula-overlay {{
-    display: none !important;
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background:
+        radial-gradient(ellipse at 20% 50%, rgba(37,99,235,0.10) 0%, transparent 50%),
+        radial-gradient(ellipse at 75% 20%, rgba(16,185,129,0.06) 0%, transparent 45%),
+        radial-gradient(ellipse at 50% 80%, rgba(59,130,246,0.05) 0%, transparent 50%);
+    animation: nebulaPulse 30s ease-in-out infinite;
+    pointer-events: none;
 }}
 
-/* Floating luminous orbs (DISABLED for clean professional look) */
-.orb, .orb-1, .orb-2, .orb-3, .orb-4, .orb-5 {{
-    display: none !important;
+/* Floating luminous orbs */
+.orb {{
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+}}
+.orb-1 {{
+    width: 200px; height: 200px;
+    background: rgba(37,99,235,0.08);
+    filter: blur(80px);
+    top: 10%; left: 5%;
+    animation: float1 20s ease-in-out infinite;
+}}
+.orb-2 {{
+    width: 160px; height: 160px;
+    background: rgba(16,185,129,0.06);
+    filter: blur(70px);
+    top: 60%; right: 10%;
+    animation: float2 22s ease-in-out infinite;
+}}
+.orb-3 {{
+    width: 120px; height: 120px;
+    background: rgba(59,130,246,0.05);
+    filter: blur(60px);
+    top: 30%; right: 25%;
+    animation: float3 18s ease-in-out infinite;
 }}
 
-/* Shooting stars (DISABLED for clean professional look) */
-.shooting-star, .shooting-star-1, .shooting-star-2, .shooting-star-3, .shooting-star-4, .shooting-star-5 {{
-    display: none !important;
+/* Shooting stars */
+.shooting-star {{
+    position: absolute;
+    width: 120px; height: 1.5px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.6), transparent);
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: 0;
 }}
+.shooting-star-1 {{ top: 15%; left: 70%; animation: shootingStar 6s ease-in-out 2s infinite; }}
+.shooting-star-2 {{ top: 35%; left: 85%; animation: shootingStar 8s ease-in-out 5s infinite; }}
+.shooting-star-3 {{ top: 55%; left: 60%; animation: shootingStar 7s ease-in-out 8s infinite; }}
 
-/* Noise/grain overlay (DISABLED for clean professional look) */
+/* Noise/grain overlay */
 .noise-overlay {{
-    display: none !important;
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    opacity: 0.03;
+    pointer-events: none;
 }}
 
-/* Title glow halo (DISABLED for clean professional look) */
+/* Title glow halo */
 .title-glow {{
-    display: none !important;
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(37,99,235,0.15) 0%, transparent 70%);
+    animation: titleGlow 6s ease-in-out infinite;
+    pointer-events: none;
 }}
 
 /* Content layer */
