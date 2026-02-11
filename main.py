@@ -3076,34 +3076,18 @@ section[data-testid="stSidebar"] .stSlider label p {{
     background: linear-gradient(90deg, transparent, rgba(37,99,235,0.3), transparent);
 }}
 
-/* ── HERO / HEADER (profile view) ──────────────────────── */
+/* ── HERO / HEADER (profile view - clean professional) ──── */
 .hero-header {{
-    background: linear-gradient(135deg, #050816 0%, #0C0F1A 40%, #151933 100%);
-    border-radius: 20px;
+    background: rgba(17, 24, 39, 0.7);
+    backdrop-filter: blur(16px);
+    border-radius: 12px;
     padding: 2rem 2.5rem;
     margin-bottom: 1.5rem;
-    border-bottom: 3px solid rgba(37,99,235,0.5);
-    box-shadow: 0 8px 40px rgba(11,14,26,0.4);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 3px solid #2563EB;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
     position: relative;
     overflow: hidden;
-}}
-.hero-header::before {{
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: transparent;
-    box-shadow: {_gen_stars(50, 800)};
-    width: 1px; height: 1px;
-    opacity: 0.5;
-    pointer-events: none;
-}}
-.hero-header::after {{
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: radial-gradient(ellipse at 20% 50%, rgba(37,99,235,0.1) 0%, transparent 60%),
-                radial-gradient(ellipse at 80% 30%, rgba(16,185,129,0.06) 0%, transparent 50%);
-    pointer-events: none;
 }}
 .hero-title {{
     font-size: 2.2rem;
