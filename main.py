@@ -2637,7 +2637,7 @@ footer {{ visibility: hidden; }}
     border-radius: 12px;
     border-left: 3px solid;
     animation: dealRowSlide 0.5s ease-out both;
-    transition: all 0.25s ease;
+    transition: all 0.2s ease;
 }}
 .deal-consideration-row:hover {{
     background: rgba(37,99,235,0.08);
@@ -2928,7 +2928,7 @@ section[data-testid="stSidebar"] hr {{
     align-items: center;
     gap: 0.9rem;
     animation: cardReveal 0.5s ease-out;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
 }}
 .sb-company-card:hover {{
     border-color: rgba(37,99,235,0.5);
@@ -3258,7 +3258,7 @@ div[data-testid="stMetric"] div[data-testid="stMetricValue"] {{
     color: white !important; font-weight: 700 !important;
     border: none !important; border-radius: 16px !important;
     padding: 0.8rem 2rem !important; font-size: 1rem !important;
-    width: 100% !important; transition: all 0.3s ease;
+    width: 100% !important; transition: all 0.2s ease;
     box-shadow: 0 4px 25px rgba(37,99,235,0.3);
 }}
 .stDownloadButton > button:hover {{
@@ -3447,7 +3447,7 @@ header {{ visibility: hidden; }}
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 12px; padding: 0.8rem 1rem; margin-bottom: 0.6rem;
     animation: slideUpBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-    transition: all 0.25s ease;
+    transition: all 0.2s ease;
 }}
 .news-card:hover {{
     border-color: rgba(37,99,235,0.3);
@@ -3744,7 +3744,7 @@ st.markdown(f"""
     padding: 0.4rem 1.1rem; font-size: 0.75rem; font-weight: 600;
     color: #D1D5DB; background: rgba(37,99,235,0.06);
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
 }}
 .feature-pill:hover {{
     border-color: rgba(155,138,255,0.6);
@@ -3778,7 +3778,7 @@ st.markdown(f"""
     background: rgba(17,24,39,0.7); backdrop-filter: blur(16px);
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 18px; padding: 1.5rem; text-align: center;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
     position: relative; overflow: hidden;
     animation: fadeInUp 0.6s ease-out both;
@@ -3992,7 +3992,7 @@ st.markdown(f"""
     gap: 0.8rem;
     padding: 0.6rem 1rem;
     border-radius: 12px;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
 }}
 .mission-phase-active {{
     background: rgba(37,99,235,0.1);
