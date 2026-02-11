@@ -3202,21 +3202,7 @@ section[data-testid="stSidebar"] .stSlider label p {{
     background: linear-gradient(90deg, transparent, rgba(37,99,235,0.3), rgba(16,185,129,0.2), transparent);
 }}
 
-/* ── METRIC CARDS ────────────────────────────────────────── */
-div[data-testid="stMetric"] {{
-    background: rgba(255,255,255,0.04);
-    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(37,99,235,0.15);
-    border-radius: 16px;
-    padding: 1rem 1.2rem;
-    box-shadow: 0 4px 15px rgba(37,99,235,0.1);
-    position: relative;
-    overflow: hidden;
-    animation: slideUpBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}}
-div[data-testid="stMetric"]::before {{
-    content: '';
-    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+/* ── METRIC CARDS (defined earlier, this section removed for cleanup) ────────────────────────────────────────── */
     background: linear-gradient(90deg, #2563EB, #60A5FA, #10B981);
     opacity: 0; transition: opacity 0.3s ease;
 }}
