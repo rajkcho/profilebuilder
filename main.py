@@ -2633,7 +2633,7 @@ footer {{ visibility: hidden; }}
     display: flex; justify-content: space-between; align-items: center;
     padding: 0.8rem 1rem;
     margin: 0.4rem 0;
-    background: rgba(255,255,255,0.03);
+    background: rgba(17,24,39,0.7); backdrop-filter: blur(16px);
     border-radius: 12px;
     border-left: 3px solid;
     animation: dealRowSlide 0.5s ease-out both;
@@ -3301,7 +3301,7 @@ div[data-testid="stMetric"] div[data-testid="stMetricValue"] {{
     padding: 0.65rem 0; border-bottom: 1px solid rgba(255,255,255,0.1);
     transition: background 0.15s;
 }}
-.news-item:hover {{ background: rgba(255,255,255,0.03); }}
+.news-item:hover {{ background: rgba(17,24,39,0.7); backdrop-filter: blur(16px); }}
 .news-title {{
     font-weight: 600; color: #F9FAFB; font-size: 0.88rem; text-decoration: none;
 }}
@@ -3357,7 +3357,7 @@ div[data-testid="stMetric"] div[data-testid="stMetricValue"] {{
 
 /* ── SCROLLBAR ──────────────────────────────────────────── */
 ::-webkit-scrollbar {{ width: 6px; height: 6px; }}
-::-webkit-scrollbar-track {{ background: rgba(255,255,255,0.03); border-radius: 10px; }}
+::-webkit-scrollbar-track {{ background: rgba(17,24,39,0.7); backdrop-filter: blur(16px); border-radius: 10px; }}
 ::-webkit-scrollbar-thumb {{ background: rgba(37,99,235,0.4); border-radius: 10px; }}
 ::-webkit-scrollbar-thumb:hover {{ background: #60A5FA; }}
 
@@ -3393,20 +3393,18 @@ header {{ visibility: hidden; }}
     box-shadow: 0 8px 24px rgba(37,99,235,0.15);
 }}
 
-/* ── CUSTOM FOOTER ──────────────────────────────────── */
+/* ── CUSTOM FOOTER (minimal, clean) ────────────────────── */
 .orbital-footer {{
-    margin-top: 3rem;
-    padding: 2rem 1rem;
+    margin-top: 4rem;
+    padding: 1.5rem 1rem;
     text-align: center;
-    border-top: 1px solid rgba(37,99,235,0.15);
+    border-top: 1px solid rgba(255,255,255,0.06);
 }}
 .orbital-footer-brand {{
-    font-size: 1.1rem;
-    font-weight: 800;
-    background: linear-gradient(135deg, #2563EB 0%, #10B981 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    letter-spacing: 2px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #60A5FA;
+    letter-spacing: 1px;
 }}
 .orbital-footer-links {{
     margin-top: 0.5rem;
@@ -3415,19 +3413,18 @@ header {{ visibility: hidden; }}
     gap: 1.5rem;
 }}
 .orbital-footer-links a {{
-    color: #9CA3AF;
+    color: #6B7280;
     text-decoration: none;
     font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.5px;
+    font-weight: 500;
     transition: color 0.2s;
 }}
 .orbital-footer-links a:hover {{
-    color: #2563EB;
+    color: #9CA3AF;
 }}
 .orbital-footer-version {{
-    font-size: 0.6rem;
-    color: #5A567A;
+    font-size: 0.65rem;
+    color: #6B7280;
     margin-top: 0.5rem;
 }}
 
@@ -3476,7 +3473,7 @@ header {{ visibility: hidden; }}
 
 /* ── NEWS SENTIMENT CARDS ──────────────────────────────── */
 .news-card {{
-    background: rgba(255,255,255,0.03);
+    background: rgba(17,24,39,0.7); backdrop-filter: blur(16px);
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 12px; padding: 0.8rem 1rem; margin-bottom: 0.6rem;
     animation: slideUpBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
@@ -3808,7 +3805,7 @@ st.markdown(f"""
 }}
 .step-card {{
     flex: 1;
-    background: rgba(255,255,255,0.03);
+    background: rgba(17,24,39,0.7); backdrop-filter: blur(16px);
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 18px; padding: 1.5rem; text-align: center;
     transition: all 0.3s ease;
