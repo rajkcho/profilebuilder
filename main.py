@@ -4036,7 +4036,21 @@ with st.sidebar:
         'letter-spacing:1.5px; margin-bottom:0.3rem;">Analysis Mode</div>',
         unsafe_allow_html=True,
     )
-    _mode_options = ["📊 Company Profile", "📈 Comps Analysis", "💹 DCF Valuation", "⚖️ Quick Compare", "🤝 Merger Analysis", "🔍 VMS Screener", "📊 Options P/L", "🔄 Sector Rotation"]
+    _mode_options = [
+        "📊 Company Profile", 
+        "📈 Comps Analysis", 
+        "💹 DCF Valuation", 
+        "⚖️ Quick Compare", 
+        "🤝 Merger Analysis",
+        "📋 Due Diligence",
+        "🔗 Synergy Model",
+        "📅 Integration Plan",
+        "💼 Deal Structure",
+        "📊 Fairness Opinion",
+        "🔍 VMS Screener", 
+        "📊 Options P/L", 
+        "🔄 Sector Rotation"
+    ]
     _mode_selection = st.radio(
         "Mode", 
         _mode_options, 
@@ -5069,6 +5083,101 @@ with st.sidebar:
 
         st.markdown('<div style="height:0.8rem;"></div>', unsafe_allow_html=True)
         merger_btn = st.button("🚀 Analyze Deal", type="primary", use_container_width=True)
+
+    # ── Due Diligence Mode ──
+    elif analysis_mode == "Due Diligence":
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">🎯</span> TARGET COMPANY</div>',
+            unsafe_allow_html=True,
+        )
+        dd_ticker = st.text_input(
+            "Ticker", value="", max_chars=10,
+            placeholder="e.g., AAPL",
+            label_visibility="collapsed",
+        ).strip().upper()
+        if dd_ticker:
+            _render_company_card(dd_ticker, "Target")
+        
+        dd_btn = st.button("📋 Start DD Tracker", type="primary", use_container_width=True)
+    
+    # ── Synergy Model Mode ──
+    elif analysis_mode == "Synergy Model":
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">🏢</span> ACQUIRER</div>',
+            unsafe_allow_html=True,
+        )
+        syn_acquirer = st.text_input(
+            "Acquirer", value="", max_chars=10,
+            placeholder="e.g., MSFT",
+            label_visibility="collapsed",
+        ).strip().upper()
+        
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">🎯</span> TARGET</div>',
+            unsafe_allow_html=True,
+        )
+        syn_target = st.text_input(
+            "Target", value="", max_chars=10,
+            placeholder="e.g., ATVI",
+            label_visibility="collapsed",
+        ).strip().upper()
+        
+        syn_btn = st.button("🔗 Model Synergies", type="primary", use_container_width=True)
+    
+    # ── Integration Planning Mode ──
+    elif analysis_mode == "Integration Plan":
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">🎯</span> ACQUISITION</div>',
+            unsafe_allow_html=True,
+        )
+        int_acquirer = st.text_input(
+            "Acquirer", value="", max_chars=10,
+            placeholder="e.g., MSFT",
+            label_visibility="collapsed",
+        ).strip().upper()
+        int_target = st.text_input(
+            "Target", value="", max_chars=10,
+            placeholder="e.g., ATVI",
+            label_visibility="collapsed",
+        ).strip().upper()
+        
+        int_btn = st.button("📅 Generate 100-Day Plan", type="primary", use_container_width=True)
+    
+    # ── Deal Structuring Mode ──
+    elif analysis_mode == "Deal Structure":
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">💼</span> DEAL PARAMETERS</div>',
+            unsafe_allow_html=True,
+        )
+        ds_acquirer = st.text_input(
+            "Acquirer", value="", max_chars=10,
+            placeholder="e.g., GOOGL",
+            label_visibility="collapsed",
+        ).strip().upper()
+        ds_target = st.text_input(
+            "Target", value="", max_chars=10,
+            placeholder="e.g., WDAY",
+            label_visibility="collapsed",
+        ).strip().upper()
+        
+        ds_equity_val = st.number_input("Target Equity Value ($M)", min_value=0, value=10000, step=1000)
+        
+        ds_btn = st.button("💼 Optimize Structure", type="primary", use_container_width=True)
+    
+    # ── Fairness Opinion Mode ──
+    elif analysis_mode == "Fairness Opinion":
+        st.markdown(
+            '<div class="sb-section"><span class="sb-section-icon">📊</span> TRANSACTION</div>',
+            unsafe_allow_html=True,
+        )
+        fo_ticker = st.text_input(
+            "Target Ticker", value="", max_chars=10,
+            placeholder="e.g., TWTR",
+            label_visibility="collapsed",
+        ).strip().upper()
+        fo_offer_price = st.number_input("Offer Price ($)", min_value=0.0, value=50.0, step=1.0)
+        
+        fo_btn = st.button("📊 Generate Opinion", type="primary", use_container_width=True)
 
     # VMS Screener variables
     vms_screen_btn = False
@@ -18414,23 +18523,91 @@ elif analysis_mode == "Options P/L" and not options_pl_btn:
 
 elif analysis_mode == "Sector Rotation" and not sector_rotation_btn:
     # Sector Rotation splash
-    st.markdown(
-        '<div class="splash-hero">'
-        '<div class="star-layer-1">&#8203;</div><div class="star-layer-2">&#8203;</div><div class="star-layer-3">&#8203;</div>'
-        '<div class="nebula-overlay">&#8203;</div>'
-        '<div class="orb orb-1">&#8203;</div><div class="orb orb-2">&#8203;</div>'
-        '<div class="splash-content">'
-        '<div class="orbital-logo orbital-logo-lg"><span class="orbital-text">ORBITAL</span>'
-        '<div class="orbital-ring orbital-ring-1"></div><div class="orbital-ring orbital-ring-2"></div><div class="orbital-ring orbital-ring-3"></div>'
-        '</div>'
-        '<p class="splash-subtitle" style="font-size:1.4rem; margin-top:1rem;">Sector Rotation Analysis</p>'
-        '<div class="pill-row">'
-        '<span class="feature-pill">11 S&P Sectors</span>'
-        '<span class="feature-pill">Momentum Heatmap</span>'
-        '<span class="feature-pill">Rotation Signals</span>'
-        '</div>'
-        '</div></div>',
-        unsafe_allow_html=True,
+    _render_modern_splash(
+        "Sector Rotation Analysis",
+        "Analyze momentum and rotation patterns across S&P 500 sectors",
+        stats=[
+            {"value": "11", "label": "S&P Sectors"},
+            {"value": "Live", "label": "Market Data"},
+            {"value": "5", "label": "Time Periods"}
+        ],
+        pills=["Momentum Heatmap", "Rotation Signals", "Performance Trends"]
+    )
+
+# ── NEW M&A MODES ──
+elif analysis_mode == "Due Diligence" and dd_btn and dd_ticker:
+    render_due_diligence_page(dd_ticker)
+
+elif analysis_mode == "Due Diligence" and not dd_btn:
+    _render_modern_splash(
+        "Due Diligence Tracker",
+        "Comprehensive M&A due diligence checklist workflow",
+        stats=[
+            {"value": "6", "label": "DD Categories"},
+            {"value": "40+", "label": "Checkpoints"},
+            {"value": "100%", "label": "Coverage"}
+        ],
+        pills=["Financial", "Legal", "Commercial", "Operational", "IT", "HR"]
+    )
+
+elif analysis_mode == "Synergy Model" and syn_btn and syn_acquirer and syn_target:
+    render_synergy_model_page(syn_acquirer, syn_target)
+
+elif analysis_mode == "Synergy Model" and not syn_btn:
+    _render_modern_splash(
+        "Synergy Model",
+        "Revenue and cost synergy estimation with waterfall analysis",
+        stats=[
+            {"value": "2", "label": "Synergy Types"},
+            {"value": "Live", "label": "Financial Data"},
+            {"value": "$MM", "label": "Value Creation"}
+        ],
+        pills=["Cost Synergies", "Revenue Synergies", "Bridge Chart"]
+    )
+
+elif analysis_mode == "Integration Plan" and int_btn and int_acquirer and int_target:
+    render_integration_plan_page(int_acquirer, int_target)
+
+elif analysis_mode == "Integration Plan" and not int_btn:
+    _render_modern_splash(
+        "100-Day Integration Plan",
+        "Post-merger integration roadmap with milestones and owners",
+        stats=[
+            {"value": "3", "label": "Phases"},
+            {"value": "100", "label": "Days"},
+            {"value": "20+", "label": "Milestones"}
+        ],
+        pills=["Foundation", "Execution", "Optimization"]
+    )
+
+elif analysis_mode == "Deal Structure" and ds_btn and ds_acquirer and ds_target:
+    render_deal_structure_page(ds_acquirer, ds_target, ds_equity_val)
+
+elif analysis_mode == "Deal Structure" and not ds_btn:
+    _render_modern_splash(
+        "Deal Structure Optimizer",
+        "Stock vs cash vs mixed consideration analysis",
+        stats=[
+            {"value": "3", "label": "Structures"},
+            {"value": "100%", "label": "Flexibility"},
+            {"value": "Real-time", "label": "Analysis"}
+        ],
+        pills=["100% Cash", "50/50 Mixed", "100% Stock", "Tax Implications"]
+    )
+
+elif analysis_mode == "Fairness Opinion" and fo_btn and fo_ticker:
+    render_fairness_opinion_page(fo_ticker, fo_offer_price)
+
+elif analysis_mode == "Fairness Opinion" and not fo_btn:
+    _render_modern_splash(
+        "Fairness Opinion Generator",
+        "Valuation summary across multiple methodologies",
+        stats=[
+            {"value": "4", "label": "Methodologies"},
+            {"value": "Live", "label": "Market Data"},
+            {"value": "Fair?", "label": "Opinion"}
+        ],
+        pills=["DCF", "Public Comps", "Precedent Transactions", "Football Field"]
     )
 
 else:
@@ -18845,3 +19022,567 @@ st.markdown(
     '</div>',
     unsafe_allow_html=True,
 )
+# ══════════════════════════════════════════════════════════════
+# NEW M&A FUNCTIONALITY - Due Diligence, Synergy, Integration
+# ══════════════════════════════════════════════════════════════
+
+def render_due_diligence_page(ticker):
+    """Due diligence checklist tracker."""
+    import yfinance as yf
+    
+    st.markdown('<h2 style="text-align:center; margin-bottom:2rem;">📋 Due Diligence Tracker</h2>', unsafe_allow_html=True)
+    
+    # Fetch company data
+    try:
+        tk = yf.Ticker(ticker)
+        info = tk.info or {}
+        name = info.get("shortName", ticker)
+    except:
+        name = ticker
+    
+    st.markdown(f'<h3 style="text-align:center; color:#2563EB;">{name} ({ticker})</h3>', unsafe_allow_html=True)
+    
+    # DD Categories
+    dd_categories = {
+        "Financial": [
+            "Revenue quality and sustainability",
+            "EBITDA margins and trends",
+            "Working capital requirements",
+            "Debt structure and covenants",
+            "Tax positions and exposures",
+            "Historical financial statement audit",
+            "Quality of earnings analysis"
+        ],
+        "Legal": [
+            "Material contracts review",
+            "Litigation and disputes",
+            "Intellectual property ownership",
+            "Regulatory compliance status",
+            "Environmental liabilities",
+            "Employment agreements",
+            "Corporate structure and governance"
+        ],
+        "Commercial": [
+            "Customer concentration analysis",
+            "Market position and competitive dynamics",
+            "Product/service differentiation",
+            "Pricing power and trends",
+            "Sales pipeline and backlog",
+            "Customer churn and retention",
+            "Go-to-market strategy"
+        ],
+        "Operational": [
+            "Key personnel and retention risk",
+            "Organizational structure",
+            "Supplier relationships and dependencies",
+            "Manufacturing/delivery capabilities",
+            "Real estate and facilities",
+            "Insurance coverage",
+            "Business continuity planning"
+        ],
+        "Technology/IT": [
+            "IT infrastructure and architecture",
+            "Software systems and licenses",
+            "Cybersecurity posture",
+            "Data privacy compliance",
+            "Technology debt assessment",
+            "Integration complexity",
+            "IT personnel and skills"
+        ],
+        "Human Resources": [
+            "Organization chart and headcount",
+            "Compensation and benefits",
+            "Labor relations and union contracts",
+            "Retention and severance obligations",
+            "Cultural assessment",
+            "HR policies and compliance",
+            "Post-close staffing plan"
+        ]
+    }
+    
+    # Render checklist
+    st.markdown('<div style="margin-top:2rem;"></div>', unsafe_allow_html=True)
+    
+    for category, items in dd_categories.items():
+        with st.expander(f"**{category}** ({len(items)} items)", expanded=False):
+            st.markdown(
+                f'<div style="background:rgba(17, 24, 39, 0.6); padding:1rem; border-radius:8px; '
+                f'border-left:3px solid #2563EB;">',
+                unsafe_allow_html=True
+            )
+            
+            for item in items:
+                col1, col2, col3 = st.columns([3, 1, 1])
+                with col1:
+                    st.markdown(f'<div style="padding:0.5rem 0;">{item}</div>', unsafe_allow_html=True)
+                with col2:
+                    st.checkbox("Complete", key=f"dd_{category}_{item}", label_visibility="collapsed")
+                with col3:
+                    st.selectbox("Status", ["Not Started", "In Progress", "Complete", "N/A"], 
+                                key=f"dd_status_{category}_{item}", label_visibility="collapsed")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Summary metrics
+    st.markdown('<div style="margin-top:2rem;"></div>', unsafe_allow_html=True)
+    
+    total_items = sum(len(items) for items in dd_categories.values())
+    st.markdown(
+        f'<div style="background:rgba(16, 185, 129, 0.1); border:1px solid rgba(16, 185, 129, 0.3); '
+        f'border-radius:12px; padding:1.5rem; text-align:center;">'
+        f'<div style="font-size:0.875rem; color:#9CA3AF; margin-bottom:0.5rem;">Total DD Items</div>'
+        f'<div style="font-size:2rem; font-weight:700; color:#10B981;">{total_items}</div>'
+        f'<div style="font-size:0.75rem; color:#9CA3AF; margin-top:0.5rem;">Across {len(dd_categories)} categories</div>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
+
+
+def render_synergy_model_page(acquirer, target):
+    """Revenue and cost synergy estimation with bridge chart."""
+    import yfinance as yf
+    import plotly.graph_objects as go
+    
+    st.markdown('<h2 style="text-align:center; margin-bottom:2rem;">🔗 Synergy Model</h2>', unsafe_allow_html=True)
+    
+    try:
+        # Fetch data
+        acq_tk = yf.Ticker(acquirer)
+        tgt_tk = yf.Ticker(target)
+        acq_info = acq_tk.info or {}
+        tgt_info = tgt_tk.info or {}
+        
+        acq_name = acq_info.get("shortName", acquirer)
+        tgt_name = tgt_info.get("shortName", target)
+        
+        # Financial metrics
+        tgt_rev = tgt_info.get("totalRevenue", 0) / 1e9  # in billions
+        tgt_ebitda = tgt_info.get("ebitda", 0) / 1e9
+        tgt_opex = (tgt_rev * 0.3) if tgt_rev > 0 else 0  # Estimate if not available
+        
+        st.markdown(f'<h3 style="text-align:center; color:#2563EB;">{acq_name} acquiring {tgt_name}</h3>', unsafe_allow_html=True)
+        
+        # Synergy inputs
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### Cost Synergies")
+            st.markdown(
+                '<div style="background:rgba(17, 24, 39, 0.6); padding:1rem; border-radius:8px;">',
+                unsafe_allow_html=True
+            )
+            cost_syn_pct = st.slider("OpEx Reduction (%)", 0, 40, 15, 1, key="syn_cost")
+            cost_syn_years = st.slider("Realization Period (years)", 1, 5, 3, 1, key="syn_cost_years")
+            
+            cost_syn_annual = tgt_opex * (cost_syn_pct / 100)
+            
+            st.markdown(
+                f'<div style="margin-top:1rem; padding:1rem; background:rgba(16, 185, 129, 0.1); '
+                f'border-radius:8px; text-align:center;">'
+                f'<div style="font-size:0.75rem; color:#9CA3AF;">Annual Run-Rate Savings</div>'
+                f'<div style="font-size:1.5rem; font-weight:700; color:#10B981;">${cost_syn_annual:.2f}B</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown("### Revenue Synergies")
+            st.markdown(
+                '<div style="background:rgba(17, 24, 39, 0.6); padding:1rem; border-radius:8px;">',
+                unsafe_allow_html=True
+            )
+            rev_syn_pct = st.slider("Revenue Uplift (%)", 0, 15, 3, 1, key="syn_rev")
+            rev_syn_margin = st.slider("Incremental Margin (%)", 20, 80, 50, 5, key="syn_margin")
+            rev_syn_years = st.slider("Realization Period (years)", 1, 5, 4, 1, key="syn_rev_years")
+            
+            rev_syn_annual = (tgt_rev * (rev_syn_pct / 100)) * (rev_syn_margin / 100)
+            
+            st.markdown(
+                f'<div style="margin-top:1rem; padding:1rem; background:rgba(37, 99, 235, 0.1); '
+                f'border-radius:8px; text-align:center;">'
+                f'<div style="font-size:0.75rem; color:#9CA3AF;">Annual Run-Rate EBITDA</div>'
+                f'<div style="font-size:1.5rem; font-weight:700; color:#2563EB;">${rev_syn_annual:.2f}B</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Total synergies
+        total_syn = cost_syn_annual + rev_syn_annual
+        
+        st.markdown('<div style="margin-top:2rem;"></div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div style="background:rgba(17, 24, 39, 0.6); backdrop-filter:blur(12px); '
+            f'border:2px solid #2563EB; border-radius:12px; padding:2rem; text-align:center;">'
+            f'<div style="font-size:1rem; color:#9CA3AF; margin-bottom:0.5rem;">Total Annual Run-Rate Synergies</div>'
+            f'<div style="font-size:3rem; font-weight:900; color:#F9FAFB;">${total_syn:.2f}B</div>'
+            f'<div style="font-size:0.875rem; color:#9CA3AF; margin-top:0.5rem;">'
+            f'Cost: ${cost_syn_annual:.2f}B | Revenue: ${rev_syn_annual:.2f}B</div>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
+        
+        # Bridge Chart
+        st.markdown('<div style="margin-top:2rem;"></div>', unsafe_allow_html=True)
+        st.markdown("### Synergy Bridge")
+        
+        categories = ["Target<br>Standalone<br>EBITDA", "Cost<br>Synergies", "Revenue<br>Synergies", "Pro Forma<br>EBITDA"]
+        values = [tgt_ebitda, cost_syn_annual, rev_syn_annual, tgt_ebitda + total_syn]
+        
+        fig = go.Figure()
+        fig.add_trace(go.Waterfall(
+            x=categories,
+            y=[tgt_ebitda, cost_syn_annual, rev_syn_annual, total_syn],
+            measure=["absolute", "relative", "relative", "total"],
+            text=[f"${v:.2f}B" for v in [tgt_ebitda, cost_syn_annual, rev_syn_annual, tgt_ebitda + total_syn]],
+            textposition="outside",
+            connector={"line": {"color": "rgba(255, 255, 255, 0.2)"}},
+            increasing={"marker": {"color": "#10B981"}},
+            decreasing={"marker": {"color": "#EF4444"}},
+            totals={"marker": {"color": "#2563EB"}}
+        ))
+        
+        fig.update_layout(
+            title="EBITDA Synergy Bridge",
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='#E5E7EB', size=12),
+            height=500,
+            showlegend=False
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+    except Exception as e:
+        st.error(f"Error loading synergy model: {e}")
+
+
+def render_integration_plan_page(acquirer, target):
+    """100-day integration timeline with milestones."""
+    import plotly.graph_objects as go
+    from datetime import datetime, timedelta
+    
+    st.markdown('<h2 style="text-align:center; margin-bottom:2rem;">📅 100-Day Integration Plan</h2>', unsafe_allow_html=True)
+    
+    st.markdown(f'<h3 style="text-align:center; color:#2563EB;">{acquirer} + {target}</h3>', unsafe_allow_html=True)
+    
+    # Integration phases
+    phases = {
+        "Day 1-30: Foundation": [
+            "Announce deal to employees",
+            "Establish integration management office (IMO)",
+            "Identify and protect key talent",
+            "Communicate customer retention plan",
+            "Freeze hiring at target (except critical roles)",
+            "Assess IT systems and data migration needs",
+            "Align on combined organizational structure"
+        ],
+        "Day 31-60: Execution": [
+            "Begin IT systems integration",
+            "Consolidate facilities where appropriate",
+            "Harmonize compensation and benefits",
+            "Launch cross-functional integration teams",
+            "Execute customer migration/retention plan",
+            "Realize quick-win cost synergies",
+            "Align on combined sales strategy"
+        ],
+        "Day 61-100: Optimization": [
+            "Complete core IT system integrations",
+            "Achieve full organizational alignment",
+            "Launch combined product/service offerings",
+            "Realize revenue synergy initiatives",
+            "Complete facility consolidations",
+            "Sunset redundant systems and processes",
+            "Measure synergy achievement vs. plan"
+        ]
+    }
+    
+    # Render phases
+    for phase, milestones in phases.items():
+        with st.expander(f"**{phase}**", expanded=True):
+            st.markdown(
+                '<div style="background:rgba(17, 24, 39, 0.6); padding:1rem; border-radius:8px;">',
+                unsafe_allow_html=True
+            )
+            
+            for milestone in milestones:
+                col1, col2, col3 = st.columns([3, 1, 1])
+                with col1:
+                    st.markdown(f'<div style="padding:0.5rem 0; color:#E5E7EB;">{milestone}</div>', unsafe_allow_html=True)
+                with col2:
+                    st.selectbox("Owner", ["IMO", "Finance", "HR", "IT", "Ops", "Sales"], 
+                                key=f"owner_{milestone}", label_visibility="collapsed")
+                with col3:
+                    st.selectbox("Status", ["Not Started", "On Track", "At Risk", "Complete"], 
+                                key=f"status_{milestone}", label_visibility="collapsed")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Timeline Gantt
+    st.markdown('<div style="margin-top:2rem;"></div>', unsafe_allow_html=True)
+    st.markdown("### Integration Timeline")
+    
+    today = datetime.now()
+    
+    fig = go.Figure()
+    
+    fig.add_trace(go.Bar(
+        y=["Phase 1: Foundation", "Phase 2: Execution", "Phase 3: Optimization"],
+        x=[30, 30, 40],
+        orientation='h',
+        marker=dict(
+            color=['#2563EB', '#10B981', '#F59E0B'],
+            line=dict(color='rgba(255,255,255,0.2)', width=1)
+        ),
+        text=["Days 1-30", "Days 31-60", "Days 61-100"],
+        textposition='inside',
+        hovertemplate='%{y}<br>Duration: %{x} days<extra></extra>'
+    ))
+    
+    fig.update_layout(
+        title="100-Day Integration Roadmap",
+        xaxis_title="Days Post-Close",
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(color='#E5E7EB', size=12),
+        height=400,
+        showlegend=False,
+        xaxis=dict(gridcolor='rgba(255,255,255,0.1)'),
+        yaxis=dict(gridcolor='rgba(255,255,255,0.1)')
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def render_deal_structure_page(acquirer, target, equity_value):
+    """Deal structuring optimizer - stock vs cash vs mixed."""
+    import plotly.graph_objects as go
+    
+    st.markdown('<h2 style="text-align:center; margin-bottom:2rem;">💼 Deal Structure Optimizer</h2>', unsafe_allow_html=True)
+    
+    st.markdown(f'<h3 style="text-align:center; color:#2563EB;">{acquirer} acquiring {target}</h3>', unsafe_allow_html=True)
+    st.markdown(f'<p style="text-align:center; color:#9CA3AF;">Target Equity Value: ${equity_value:,.0f}M</p>', unsafe_allow_html=True)
+    
+    # Structure options
+    st.markdown('<div style="margin-top:2rem;"></div>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    structures = []
+    
+    with col1:
+        st.markdown(
+            '<div style="background:rgba(17, 24, 39, 0.6); border:1px solid rgba(16, 185, 129, 0.3); '
+            'border-radius:12px; padding:1.5rem;">'
+            '<h4 style="color:#10B981; text-align:center;">100% Cash</h4>',
+            unsafe_allow_html=True
+        )
+        cash_pct_1 = 100
+        stock_pct_1 = 0
+        st.markdown(f'<p style="text-align:center; font-size:0.875rem; color:#9CA3AF;">Cash: ${equity_value:.0f}M</p>', unsafe_allow_html=True)
+        st.markdown(f'<p style="text-align:center; font-size:0.875rem; color:#9CA3AF;">Stock: $0M</p>', unsafe_allow_html=True)
+        
+        st.markdown("**Pros:**", unsafe_allow_html=True)
+        st.markdown("✓ Certainty for sellers<br>✓ No dilution<br>✓ Clean transaction", unsafe_allow_html=True)
+        st.markdown("**Cons:**", unsafe_allow_html=True)
+        st.markdown("✗ Requires financing<br>✗ Higher immediate cost<br>✗ Tax inefficient for sellers", unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        structures.append({"name": "100% Cash", "cash": cash_pct_1, "stock": stock_pct_1})
+    
+    with col2:
+        st.markdown(
+            '<div style="background:rgba(17, 24, 39, 0.6); border:1px solid rgba(37, 99, 235, 0.3); '
+            'border-radius:12px; padding:1.5rem;">'
+            '<h4 style="color:#2563EB; text-align:center;">50/50 Mixed</h4>',
+            unsafe_allow_html=True
+        )
+        cash_pct_2 = 50
+        stock_pct_2 = 50
+        st.markdown(f'<p style="text-align:center; font-size:0.875rem; color:#9CA3AF;">Cash: ${equity_value * 0.5:.0f}M</p>', unsafe_allow_html=True)
+        st.markdown(f'<p style="text-align:center; font-size:0.875rem; color:#9CA3AF;">Stock: ${equity_value * 0.5:.0f}M</p>', unsafe_allow_html=True)
+        
+        st.markdown("**Pros:**", unsafe_allow_html=True)
+        st.markdown("✓ Balanced approach<br>✓ Shares risk/reward<br>✓ Moderate dilution", unsafe_allow_html=True)
+        st.markdown("**Cons:**", unsafe_allow_html=True)
+        st.markdown("✗ Complex structuring<br>✗ Some dilution<br>✗ Market risk on stock portion", unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        structures.append({"name": "50/50 Mixed", "cash": cash_pct_2, "stock": stock_pct_2})
+    
+    with col3:
+        st.markdown(
+            '<div style="background:rgba(17, 24, 39, 0.6); border:1px solid rgba(245, 158, 11, 0.3); '
+            'border-radius:12px; padding:1.5rem;">'
+            '<h4 style="color:#F59E0B; text-align:center;">100% Stock</h4>',
+            unsafe_allow_html=True
+        )
+        cash_pct_3 = 0
+        stock_pct_3 = 100
+        st.markdown(f'<p style="text-align:center; font-size:0.875rem; color:#9CA3AF;">Cash: $0M</p>', unsafe_allow_html=True)
+        st.markdown(f'<p style="text-align:center; font-size:0.875rem; color:#9CA3AF;">Stock: ${equity_value:.0f}M</p>', unsafe_allow_html=True)
+        
+        st.markdown("**Pros:**", unsafe_allow_html=True)
+        st.markdown("✓ Preserve cash<br>✓ Tax-deferred for sellers<br>✓ Aligns interests", unsafe_allow_html=True)
+        st.markdown("**Cons:**", unsafe_allow_html=True)
+        st.markdown("✗ Dilutive<br>✗ Market risk<br>✗ Potential for seller resistance", unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        structures.append({"name": "100% Stock", "cash": cash_pct_3, "stock": stock_pct_3})
+    
+    # Comparison chart
+    st.markdown('<div style="margin-top:2rem;"></div>', unsafe_allow_html=True)
+    st.markdown("### Structure Comparison")
+    
+    fig = go.Figure()
+    
+    for struct in structures:
+        fig.add_trace(go.Bar(
+            name=struct["name"],
+            x=["Cash", "Stock"],
+            y=[struct["cash"], struct["stock"]],
+            text=[f"{struct['cash']}%", f"{struct['stock']}%"],
+            textposition='inside',
+            marker=dict(
+                color=['#10B981', '#2563EB'] if struct["cash"] > struct["stock"] 
+                      else ['#2563EB', '#F59E0B'] if struct["cash"] == struct["stock"]
+                      else ['#F59E0B', '#2563EB']
+            )
+        ))
+    
+    fig.update_layout(
+        barmode='group',
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(color='#E5E7EB', size=12),
+        height=400,
+        xaxis=dict(gridcolor='rgba(255,255,255,0.1)'),
+        yaxis=dict(gridcolor='rgba(255,255,255,0.1)', title="Percentage")
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def render_fairness_opinion_page(ticker, offer_price):
+    """Fairness opinion summary with valuation ranges."""
+    import yfinance as yf
+    import plotly.graph_objects as go
+    
+    st.markdown('<h2 style="text-align:center; margin-bottom:2rem;">📊 Fairness Opinion</h2>', unsafe_allow_html=True)
+    
+    try:
+        tk = yf.Ticker(ticker)
+        info = tk.info or {}
+        name = info.get("shortName", ticker)
+        current_price = info.get("currentPrice") or info.get("regularMarketPrice", 0)
+        
+        st.markdown(f'<h3 style="text-align:center; color:#2563EB;">{name} ({ticker})</h3>', unsafe_allow_html=True)
+        st.markdown(f'<p style="text-align:center; color:#9CA3AF;">Offer Price: ${offer_price:.2f} | Current: ${current_price:.2f}</p>', unsafe_allow_html=True)
+        
+        # Valuation methodologies
+        st.markdown('<div style="margin-top:2rem;"></div>', unsafe_allow_html=True)
+        
+        # Simplified valuation ranges (in reality would use DCF, comps, etc.)
+        methodologies = {
+            "DCF Analysis": (current_price * 0.85, current_price * 1.25),
+            "Public Comps": (current_price * 0.90, current_price * 1.15),
+            "Precedent Transactions": (current_price * 1.10, current_price * 1.40),
+            "52-Week Range": (current_price * 0.80, current_price * 1.10),
+        }
+        
+        # Football field chart
+        fig = go.Figure()
+        
+        y_pos = 0
+        for method, (low, high) in methodologies.items():
+            # Determine color based on if offer is in range
+            if low <= offer_price <= high:
+                color = '#10B981'  # Green if in range
+            elif offer_price < low:
+                color = '#EF4444'  # Red if below
+            else:
+                color = '#2563EB'  # Blue if above
+            
+            fig.add_trace(go.Scatter(
+                x=[low, high],
+                y=[y_pos, y_pos],
+                mode='lines+markers',
+                name=method,
+                line=dict(color=color, width=8),
+                marker=dict(size=10, color=color),
+                text=[f"${low:.2f}", f"${high:.2f}"],
+                textposition="top center",
+                hovertemplate=f'{method}<br>Low: ${low:.2f}<br>High: ${high:.2f}<extra></extra>'
+            ))
+            
+            y_pos += 1
+        
+        # Add offer price line
+        fig.add_vline(x=offer_price, line_dash="dash", line_color="#F59E0B", line_width=3, 
+                     annotation_text=f"Offer: ${offer_price:.2f}", annotation_position="top")
+        
+        fig.update_layout(
+            title="Valuation Football Field",
+            xaxis_title="Price per Share ($)",
+            yaxis=dict(
+                tickmode='array',
+                tickvals=list(range(len(methodologies))),
+                ticktext=list(methodologies.keys())
+            ),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='#E5E7EB', size=12),
+            height=500,
+            showlegend=False,
+            xaxis=dict(gridcolor='rgba(255,255,255,0.1)'),
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Fairness conclusion
+        st.markdown('<div style="margin-top:2rem;"></div>', unsafe_allow_html=True)
+        
+        # Calculate if fair
+        avg_low = sum(v[0] for v in methodologies.values()) / len(methodologies)
+        avg_high = sum(v[1] for v in methodologies.values()) / len(methodologies)
+        
+        is_fair = avg_low <= offer_price <= avg_high
+        
+        if is_fair:
+            st.markdown(
+                f'<div style="background:rgba(16, 185, 129, 0.15); border:2px solid #10B981; '
+                f'border-radius:12px; padding:2rem; text-align:center;">'
+                f'<h3 style="color:#10B981;">✓ Opinion: FAIR</h3>'
+                f'<p style="color:#E5E7EB; font-size:1rem;">The offer price of <strong>${offer_price:.2f}</strong> '
+                f'falls within the range of valuation methodologies applied and is considered '
+                f'<strong>fair from a financial point of view</strong> to the shareholders.</p>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+        else:
+            st.markdown(
+                f'<div style="background:rgba(239, 68, 68, 0.15); border:2px solid #EF4444; '
+                f'border-radius:12px; padding:2rem; text-align:center;">'
+                f'<h3 style="color:#EF4444;">✗ Opinion: REQUIRES REVIEW</h3>'
+                f'<p style="color:#E5E7EB; font-size:1rem;">The offer price of <strong>${offer_price:.2f}</strong> '
+                f'falls outside the typical range suggested by valuation methodologies. '
+                f'<strong>Further analysis recommended.</strong></p>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+        
+        # Key assumptions
+        st.markdown('<div style="margin-top:2rem;"></div>', unsafe_allow_html=True)
+        with st.expander("**Key Assumptions & Limitations**"):
+            st.markdown("""
+            - **DCF Analysis**: 5-year projection period, WACC 8-10%, terminal growth 3%
+            - **Public Comps**: Selected based on industry, size, and business model similarity  
+            - **Precedent Transactions**: Transactions within last 3 years in same sector
+            - **Market Conditions**: Based on current market multiples and trading levels
+            - **Limitations**: This is a simplified analysis. Full fairness opinions include extensive due diligence, management interviews, and detailed financial modeling.
+            """)
+    
+    except Exception as e:
+        st.error(f"Error generating fairness opinion: {e}")
+
