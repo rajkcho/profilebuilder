@@ -2476,19 +2476,19 @@ footer {{ visibility: hidden; }}
     border-top-color: #2563EB;
     border-right-color: rgba(37,99,235,0.4);
     border-bottom-color: rgba(37,99,235,0.1);
-    animation: orbitRotate 8s linear infinite;
+    /* animation disabled for clean professional look */
 }}
 .orbital-ring-2 {{
     width: 100px; height: 100px;
     border-top-color: #10B981;
     border-right-color: rgba(16,185,129,0.3);
-    animation: orbitRotateReverse 12s linear infinite;
+    /* animation disabled for clean professional look */
 }}
 .orbital-ring-3 {{
     width: 130px; height: 130px;
     border-top-color: #60A5FA;
     border-left-color: rgba(155,138,255,0.2);
-    animation: orbitRotate 16s linear infinite, ringFlash 4s ease-in-out infinite;
+    /* animation disabled for clean professional look */
 }}
 .orbital-particle {{
     position: absolute;
@@ -3688,109 +3688,29 @@ st.markdown(f"""
     box-shadow: {_STARS3};
 }}
 
-/* Nebula overlay */
+/* Nebula overlay (DISABLED for clean professional look) */
 .nebula-overlay {{
-    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-    background:
-        radial-gradient(ellipse at 20% 50%, rgba(37,99,235,0.15) 0%, transparent 50%),
-        radial-gradient(ellipse at 75% 20%, rgba(16,185,129,0.1) 0%, transparent 45%),
-        radial-gradient(ellipse at 50% 80%, rgba(59,130,246,0.08) 0%, transparent 50%),
-        radial-gradient(ellipse at 90% 70%, rgba(45,195,195,0.06) 0%, transparent 40%);
-    animation: nebulaPulse 30s ease-in-out infinite;
-    pointer-events: none;
+    display: none !important;
 }}
 
-/* Floating luminous orbs */
-.orb {{
-    position: absolute;
-    border-radius: 50%;
-    pointer-events: none;
-}}
-.orb-1 {{
-    width: 200px; height: 200px;
-    background: rgba(37,99,235,0.12);
-    filter: blur(80px);
-    top: 10%; left: 5%;
-    animation: float1 20s ease-in-out infinite, orbBreath1 10s ease-in-out infinite;
-}}
-.orb-2 {{
-    width: 160px; height: 160px;
-    background: rgba(16,185,129,0.1);
-    filter: blur(70px);
-    top: 60%; right: 10%;
-    animation: float2 22s ease-in-out infinite;
-}}
-.orb-3 {{
-    width: 120px; height: 120px;
-    background: rgba(59,130,246,0.08);
-    filter: blur(60px);
-    top: 30%; right: 25%;
-    animation: float3 18s ease-in-out infinite;
-}}
-.orb-4 {{
-    width: 180px; height: 180px;
-    background: rgba(155,138,255,0.08);
-    filter: blur(90px);
-    bottom: 10%; left: 30%;
-    animation: float4 25s ease-in-out infinite, orbBreath4 12s ease-in-out 3s infinite;
-}}
-.orb-5 {{
-    width: 100px; height: 100px;
-    background: rgba(45,195,195,0.06);
-    filter: blur(60px);
-    top: 15%; right: 5%;
-    animation: float2 19s ease-in-out infinite reverse;
+/* Floating luminous orbs (DISABLED for clean professional look) */
+.orb, .orb-1, .orb-2, .orb-3, .orb-4, .orb-5 {{
+    display: none !important;
 }}
 
-/* Shooting stars */
-.shooting-star {{
-    position: absolute;
-    width: 120px; height: 1.5px;
-    background: linear-gradient(90deg, rgba(255,255,255,0.8), transparent);
-    border-radius: 50%;
-    pointer-events: none;
-    opacity: 0;
-}}
-.shooting-star-1 {{
-    top: 15%; right: -120px;
-    animation: shootingStar 8s ease-in-out 2s infinite;
-}}
-.shooting-star-2 {{
-    top: 40%; right: -120px;
-    animation: shootingStar 10s ease-in-out 5s infinite;
-}}
-.shooting-star-3 {{
-    top: 25%; right: -120px;
-    animation: shootingStar 12s ease-in-out 8s infinite;
-}}
-.shooting-star-4 {{
-    top: 55%; right: -120px;
-    animation: shootingStar 15s ease-in-out 11s infinite;
-    transform: rotate(-8deg);
-}}
-.shooting-star-5 {{
-    top: 8%; right: -120px;
-    animation: shootingStar 20s ease-in-out 16s infinite;
-    transform: rotate(5deg);
+/* Shooting stars (DISABLED for clean professional look) */
+.shooting-star, .shooting-star-1, .shooting-star-2, .shooting-star-3, .shooting-star-4, .shooting-star-5 {{
+    display: none !important;
 }}
 
-/* Noise/grain overlay */
+/* Noise/grain overlay (DISABLED for clean professional look) */
 .noise-overlay {{
-    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-    opacity: 0.04;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    pointer-events: none;
+    display: none !important;
 }}
 
-/* Title glow halo */
+/* Title glow halo (DISABLED for clean professional look) */
 .title-glow {{
-    position: absolute;
-    width: 400px; height: 200px;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -70%);
-    background: radial-gradient(ellipse, rgba(37,99,235,0.2) 0%, transparent 70%);
-    animation: titleGlow 4s ease-in-out infinite;
-    pointer-events: none;
+    display: none !important;
 }}
 
 /* Content layer */
