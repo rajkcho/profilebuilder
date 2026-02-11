@@ -416,7 +416,7 @@ def _render_status_badge(text: str, status: str = "neutral") -> str:
         "positive": ("#10B981", "rgba(16,185,129,0.15)"),
         "negative": ("#EF4444", "rgba(239,68,68,0.15)"),
         "warning": ("#F5A623", "rgba(245,166,35,0.15)"),
-        "neutral": ("#9CA3AF", "rgba(138,133,173,0.15)"),
+        "neutral": ("#9CA3AF", "rgba(156,163,175,0.15)"),
         "info": ("#2563EB", "rgba(37,99,235,0.15)"),
     }
     text_color, bg_color = colors.get(status, colors["neutral"])
@@ -797,7 +797,7 @@ def _calculate_market_sentiment() -> dict:
         if score >= 80:
             return {"score": round(score), "label": "Extreme Greed", "color": "#10B981"}
         elif score >= 60:
-            return {"score": round(score), "label": "Greed", "color": "#34D399"}
+            return {"score": round(score), "label": "Greed", "color": "#10B981"}
         elif score >= 40:
             return {"score": round(score), "label": "Neutral", "color": "#F59E0B"}
         elif score >= 20:
@@ -1671,7 +1671,7 @@ def _build_price_performance_chart(tickers: list, period: str = "1y", key: str =
         return
     
     fig = go.Figure()
-    colors = ["#2563EB", "#10B981", "#10B981", "#F5A623", "#3B82F6", 
+    colors = ["#2563EB", "#10B981", "#10B981", "#F5A623", "#60A5FA", 
               "#8B5CF6", "#EC4899", "#14B8A6", "#F59E0B", "#6366F1"]
     
     for i, ticker in enumerate(tickers[:10]):
@@ -1770,7 +1770,7 @@ def _build_comparison_radar(companies: list, key: str = "compare_radar"):
     
     fig = go.Figure()
     
-    colors = ["#2563EB", "#10B981", "#10B981", "#F5A623", "#3B82F6"]
+    colors = ["#2563EB", "#10B981", "#10B981", "#F5A623", "#60A5FA"]
     
     for i, cd in enumerate(companies[:5]):  # Max 5 companies
         values = []
@@ -1907,7 +1907,7 @@ _STARS3 = _gen_stars(30)
 # ── Chart visual helpers ──────────────────────────────────
 _CHART_LAYOUT_BASE = dict(
     paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(11,14,26,0.3)",
+    plot_bgcolor="rgba(12,15,26,0.3)",
     font=dict(family="Inter", size=11, color="#9CA3AF"),
     title=dict(text=""),  # Explicitly no title (prevents "undefined" rendering)
     hoverlabel=dict(
@@ -3742,7 +3742,7 @@ header {{ visibility: hidden; }}
     color: #06B6D4;
 }}
 .scanner-control .phase-indicator-active::after {{
-    border-top-color: #06B6D4;
+    border-top-color: #60A5FA;
 }}
 .scanner-control .mission-phase-active {{
     background: rgba(6,182,212,0.1);
@@ -3750,7 +3750,7 @@ header {{ visibility: hidden; }}
     animation: scannerPhasePulse 2s ease-in-out infinite;
 }}
 .scanner-control .mission-progress-fill {{
-    background: linear-gradient(90deg, #06B6D4, #3B82F6, #2563EB, #06B6D4);
+    background: linear-gradient(90deg, #06B6D4, #60A5FA, #2563EB, #06B6D4);
     background-size: 200% 100%;
 }}
 .scanner-control .mission-progress-fill::after {{
@@ -3841,7 +3841,7 @@ a {{
     position: relative !important;
 }}
 a:hover {{
-    color: #3B82F6 !important;
+    color: #60A5FA !important;
     text-shadow: 0 0 8px rgba(37,99,235,0.3) !important;
 }}
 a::after {{
@@ -5193,7 +5193,7 @@ def _build_football_field_chart(football_field, currency_symbol="$", key="footba
     lows = [methods[m]["low"] for m in labels]
     highs = [methods[m]["high"] for m in labels]
 
-    colors = ["#2563EB", "#10B981", "#F5A623", "#10B981", "#3B82F6"]
+    colors = ["#2563EB", "#10B981", "#F5A623", "#10B981", "#60A5FA"]
 
     fig = go.Figure()
     for i, label in enumerate(labels):
@@ -5642,7 +5642,7 @@ with st.sidebar:
         "📊 Company Profile": "#2563EB",
         "📈 Comps Analysis": "#10B981",
         "💹 DCF Valuation": "#F5A623",
-        "⚖️ Quick Compare": "#3B82F6",
+        "⚖️ Quick Compare": "#60A5FA",
         "🤝 Merger Analysis": "#EF4444",
         "🔍 VMS Screener": "#8B5CF6",
         "📊 Options P/L": "#EC4899",
@@ -5943,7 +5943,7 @@ with st.sidebar:
 
                     # Mini scatter: portfolio vs individual stocks
                     fig_ps = go.Figure()
-                    _colors_ps = ["#10B981", "#3B82F6", "#F5A623", "#8B5CF6", "#14B8A6"]
+                    _colors_ps = ["#10B981", "#60A5FA", "#F5A623", "#8B5CF6", "#14B8A6"]
                     for _si, _st in enumerate(_ps_tickers):
                         fig_ps.add_trace(go.Scatter(
                             x=[float(_ann_vol.iloc[_si]) * 100], y=[float(_ann_ret.iloc[_si]) * 100],
@@ -7848,9 +7848,9 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             # Sector-derived accent colors
             _sector_colors = {
                 "Technology": ("#2563EB", "#60A5FA"), "Healthcare": ("#10B981", "#F093B0"),
-                "Financial Services": ("#F5A623", "#F7C574"), "Financials": ("#F5A623", "#F7C574"),
-                "Consumer Cyclical": ("#10B981", "#6EE7B7"), "Consumer Defensive": ("#34D399", "#A7F3D0"),
-                "Energy": ("#EF4444", "#FCA5A5"), "Industrials": ("#3B82F6", "#93C5FD"),
+                "Financial Services": ("#F5A623", "#F5A623"), "Financials": ("#F5A623", "#F5A623"),
+                "Consumer Cyclical": ("#10B981", "#6EE7B7"), "Consumer Defensive": ("#10B981", "#A7F3D0"),
+                "Energy": ("#EF4444", "#FCA5A5"), "Industrials": ("#60A5FA", "#93C5FD"),
                 "Real Estate": ("#8B5CF6", "#C4B5FD"), "Communication Services": ("#EC4899", "#F9A8D4"),
                 "Basic Materials": ("#D97706", "#FCD34D"), "Utilities": ("#06B6D4", "#67E8F9"),
             }
@@ -8485,7 +8485,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             mom_color = "#10B981"
         elif _cd_price_change_pct > 0:
             mom_str = "Bullish"
-            mom_color = "#34D399"
+            mom_color = "#10B981"
         elif _cd_price_change_pct > -2:
             mom_str = "Bearish"
             mom_color = "#F97316"
@@ -9218,7 +9218,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 _ma_color = "#10B981"
             elif _ma_score >= 55:
                 _ma_label = "Attractive"
-                _ma_color = "#34D399"
+                _ma_color = "#10B981"
             elif _ma_score >= 35:
                 _ma_label = "Moderate"
                 _ma_color = "#F59E0B"
@@ -9236,7 +9236,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                             <linearGradient id="maGaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
                                 <stop offset="0%" style="stop-color:#EF4444"/>
                                 <stop offset="35%" style="stop-color:#F59E0B"/>
-                                <stop offset="55%" style="stop-color:#34D399"/>
+                                <stop offset="55%" style="stop-color:#10B981"/>
                                 <stop offset="100%" style="stop-color:#10B981"/>
                             </linearGradient>
                         </defs>
@@ -10245,7 +10245,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
             fib_low = plot_hist["Close"].min()
             fib_diff = fib_high - fib_low
             fib_levels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0]
-            fib_colors = ["#EF4444", "#F59E0B", "#F5A623", "#9CA3AF", "#10B981", "#3B82F6", "#2563EB"]
+            fib_colors = ["#EF4444", "#F59E0B", "#F5A623", "#9CA3AF", "#10B981", "#60A5FA", "#2563EB"]
             for lvl, clr in zip(fib_levels, fib_colors):
                 fib_price = fib_high - fib_diff * lvl
                 fig.add_hline(
@@ -10569,7 +10569,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 if momentum >= 80:
                     m_label, m_color = "Strong Buy", "#10B981"
                 elif momentum >= 60:
-                    m_label, m_color = "Buy", "#34D399"
+                    m_label, m_color = "Buy", "#10B981"
                 elif momentum >= 40:
                     m_label, m_color = "Neutral", "#F59E0B"
                 elif momentum >= 20:
@@ -10873,7 +10873,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
 
                         _labels = [n[:25] for n in _top5_names] + ["Other Institutions"]
                         _values = _top5_pct + [_rest]
-                        _colors_donut = ["#2563EB", "#10B981", "#10B981", "#F5A623", "#3B82F6", "#9CA3AF"]
+                        _colors_donut = ["#2563EB", "#10B981", "#10B981", "#F5A623", "#60A5FA", "#9CA3AF"]
 
                         fig_donut = go.Figure(data=[go.Pie(
                             labels=_labels, values=_values,
@@ -11066,7 +11066,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         _rd_seg_data = _rd_seg_data.sort_index()
                         _rd_seg_data.columns = [str(c).replace("Revenue", "").strip() or str(c) for c in _rd_seg_data.columns]
                         fig_rd = go.Figure()
-                        _rd_colors = ["#2563EB", "#10B981", "#10B981", "#F5A623", "#3B82F6", "#8B5CF6"]
+                        _rd_colors = ["#2563EB", "#10B981", "#10B981", "#F5A623", "#60A5FA", "#8B5CF6"]
                         for i, col in enumerate(_rd_seg_data.columns):
                             fig_rd.add_trace(go.Bar(
                                 x=_rd_seg_data.index.strftime("%Y"), y=_rd_seg_data[col],
@@ -11109,7 +11109,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         labels=[r[0] for r in _rd_regions],
                         values=[r[1] for r in _rd_regions],
                         hole=0.5,
-                        marker=dict(colors=["#2563EB", "#10B981", "#10B981", "#F5A623", "#3B82F6"]),
+                        marker=dict(colors=["#2563EB", "#10B981", "#10B981", "#F5A623", "#60A5FA"]),
                         textinfo="label+percent", textfont=dict(size=11, color="#F9FAFB"),
                     ))
                     fig_rd_geo.update_layout(**_CHART_LAYOUT_BASE, height=300, margin=dict(t=20, b=20, l=20, r=20),
@@ -12237,7 +12237,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                     if score < 10:
                         return "Negligible", "#10B981"
                     elif score < 20:
-                        return "Low", "#34D399"
+                        return "Low", "#10B981"
                     elif score < 30:
                         return "Medium", "#F59E0B"
                     elif score < 40:
@@ -12433,8 +12433,8 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 def _letter_grade(score):
                     if score >= 90: return "A+", "#10B981"
                     if score >= 80: return "A", "#10B981"
-                    if score >= 70: return "B+", "#34D399"
-                    if score >= 60: return "B", "#34D399"
+                    if score >= 70: return "B+", "#10B981"
+                    if score >= 60: return "B", "#10B981"
                     if score >= 50: return "C+", "#F59E0B"
                     if score >= 40: return "C", "#F59E0B"
                     if score >= 30: return "D", "#EF4444"
@@ -12613,7 +12613,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                         vals.append(int(v) if pd.notna(v) else 0)
                     except Exception:
                         vals.append(0)
-                colors = ["#10B981", "#34D399", "#F59E0B", "#EF4444", "#991B1B"]
+                colors = ["#10B981", "#10B981", "#F59E0B", "#EF4444", "#991B1B"]
                 total = sum(vals)
 
                 # Wider bar for the majority category
@@ -13188,7 +13188,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
                 }
                 fig_yc = go.Figure(go.Bar(
                     x=list(_yield_data.keys()), y=list(_yield_data.values()),
-                    marker_color=["#2563EB", "#3B82F6", "#F59E0B", "#8B5CF6"],
+                    marker_color=["#2563EB", "#60A5FA", "#F59E0B", "#8B5CF6"],
                     text=[f"{v:.2f}%" for v in _yield_data.values()],
                     textposition="outside", textfont=dict(size=10, color="#D1D5DB"),
                 ))
@@ -13307,7 +13307,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         grade_label = "Strong"
     elif score_pct >= 50:
         grade = "B"
-        grade_color = "#34D399"
+        grade_color = "#10B981"
         grade_label = "Good"
     elif score_pct >= 25:
         grade = "C"
@@ -14280,7 +14280,7 @@ if analysis_mode == "Company Profile" and generate_btn and ticker_input:
         def _esg_risk_level(score):
             if score is None: return ("N/A", "#9CA3AF")
             if score < 10: return ("Negligible", "#10B981")
-            if score < 20: return ("Low", "#34D399")
+            if score < 20: return ("Low", "#10B981")
             if score < 30: return ("Medium", "#F59E0B")
             if score < 40: return ("High", "#EF4444")
             return ("Severe", "#DC2626")
@@ -16597,7 +16597,7 @@ elif analysis_mode == "Comps Analysis" and comps_btn and comps_ticker_input:
                 
                 names = [m[0] for m in ff_methods]
                 values = [m[1] for m in ff_methods]
-                colors = ["#2563EB", "#10B981", "#10B981", "#F5A623", "#3B82F6"][:len(ff_methods)]
+                colors = ["#2563EB", "#10B981", "#10B981", "#F5A623", "#60A5FA"][:len(ff_methods)]
                 
                 fig_ff.add_trace(go.Bar(
                     y=names, x=values, orientation="h",
@@ -18834,14 +18834,14 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     if pro_forma.accretion_dilution_pct:
         ad = pro_forma.accretion_dilution_pct
         if ad > 5: deal_scores.append(("EPS Accretion", 10, "#10B981", f"+{ad:.1f}%"))
-        elif ad > 0: deal_scores.append(("EPS Accretion", 7, "#34D399", f"+{ad:.1f}%"))
+        elif ad > 0: deal_scores.append(("EPS Accretion", 7, "#10B981", f"+{ad:.1f}%"))
         elif ad > -5: deal_scores.append(("EPS Accretion", 4, "#F59E0B", f"{ad:.1f}%"))
         else: deal_scores.append(("EPS Accretion", 2, "#EF4444", f"{ad:.1f}%"))
     
     # 2. Premium reasonableness
     prem = merger_assumptions.offer_premium_pct
     if prem < 20: deal_scores.append(("Premium", 9, "#10B981", f"{prem:.0f}%"))
-    elif prem < 35: deal_scores.append(("Premium", 7, "#34D399", f"{prem:.0f}%"))
+    elif prem < 35: deal_scores.append(("Premium", 7, "#10B981", f"{prem:.0f}%"))
     elif prem < 50: deal_scores.append(("Premium", 5, "#F59E0B", f"{prem:.0f}%"))
     else: deal_scores.append(("Premium", 2, "#EF4444", f"{prem:.0f}%"))
     
@@ -18849,7 +18849,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     if 'syn_pv' in dir() and 'premium_paid' in dir() and premium_paid > 0:
         syn_cov = syn_pv / premium_paid * 100
         if syn_cov > 100: deal_scores.append(("Synergy Coverage", 10, "#10B981", f"{syn_cov:.0f}%"))
-        elif syn_cov > 60: deal_scores.append(("Synergy Coverage", 7, "#34D399", f"{syn_cov:.0f}%"))
+        elif syn_cov > 60: deal_scores.append(("Synergy Coverage", 7, "#10B981", f"{syn_cov:.0f}%"))
         elif syn_cov > 30: deal_scores.append(("Synergy Coverage", 4, "#F59E0B", f"{syn_cov:.0f}%"))
         else: deal_scores.append(("Synergy Coverage", 2, "#EF4444", f"{syn_cov:.0f}%"))
     
@@ -18864,7 +18864,7 @@ elif analysis_mode == "Merger Analysis" and merger_btn and acquirer_input and ta
     if acq_cd.market_cap and tgt_cd.market_cap:
         size_ratio = tgt_cd.market_cap / acq_cd.market_cap * 100
         if size_ratio < 15: deal_scores.append(("Size Ratio", 9, "#10B981", f"{size_ratio:.0f}%"))
-        elif size_ratio < 30: deal_scores.append(("Size Ratio", 7, "#34D399", f"{size_ratio:.0f}%"))
+        elif size_ratio < 30: deal_scores.append(("Size Ratio", 7, "#10B981", f"{size_ratio:.0f}%"))
         elif size_ratio < 50: deal_scores.append(("Size Ratio", 5, "#F59E0B", f"{size_ratio:.0f}%"))
         else: deal_scores.append(("Size Ratio", 3, "#EF4444", f"{size_ratio:.0f}%"))
     
@@ -18957,16 +18957,16 @@ h2 {{ color: #2563EB; margin-top: 2rem; font-size: 1.3rem; border-bottom: 1px so
 .header h1 {{ color: white; border: none; font-size: 2rem; margin: 0; }}
 .header p {{ margin: 0.3rem 0; opacity: 0.9; }}
 .metric-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1rem 0; }}
-.metric {{ background: #f8f9fa; border-radius: 8px; padding: 1rem; text-align: center; border: 1px solid #e9ecef; }}
+.metric {{ background: #F3F4F6; border-radius: 8px; padding: 1rem; text-align: center; border: 1px solid #E5E7EB; }}
 .metric .label {{ font-size: 0.75rem; color: #6c757d; text-transform: uppercase; letter-spacing: 0.5px; }}
 .metric .value {{ font-size: 1.3rem; font-weight: 700; color: #1a1a2e; }}
 .section {{ margin: 1.5rem 0; }}
 table {{ width: 100%; border-collapse: collapse; margin: 1rem 0; }}
-th, td {{ padding: 0.6rem 1rem; text-align: left; border-bottom: 1px solid #e9ecef; }}
+th, td {{ padding: 0.6rem 1rem; text-align: left; border-bottom: 1px solid #E5E7EB; }}
 th {{ background: #F3F4F6; font-weight: 600; color: #374151; font-size: 0.85rem; }}
 ul {{ padding-left: 1.5rem; }}
 li {{ margin-bottom: 0.4rem; }}
-.footer {{ text-align: center; color: #adb5bd; font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #e9ecef; }}
+.footer {{ text-align: center; color: #9CA3AF; font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #E5E7EB; }}
 .accretive {{ color: #10B981; font-weight: 700; }}
 .dilutive {{ color: #EF4444; font-weight: 700; }}
 </style></head><body>
@@ -20266,7 +20266,7 @@ elif analysis_mode == "Quick Compare" and compare_btn and compare_tickers:
             x=[d[0] for d in mc_data],
             y=[d[1] for d in mc_data],
             marker=dict(
-                color=["#2563EB", "#10B981", "#10B981", "#F5A623", "#3B82F6", 
+                color=["#2563EB", "#10B981", "#10B981", "#F5A623", "#60A5FA", 
                        "#8B5CF6", "#EC4899", "#14B8A6", "#F59E0B", "#6366F1"][:len(mc_data)],
                 line=dict(color="rgba(255,255,255,0.15)", width=1),
             ),
@@ -20491,7 +20491,7 @@ elif analysis_mode == "Quick Compare" and compare_btn and compare_tickers:
 
                 # Build radar chart
                 fig_radar = go.Figure()
-                radar_colors = ["#2563EB", "#10B981", "#10B981", "#F5A623", "#3B82F6"]
+                radar_colors = ["#2563EB", "#10B981", "#10B981", "#F5A623", "#60A5FA"]
 
                 for i, (ticker, scores) in enumerate(company_scores.items()):
                     vals = [scores[d] for d in dimensions]
@@ -20618,7 +20618,7 @@ elif analysis_mode == "Quick Compare" and compare_btn and compare_tickers:
                         _verdict = "📊 Balanced profile"
 
                     _mc_str = f"${_m['market_cap']/1e9:.1f}B" if _m['market_cap'] >= 1e9 else f"${_m['market_cap']/1e6:.0f}M" if _m['market_cap'] >= 1e6 else "N/A"
-                    _border_c = ["#2563EB", "#10B981", "#10B981", "#F5A623", "#3B82F6"][i % 5]
+                    _border_c = ["#2563EB", "#10B981", "#10B981", "#F5A623", "#60A5FA"][i % 5]
                     st.markdown(
                         f'<div style="padding:0.8rem; background:rgba(255,255,255,0.03); border-radius:10px; '
                         f'border-left:3px solid {_border_c}; margin-bottom:0.5rem;">'
