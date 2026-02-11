@@ -2397,7 +2397,7 @@ footer {{ visibility: hidden; }}
 }}
 @keyframes borderGlow {{
     0%, 100% {{ border-color: rgba(37,99,235,0.3); }}
-    50% {{ border-color: rgba(155,138,255,0.6); }}
+    50% {{ border-color: rgba(96,165,250,0.6); }}
 }}
 @keyframes rocketLaunch {{
     0% {{ transform: translateY(0) scale(1); opacity: 1; }}
@@ -2615,7 +2615,7 @@ footer {{ visibility: hidden; }}
 .orbital-ring-3 {{
     width: 130px; height: 130px;
     border-top-color: #60A5FA;
-    border-left-color: rgba(155,138,255,0.2);
+    border-left-color: rgba(96,165,250,0.2);
     animation: orbitRotate 24s linear infinite, ringFlash 6s ease-in-out infinite;
 }}
 .orbital-particle {{
@@ -4347,7 +4347,7 @@ st.markdown(f"""
     width: 10px; height: 10px;
     border-radius: 50%;
     background: #fff;
-    box-shadow: 0 0 10px rgba(155,138,255,0.8), 0 0 20px rgba(37,99,235,0.4);
+    box-shadow: 0 0 10px rgba(96,165,250,0.8), 0 0 20px rgba(37,99,235,0.4);
 }}
 .mission-phases {{
     display: flex;
