@@ -3903,9 +3903,19 @@ st.markdown(f"""
     overflow: hidden;
 }}
 .space-section-title {{
-    font-size: 0.75rem; font-weight: 600; color: #A8A3C7;
+    font-size: 0.75rem; font-weight: 600; color: #9CA3AF;
     text-transform: uppercase; letter-spacing: 2px;
     text-align: center; margin-bottom: 1.5rem;
+    position: relative;
+    padding-bottom: 0.75rem;
+}}
+.space-section-title::after {{
+    content: '';
+    position: absolute;
+    bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 60px; height: 2px;
+    background: linear-gradient(90deg, transparent, #2563EB, transparent);
+    border-radius: 2px;
 }}
 
 /* ── GLASS STEP CARDS ──────────────────────────────────── */
