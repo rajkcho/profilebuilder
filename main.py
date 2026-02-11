@@ -2149,14 +2149,16 @@ footer {{ visibility: hidden; }}
 [data-testid="stMetric"] label {{
     color: #9CA3AF !important;
     font-weight: 600 !important;
-    font-size: 0.75rem !important;
+    font-size: 0.72rem !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
+    letter-spacing: 0.08em !important;
+    margin-bottom: 0.4rem !important;
 }}
 [data-testid="stMetric"] [data-testid="stMetricValue"] {{
     color: #F9FAFB !important;
-    font-size: 1.5rem !important;
-    font-weight: 700 !important;
+    font-size: 1.65rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.02em !important;
 }}
 
 /* ── GLASS CARD BASE STYLE ──────────────────────────────── */
